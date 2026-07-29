@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #05e0e9;
+  --primary-hover: #04cbd2;
+  --btn-yellow: #ffde59;
+  --btn-yellow-hover: #fcd338;
+  --bg-dark-main: #545454;
+  --bg-dark-surface: #383838;
+  --bg-dark-card: #2c2c2c;
+  --bg-light-main: #f4f5f8;
+  --bg-light-surface: #ffffff;
+  --bg-light-card: #e9ecef;
+}
+
+@layer base {
+  body {
+    @apply antialiased select-none transition-colors duration-200;
+    font-family: 'CircularStd', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  body.theme-dark {
+    background-color: var(--bg-dark-main);
+    color: #ffffff;
+  }
+
+  body.theme-light {
+    background-color: var(--bg-light-main);
+    color: #121212;
+  }
+}
+
+/* Custom Palette Utilities */
+.bg-qamuz-primary {
+  background-color: #05e0e9;
+}
+
+.text-qamuz-primary {
+  color: #05e0e9;
+}
+
+.border-qamuz-primary {
+  border-color: #05e0e9;
+}
+
+.bg-qamuz-btn {
+  background-color: #ffde59;
+  color: #000000;
+}
+
+.bg-qamuz-btn:hover {
+  background-color: #fcd338;
+}
+
+.text-qamuz-btn {
+  color: #ffde59;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+}
+
+.theme-light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Custom Range Input (Slider for scrubber & volume) */
+input[type="range"] {
+  accent-color: #ffde59;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+/* Glassmorphism & cards */
+.theme-dark .spotify-card {
+  background-color: #383838;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.theme-dark .spotify-card:hover {
+  background-color: #444444;
+}
+
+.theme-light .spotify-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.theme-light .spotify-card:hover {
+  background-color: #f8fafc;
+}
+
+/* Equalizer animation */
+@keyframes eq-bounce {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+.animate-eq-1 { animation: eq-bounce 0.8s infinite ease-in-out; }
+.animate-eq-2 { animation: eq-bounce 0.6s infinite ease-in-out 0.2s; }
+.animate-eq-3 { animation: eq-bounce 0.7s infinite ease-in-out 0.4s; }
+.animate-eq-4 { animation: eq-bounce 0.5s infinite ease-in-out 0.1s; }
+
+
