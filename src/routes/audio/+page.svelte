@@ -83,20 +83,18 @@
   let musicSubMode = $state<"easy" | "custom" | "soundtrack">(globalMusic.musicSubMode);
 
   $effect(() => {
-    if (globalMusic.activeAudioMode !== activeMode) {
-      globalMusic.activeAudioMode = activeMode;
-    }
-    if (globalMusic.musicSubMode !== musicSubMode) {
-      globalMusic.musicSubMode = musicSubMode;
-    }
-  });
-
-  $effect(() => {
     if (activeMode !== globalMusic.activeAudioMode) {
       activeMode = globalMusic.activeAudioMode;
     }
     if (musicSubMode !== globalMusic.musicSubMode) {
       musicSubMode = globalMusic.musicSubMode;
+    }
+  });
+
+  $effect(() => {
+    // Keep the custom workspace pinned with Library visible.
+    if (activeMode === "music" && musicSubMode === "custom" && !globalMusic.showLibrary) {
+      globalMusic.showLibrary = true;
     }
   });
 
@@ -139,6 +137,7 @@
     mode: "tts" | "stt" | "voice_changer" | "music" | "sound_effects"
   ) {
     activeMode = mode;
+    globalMusic.activeAudioMode = mode;
     // Reset model selection when mode changes
     if (mode === "tts") {
       tts.selectedModel = "eleven_multilingual_v2";
@@ -254,6 +253,7 @@
         if (tab === "music") {
           music.inputPrompt = decodedPrompt;
           musicSubMode = "easy";
+          globalMusic.musicSubMode = "easy";
         } else {
           tts.inputText = decodedPrompt;
         }
@@ -278,6 +278,57 @@
   let isVocalModalOpen = $state(false);
   let isInstrumental = $state(false);
   let selectedVoice = $state<ElevenLabsVoice | null>(null);
+
+  // Custom mode form state
+  let customLyrics = $state("");
+  let customStyle = $state("");
+  let customTitle = $state("");
+  let customSelectedGenre = $state<string | null>(null);
+  let customVocalGender = $state<"female" | "male">("female");
+  let isRefreshingGenres = $state(false);
+  let customGenres = $state<string[]>(["Deep House", "Sad", "Tender", "Viola"]);
+
+  async function refreshCustomGenres() {
+    isRefreshingGenres = true;
+    try {
+      const response = await fetch("/api/home/genres");
+      if (!response.ok) return;
+      const payload = await response.json();
+      const nextGenres = Array.isArray(payload?.genres)
+        ? payload.genres
+            .map((value: string) => value.trim())
+            .filter((value: string) => value.length > 0)
+        : [];
+      if (nextGenres.length > 0) {
+        customGenres = nextGenres.slice(0, 12);
+      }
+    } catch {
+      // Keep current genre chips when refresh fails.
+    } finally {
+      isRefreshingGenres = false;
+    }
+  }
+
+  async function handleCustomGenerate() {
+    const parts: string[] = [];
+
+    if (customTitle.trim()) parts.push(`Title: ${customTitle.trim()}`);
+    if (customSelectedGenre) parts.push(`Genre: ${customSelectedGenre}`);
+    parts.push(`Vocal gender: ${customVocalGender}`);
+    if (customStyle.trim()) parts.push(`Style: ${customStyle.trim()}`);
+
+    if (music.forceInstrumental) {
+      parts.push("Instrumental only. Do not include vocals.");
+    } else if (customLyrics.trim()) {
+      parts.push(`Lyrics:\n${customLyrics.trim()}`);
+    }
+
+    const finalPrompt = parts.join("\n\n");
+    if (!finalPrompt.trim()) return;
+
+    music.inputPrompt = finalPrompt;
+    await music.handleGenerate();
+  }
 </script>
 
 <svelte:head>
@@ -294,7 +345,7 @@
     <div class="flex flex-col min-w-0 {globalMusic.showLibrary && activeMode === 'music' ? 'w-[400px] shrink-0' : 'w-full flex-1'} transition-all duration-300">
 
     <!-- Output Section -->
-    <div class="flex-1 flex flex-col w-full">
+    <div class="{activeMode === 'music' && musicSubMode === 'custom' ? 'flex flex-col w-full' : 'flex-1 flex flex-col w-full'}">
       {#if activeMode === "tts"}
         <!-- TTS History Section -->
         <div class="flex-1 flex flex-col min-h-0">
@@ -854,7 +905,7 @@
             {/if}
           {/if}
         </div>
-      {:else if activeMode === "music"}
+      {:else if activeMode === "music" && musicSubMode !== "custom"}
         <!-- Conversational Feed -->
         <div class="flex-1 overflow-y-auto min-h-0 flex flex-col space-y-4 px-2 py-4">
           {#if music.feed.length === 0}
@@ -1177,7 +1228,9 @@
     </div>
 
     <!-- Spacer to push input to bottom -->
-    <div class="flex-1"></div>
+    {#if !(activeMode === "music" && musicSubMode === "custom")}
+      <div class="flex-1"></div>
+    {/if}
 
     <!-- Mode Toggle -->
     <div class="max-w-2xl mx-auto w-full mb-2 flex justify-center">
@@ -2011,8 +2064,168 @@
             </button>
           </div>
         </div>
+      {:else if activeMode === "music" && musicSubMode === "custom"}
+        <!-- Music Input (Custom) -->
+        <div class="w-full max-w-2xl min-w-[300px] mx-auto space-y-3">
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="px-3 py-2 rounded-lg border border-border/60 bg-muted/40 text-sm font-medium hover:bg-muted/60 transition-colors"
+              onclick={() => isReferenceModalOpen = true}
+            >
+              + Reference
+            </button>
+            <button
+              type="button"
+              class="px-3 py-2 rounded-lg border border-border/60 bg-muted/40 text-sm font-medium hover:bg-muted/60 transition-colors"
+            >
+              + Remix
+            </button>
+            <button
+              type="button"
+              class="px-3 py-2 rounded-lg border border-border/60 bg-muted/40 text-sm font-medium hover:bg-muted/60 transition-colors"
+              onclick={() => isVocalModalOpen = true}
+            >
+              + Vocal
+            </button>
+          </div>
+
+          <div class="rounded-xl border border-border/50 bg-card/60 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <Label class="text-sm font-semibold">Lyrics</Label>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground">Instrumental</span>
+                <Switch bind:checked={music.forceInstrumental} />
+              </div>
+            </div>
+            <textarea
+              bind:value={customLyrics}
+              rows="4"
+              placeholder="Enter lyrics here or leave blank for instrumental"
+              class="w-full bg-transparent border-0 outline-none resize-none text-sm min-h-[90px]"
+              maxlength="2200"
+              disabled={music.forceInstrumental}
+            ></textarea>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs text-muted-foreground"
+                  disabled
+                >
+                  Optimize
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs text-muted-foreground"
+                  disabled
+                >
+                  Generate Lyrics
+                </button>
+              </div>
+              <span class="text-xs text-muted-foreground">{customLyrics.length}/2200</span>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-border/50 bg-card/60 p-3 space-y-3">
+            <div class="space-y-2">
+              <Label class="text-sm font-semibold">Style</Label>
+              <textarea
+                bind:value={customStyle}
+                rows="3"
+                placeholder="Enter style, mood, instrument, etc. to control the generated music"
+                class="w-full bg-transparent border-0 outline-none resize-none text-sm min-h-[72px]"
+                maxlength="1200"
+              ></textarea>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs font-medium"
+                disabled
+              >
+                Enhance
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs hover:bg-muted/60 transition-colors"
+                onclick={refreshCustomGenres}
+                disabled={isRefreshingGenres}
+              >
+                {isRefreshingGenres ? "Updating..." : "Update genres"}
+              </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              {#each customGenres as genre}
+                <button
+                  type="button"
+                  class="px-3 py-1 rounded-full border text-xs transition-colors {customSelectedGenre === genre
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border/60 bg-muted/30 hover:bg-muted/60'}"
+                  onclick={() => {
+                    customSelectedGenre = customSelectedGenre === genre ? null : genre;
+                  }}
+                >
+                  {genre}
+                </button>
+              {/each}
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-border/50 bg-card/60 p-3 space-y-3">
+            <div class="flex items-center justify-between">
+              <Label class="text-sm font-semibold">Vocal Gender</Label>
+              <div class="inline-flex items-center rounded-md border border-border/60 bg-muted/30 p-0.5">
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs rounded-md transition-colors {customVocalGender === 'female'
+                    ? 'bg-background text-foreground border border-border'
+                    : 'text-muted-foreground hover:text-foreground'}"
+                  onclick={() => (customVocalGender = "female")}
+                >
+                  Female
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs rounded-md transition-colors {customVocalGender === 'male'
+                    ? 'bg-background text-foreground border border-border'
+                    : 'text-muted-foreground hover:text-foreground'}"
+                  onclick={() => (customVocalGender = "male")}
+                >
+                  Male
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <input
+                type="text"
+                bind:value={customTitle}
+                maxlength="50"
+                placeholder="Enter song title"
+                class="w-full rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm outline-none focus:border-primary/50"
+              />
+              <div class="text-right text-xs text-muted-foreground">{customTitle.length}/50</div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="w-full rounded-xl bg-[#2f7a80] hover:bg-[#3b9198] text-black font-semibold py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onclick={handleCustomGenerate}
+            disabled={music.isGenerating || data.isDemoMode}
+          >
+            {#if music.isGenerating}
+              Creating...
+            {:else}
+              Create
+            {/if}
+          </button>
+        </div>
       {:else if activeMode === "music"}
-        <!-- Music Input (Custom/Soundtrack) -->
+        <!-- Music Input (Soundtrack) -->
         <InputGroup.Root
           class="min-h-36 w-full max-w-2xl min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
         >

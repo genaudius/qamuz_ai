@@ -41,7 +41,7 @@
   <div class="flex-1 overflow-y-auto px-4 py-6 md:px-6 custom-scrollbar">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-bold">Library</h2>
-        {#if musicState}
+        {#if musicState && musicState.musicSubMode !== 'custom'}
           <button 
             class="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted/50 transition-colors"
             onclick={() => musicState.showLibrary = false}

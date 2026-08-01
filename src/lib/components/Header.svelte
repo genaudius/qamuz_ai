@@ -89,18 +89,21 @@
     {#if page.url.pathname === '/audio' && musicState?.activeAudioMode === 'music'}
       <div class="flex items-center gap-1 bg-muted/30 p-0.5 rounded-md text-sm ml-1">
         <button
+          type="button"
           class="px-2.5 py-1 rounded-md transition-colors {musicState.musicSubMode === 'easy' ? 'bg-background shadow-sm text-foreground font-medium border' : 'text-muted-foreground hover:text-foreground border border-transparent'}"
           onclick={() => musicState.musicSubMode = 'easy'}
         >
           Easy
         </button>
         <button
+          type="button"
           class="px-2.5 py-1 rounded-md transition-colors {musicState.musicSubMode === 'custom' ? 'bg-background shadow-sm text-foreground font-medium border' : 'text-muted-foreground hover:text-foreground border border-transparent'}"
           onclick={() => musicState.musicSubMode = 'custom'}
         >
           Custom
         </button>
         <button
+          type="button"
           class="px-2.5 py-1 rounded-md transition-colors {musicState.musicSubMode === 'soundtrack' ? 'bg-background shadow-sm text-foreground font-medium border' : 'text-muted-foreground hover:text-foreground border border-transparent'}"
           onclick={() => musicState.musicSubMode = 'soundtrack'}
         >
