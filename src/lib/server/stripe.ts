@@ -1,9 +1,9 @@
 import Stripe from 'stripe';
-const env = process.env;;
-import { db } from './db/index';
-import { users, subscriptions, pricingPlans, paymentHistory } from './db/schema';
-import { eq, and, sql } from 'drizzle-orm';
-import { getStripeSecretKey } from './settings-store';
+import { env } from '$env/dynamic/private';
+import { db } from './db/index.js';
+import { users, subscriptions, pricingPlans, paymentHistory } from './db/schema.js';
+import { eq, and } from 'drizzle-orm';
+import { getStripeSecretKey } from './settings-store.js';
 
 // Cache for the Stripe instance to avoid creating it repeatedly
 let stripeInstance: Stripe | null = null;
@@ -27,7 +27,7 @@ async function getStripeInstance(): Promise<Stripe> {
 
 		// Create new Stripe instance
 		stripeInstance = new Stripe(secretKey, {
-			apiVersion: '2026-06-24.dahlia',
+			apiVersion: '2025-08-27.basil',
 			typescript: true,
 		});
 		lastSecretKey = secretKey;
@@ -41,7 +41,7 @@ async function getStripeInstance(): Promise<Stripe> {
 			console.log('Falling back to environment variable for Stripe');
 			if (!stripeInstance || lastSecretKey !== env.STRIPE_SECRET_KEY) {
 				stripeInstance = new Stripe(env.STRIPE_SECRET_KEY, {
-					apiVersion: '2026-06-24.dahlia',
+					apiVersion: '2025-08-27.basil',
 					typescript: true,
 				});
 				lastSecretKey = env.STRIPE_SECRET_KEY;
@@ -151,7 +151,7 @@ export class StripeService {
 			const stripe = await getStripe();
 
 			const session = await stripe.checkout.sessions.create({
-				
+				ui_mode: 'embedded',
 				customer: customerId,
 				line_items: [
 					{
@@ -171,121 +171,6 @@ export class StripeService {
 		} catch (error) {
 			console.error('Error creating checkout session:', error);
 			throw new Error('Failed to create checkout session');
-		}
-	}
-
-	static async createOneTimeCheckoutSession({
-		userId,
-		priceId,
-		priceData,
-		returnUrl,
-		credits,
-	}: Omit<CreateCheckoutSessionParams, 'priceId' | 'successUrl' | 'cancelUrl'> & { credits: number; priceId?: string; priceData?: Stripe.Checkout.SessionCreateParams.LineItem.PriceData; returnUrl: string }): Promise<Stripe.Checkout.Session> {
-		try {
-			const customerId = await this.getOrCreateCustomer(userId);
-			const stripe = await getStripe();
-
-			const session = await stripe.checkout.sessions.create({
-				
-				customer: customerId,
-				line_items: [
-					{
-						...(priceId ? { price: priceId } : { price_data: priceData }),
-						quantity: 1,
-					},
-				],
-				mode: 'payment',
-				return_url: returnUrl,
-				metadata: {
-					userId,
-					
-					credits: credits.toString(),
-				},
-			});
-
-			return session;
-		} catch (error) {
-			console.error('Error creating one-time checkout session:', error);
-			throw new Error('Failed to create one-time checkout session');
-		}
-	}
-
-	static async createSetupCheckoutSession(userId: string, successUrl: string, cancelUrl: string): Promise<Stripe.Checkout.Session> {
-		try {
-			const customerId = await this.getOrCreateCustomer(userId);
-			const stripe = await getStripe();
-
-			const session = await stripe.checkout.sessions.create({
-				
-				customer: customerId,
-				mode: 'setup',
-				currency: 'usd',
-				success_url: successUrl,
-				cancel_url: cancelUrl,
-				metadata: {
-					userId,
-					
-				},
-			});
-
-			return session;
-		} catch (error) {
-			console.error('Error creating setup checkout session:', error);
-			throw new Error('Failed to create setup checkout session');
-		}
-	}
-
-	static async chargeAutoTopup(userId: string, amountCents: number, credits: number): Promise<boolean> {
-		try {
-			const stripe = await getStripe();
-			const customerId = await this.getOrCreateCustomer(userId);
-
-			const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-			let paymentMethodId = (customer as Stripe.Customer).invoice_settings?.default_payment_method as string;
-			
-			if (!paymentMethodId) {
-				const paymentMethods = await stripe.paymentMethods.list({ customer: customerId, type: 'card' });
-				if (paymentMethods.data.length > 0) {
-					paymentMethodId = paymentMethods.data[0].id;
-				} else {
-					console.error('No payment method found for auto top-up');
-					return false;
-				}
-			}
-
-			const paymentIntent = await stripe.paymentIntents.create({
-				amount: amountCents,
-				currency: 'usd',
-				customer: customerId,
-				payment_method: paymentMethodId,
-				off_session: true,
-				confirm: true,
-				metadata: {
-					userId,
-					
-					credits: credits.toString()
-				}
-			});
-
-			if (paymentIntent.status === 'succeeded') {
-				// Record payment history
-				await db.insert(paymentHistory).values({
-					userId,
-					amount: paymentIntent.amount,
-					currency: paymentIntent.currency,
-					status: 'succeeded',
-					paymentMethodType: 'card',
-					createdAt: new Date(),
-					
-					
-					description: `Auto Top-up: ${credits} credits`
-				});
-				return true;
-			}
-			return false;
-		} catch (error: any) {
-			console.error('Auto top-up charge failed:', error.message);
-			return false;
 		}
 	}
 
@@ -357,7 +242,7 @@ export class StripeService {
 				throw new Error('Customer was deleted');
 			}
 
-			const userId = (customer as Stripe.Customer).metadata?.userId;
+			const userId = customer.metadata?.userId;
 			if (!userId) {
 				throw new Error('User ID not found in customer metadata');
 			}
@@ -492,7 +377,7 @@ export class StripeService {
 				throw new Error('Customer was deleted');
 			}
 
-			const userId = (customer as Stripe.Customer).metadata?.userId;
+			const userId = customer.metadata?.userId;
 			if (!userId) {
 				throw new Error('User ID not found in customer metadata');
 			}
@@ -615,7 +500,7 @@ export class StripeService {
 				throw new Error('Customer was deleted');
 			}
 
-			const userId = (customer as Stripe.Customer).metadata?.userId;
+			const userId = customer.metadata?.userId;
 			if (!userId) {
 				throw new Error('User ID not found in customer metadata');
 			}
@@ -646,7 +531,7 @@ export class StripeService {
 				throw new Error('Customer was deleted');
 			}
 
-			const userId = (customer as Stripe.Customer).metadata?.userId;
+			const userId = customer.metadata?.userId;
 			if (!userId) {
 				throw new Error('User ID not found in customer metadata');
 			}
@@ -708,7 +593,7 @@ export class StripeService {
 				throw new Error('Customer was deleted');
 			}
 
-			const userId = (customer as Stripe.Customer).metadata?.userId;
+			const userId = customer.metadata?.userId;
 			if (!userId) {
 				throw new Error('User ID not found in customer metadata');
 			}
@@ -861,30 +746,8 @@ export class StripeService {
 	static async handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
 		try {
 			console.log('Processing checkout session completed:', session.id);
-			
-			const type = session.metadata?.type;
-			const userId = session.metadata?.userId;
 
-			// Handle Top-Up purchases
-			if (type === 'topup' && session.payment_status === 'paid') {
-				if (!userId) {
-					console.warn('No user ID found in checkout session metadata for topup');
-					return;
-				}
-				const creditsToAdd = parseInt(session.metadata?.credits || '0', 10);
-				if (creditsToAdd > 0) {
-					// Add credits to user's balance
-					await db.execute(
-						sql`UPDATE "user" SET "creditBalance" = COALESCE("creditBalance", 0) + ${creditsToAdd} WHERE id = ${userId}`
-					);
-					console.log(`Successfully added ${creditsToAdd} credits to user ${userId}`);
-					
-					// Optionally, log this topup in a paymentHistory/transactions table here
-				}
-				return;
-			}
-
-			// Only process subscription mode sessions for default logic
+			// Only process subscription mode sessions
 			if (session.mode !== 'subscription') {
 				console.log('Skipping non-subscription checkout session');
 				return;
@@ -1059,7 +922,7 @@ export class StripeService {
 				return null;
 			}
 
-			const defaultPaymentMethodId = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
+			const defaultPaymentMethodId = customer.invoice_settings?.default_payment_method;
 			let paymentMethod: Stripe.PaymentMethod | null = null;
 			
 			if (!defaultPaymentMethodId) {

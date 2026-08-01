@@ -1,13 +1,13 @@
-import type { AIProvider, AIModelConfig } from './types';
-import { openRouterProvider } from './providers/openrouter';
-import { replicateProvider } from './providers/replicate';
-import { sunoProvider } from './providers/suno';
-import { removeWebSearchSuffix } from '@/src/lib/constants/web-search';
+import type { AIProvider, AIModelConfig } from './types.js';
+import { openRouterProvider } from './providers/openrouter.js';
+import { replicateProvider } from './providers/replicate.js';
+import { elevenlabsProvider } from './providers/elevenlabs.js';
+import { removeWebSearchSuffix } from '$lib/constants/web-search.js';
 
 export const AI_PROVIDERS: AIProvider[] = [
 	openRouterProvider,
 	replicateProvider,
-	sunoProvider
+	elevenlabsProvider
 ];
 
 export function getAllModels(): AIModelConfig[] {
@@ -26,9 +26,11 @@ export function getModelProvider(modelName: string): AIProvider | undefined {
 	);
 }
 
-export * from './types';
-export { openRouterProvider } from './providers/openrouter';
-export { replicateProvider } from './providers/replicate';
-export { sunoProvider } from './providers/suno';
-export { ELEVENLABS_VOICES } from '@/src/lib/constants/elevenlabs';
-
+export * from './types.js';
+export { openRouterProvider } from './providers/openrouter.js';
+export { replicateProvider } from './providers/replicate.js';
+export { elevenlabsProvider } from './providers/elevenlabs.js';
+export { sunoProvider } from './providers/suno.js';
+export { musicgptProvider } from './providers/musicgpt.js';
+// Re-export client-safe constants from the constants file (single source of truth)
+export { ELEVENLABS_VOICES } from '$lib/constants/elevenlabs.js';

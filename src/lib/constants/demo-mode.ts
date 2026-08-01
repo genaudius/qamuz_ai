@@ -3,7 +3,7 @@
  * Centralized configuration for demo mode restrictions when DEMO_MODE=true
  */
 
-const env = process.env;
+import { env } from '$env/dynamic/private';
 
 // Demo mode allowed models (hand-picked subset similar to guest restrictions)
 export const DEMO_ALLOWED_MODELS = [

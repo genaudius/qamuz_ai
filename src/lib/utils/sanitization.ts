@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
-const browser = typeof window !== 'undefined';
-import { validateEmailForAuth, normalizeEmail } from './email-validation';
+import { browser } from '$app/environment';
+import { validateEmailForAuth, normalizeEmail } from './email-validation.js';
 
 /**
  * Comprehensive input sanitization utility for security hardening

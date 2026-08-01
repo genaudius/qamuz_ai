@@ -1,8 +1,8 @@
 import { randomBytes } from 'crypto'
-import { db, users, betterAuthVerifications } from './db/index'
+import { db, users, betterAuthVerifications } from './db/index.js'
 import { eq, lt } from 'drizzle-orm'
-import { AUTH_ERRORS, sanitizeErrorForLogging } from '../utils/error-handling'
-import { getPublicOrigin } from './settings-store'
+import { AUTH_ERRORS, sanitizeErrorForLogging } from '../utils/error-handling.js'
+import { getPublicOrigin } from './settings-store.js'
 
 /**
  * Result of creating a verification token

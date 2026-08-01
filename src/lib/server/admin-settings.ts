@@ -1,8 +1,8 @@
 import { db } from './db';
 import { adminSettings, adminFiles } from './db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes, hkdfSync } from 'crypto';
-const env = process.env;;
+import { env } from '$env/dynamic/private';
 
 /**
  * Encryption Key Derivation
@@ -26,7 +26,7 @@ const env = process.env;;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Context string for HKDF - makes the derived key unique to this purpose
-const HKDF_CONTEXT = 'weaveai-admin-settings-encryption-v1';
+const HKDF_CONTEXT = 'qamuz_ai-admin-settings-encryption-v1';
 
 // Development-only fallback (when AUTH_SECRET is not set in dev)
 const DEV_FALLBACK_SECRET = 'dev-only-insecure-secret-for-local-development-only';
@@ -277,9 +277,6 @@ const SENSITIVE_KEYS = [
   'openrouter_api_key',
   'replicate_api_key',
   'elevenlabs_api_key',
-  'suno_api_key',
-  'spotify_client_secret',
-  'lastfm_api_key',
   'r2_account_id',
   'r2_access_key_id',
   'r2_secret_access_key',
@@ -418,14 +415,15 @@ export class AdminSettingsService {
 
   // Set multiple settings atomically
   async setSettings(settings: Array<{ key: string; value: string; category: string; description?: string }>): Promise<void> {
+    // Filter out empty values to avoid storing empty strings in database
+    const validSettings = settings.filter(setting => {
+      return setting.value && setting.value.trim() !== '';
+    });
+
     // For simplicity, we'll do individual updates
     // In production, you might want to use a transaction
-    for (const setting of settings) {
-      if (setting.value === null || setting.value.trim() === '') {
-        await this.deleteSetting(setting.key);
-      } else {
-        await this.setSetting(setting.key, setting.value, setting.category, setting.description);
-      }
+    for (const setting of validSettings) {
+      await this.setSetting(setting.key, setting.value, setting.category, setting.description);
     }
   }
 
@@ -483,7 +481,6 @@ export class AdminSettingsService {
       .select()
       .from(adminFiles)
       .where(eq(adminFiles.category, category))
-      .orderBy(desc(adminFiles.createdAt))
       .limit(1);
 
     return file || null;
@@ -523,7 +520,7 @@ export async function getAIModelSettings() {
 export async function getCloudStorageSettings() {
   // Use cached settings instead of direct DB query to avoid race conditions
   // on serverless platforms (Vercel Lambda) during cold starts
-  const { getCloudStorageSettingsFromCache } = await import('./settings-store');
+  const { getCloudStorageSettingsFromCache } = await import('./settings-store.js');
   const cached = await getCloudStorageSettingsFromCache();
 
   // Transform camelCase cache to snake_case for backwards compatibility

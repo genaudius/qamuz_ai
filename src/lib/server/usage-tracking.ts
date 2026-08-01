@@ -1,8 +1,8 @@
-import { db } from './db/index';
-import { usageTracking, users, subscriptions, pricingPlans, chats } from './db/schema';
+import { db } from './db/index.js';
+import { usageTracking, users, subscriptions, pricingPlans, chats, creditTransactions } from './db/schema.js';
 import { eq, and, sql } from 'drizzle-orm';
-import { StripeService } from './stripe';
-import { getModelProvider } from '../ai/index';
+import { StripeService } from './stripe.js';
+import { getModelProvider } from '../ai/index.js';
 
 export class UsageLimitError extends Error {
 	constructor(message: string, public remainingQuota: number = 0) {
@@ -12,11 +12,17 @@ export class UsageLimitError extends Error {
 }
 
 export interface UsageLimits {
-	creditLimit: number | null; // null = unlimited
+	textGenerationLimit: number | null; // null = unlimited
+	imageGenerationLimit: number | null;
+	videoGenerationLimit: number | null;
+	audioGenerationLimit: number | null;
 }
 
 export interface CurrentUsage {
-	creditsUsed: number;
+	textGenerationCount: number;
+	imageGenerationCount: number;
+	videoGenerationCount: number;
+	audioGenerationCount: number;
 	month: number;
 	year: number;
 }
@@ -52,13 +58,19 @@ export class UsageTrackingService {
 				
 				if (freePlan) {
 					return {
-						creditLimit: freePlan.creditLimit
+						textGenerationLimit: freePlan.textGenerationLimit,
+						imageGenerationLimit: freePlan.imageGenerationLimit,
+						videoGenerationLimit: freePlan.videoGenerationLimit,
+						audioGenerationLimit: freePlan.audioGenerationLimit
 					};
 				}
 
 				// Fallback to unlimited if free plan not found in database
 				return {
-					creditLimit: null
+					textGenerationLimit: null,
+					imageGenerationLimit: null,
+					videoGenerationLimit: null,
+					audioGenerationLimit: null
 				};
 			}
 
@@ -75,25 +87,37 @@ export class UsageTrackingService {
 				
 				if (freePlan) {
 					return {
-						creditLimit: freePlan.creditLimit
+						textGenerationLimit: freePlan.textGenerationLimit,
+						imageGenerationLimit: freePlan.imageGenerationLimit,
+						videoGenerationLimit: freePlan.videoGenerationLimit,
+						audioGenerationLimit: freePlan.audioGenerationLimit
 					};
 				}
 
 				// Fallback to unlimited if free plan not found
 				return {
-					creditLimit: null
+					textGenerationLimit: null,
+					imageGenerationLimit: null,
+					videoGenerationLimit: null,
+					audioGenerationLimit: null
 				};
 			}
 
 			// Return plan-specific limits for paid plans
 			return {
-				creditLimit: subscriptionData.plan.creditLimit
+				textGenerationLimit: subscriptionData.plan.textGenerationLimit,
+				imageGenerationLimit: subscriptionData.plan.imageGenerationLimit,
+				videoGenerationLimit: subscriptionData.plan.videoGenerationLimit,
+				audioGenerationLimit: subscriptionData.plan.audioGenerationLimit
 			};
 		} catch (error) {
 			console.error('Error getting user limits:', error);
 			// Default to unlimited on error to be permissive
 			return {
-				creditLimit: null
+				textGenerationLimit: null,
+				imageGenerationLimit: null,
+				videoGenerationLimit: null,
+				audioGenerationLimit: null
 			};
 		}
 	}
@@ -118,7 +142,7 @@ export class UsageTrackingService {
 		const now = new Date();
 		const currentHour = now.getUTCHours();
 
-		const nextReset = new Date(now);
+		let nextReset = new Date(now);
 		nextReset.setUTCMinutes(0, 0, 0); // Set to exact hour
 
 		if (currentHour < 12) {
@@ -219,7 +243,10 @@ export class UsageTrackingService {
 			await db
 				.update(usageTracking)
 				.set({
-					creditsUsed: 0,
+					textGenerationCount: 0,
+					imageGenerationCount: 0,
+					videoGenerationCount: 0,
+					audioGenerationCount: 0,
 					lastResetAt: now,
 					updatedAt: now,
 				})
@@ -264,7 +291,10 @@ export class UsageTrackingService {
 					userId,
 					month: currentMonth,
 					year: currentYear,
-					creditsUsed: 0
+					textGenerationCount: 0,
+					imageGenerationCount: 0,
+					videoGenerationCount: 0,
+					audioGenerationCount: 0
 				};
 
 				await db.insert(usageTracking).values(newUsage).onConflictDoNothing();
@@ -282,7 +312,10 @@ export class UsageTrackingService {
 					);
 
 				return {
-					creditsUsed: createdUsage?.creditsUsed || 0,
+					textGenerationCount: createdUsage?.textGenerationCount || 0,
+					imageGenerationCount: createdUsage?.imageGenerationCount || 0,
+					videoGenerationCount: createdUsage?.videoGenerationCount || 0,
+					audioGenerationCount: createdUsage?.audioGenerationCount || 0,
 					month: currentMonth,
 					year: currentYear
 				};
@@ -293,21 +326,30 @@ export class UsageTrackingService {
 				await this.resetFreeUsage(userId, currentMonth, currentYear);
 
 				return {
-					creditsUsed: 0,
+					textGenerationCount: 0,
+					imageGenerationCount: 0,
+					videoGenerationCount: 0,
+					audioGenerationCount: 0,
 					month: currentMonth,
 					year: currentYear
 				};
 			}
 
 			return {
-				creditsUsed: usage.creditsUsed,
+				textGenerationCount: usage.textGenerationCount,
+				imageGenerationCount: usage.imageGenerationCount,
+				videoGenerationCount: usage.videoGenerationCount,
+				audioGenerationCount: usage.audioGenerationCount,
 				month: usage.month,
 				year: usage.year
 			};
 		} catch (error) {
 			console.error('Error getting current free usage:', error);
 			return {
-				creditsUsed: 0,
+				textGenerationCount: 0,
+				imageGenerationCount: 0,
+				videoGenerationCount: 0,
+				audioGenerationCount: 0,
 				month: currentMonth,
 				year: currentYear
 			};
@@ -359,7 +401,10 @@ export class UsageTrackingService {
 					userId,
 					month: currentMonth,
 					year: currentYear,
-					creditsUsed: 0
+					textGenerationCount: 0,
+					imageGenerationCount: 0,
+					videoGenerationCount: 0,
+					audioGenerationCount: 0
 				};
 
 				await db.insert(usageTracking).values(newUsage).onConflictDoNothing();
@@ -377,21 +422,30 @@ export class UsageTrackingService {
 					);
 
 				return {
-					creditsUsed: createdUsage?.creditsUsed || 0,
+					textGenerationCount: createdUsage?.textGenerationCount || 0,
+					imageGenerationCount: createdUsage?.imageGenerationCount || 0,
+					videoGenerationCount: createdUsage?.videoGenerationCount || 0,
+					audioGenerationCount: createdUsage?.audioGenerationCount || 0,
 					month: currentMonth,
 					year: currentYear
 				};
 			}
 
 			return {
-				creditsUsed: usage.creditsUsed,
+				textGenerationCount: usage.textGenerationCount,
+				imageGenerationCount: usage.imageGenerationCount,
+				videoGenerationCount: usage.videoGenerationCount,
+				audioGenerationCount: usage.audioGenerationCount,
 				month: usage.month,
 				year: usage.year
 			};
 		} catch (error) {
 			console.error('Error getting current usage:', error);
 			return {
-				creditsUsed: 0,
+				textGenerationCount: 0,
+				imageGenerationCount: 0,
+				videoGenerationCount: 0,
+				audioGenerationCount: 0,
 				month: currentMonth,
 				year: currentYear
 			};
@@ -402,7 +456,7 @@ export class UsageTrackingService {
 	 * Check if user can make a request based on their limits and current usage
 	 * Includes grace period logic for recently expired subscriptions
 	 */
-	static async checkUsageLimit(userId: string, cost: number): Promise<void> {
+	static async checkUsageLimit(userId: string, usageType: 'text' | 'image' | 'video' | 'audio'): Promise<void> {
 		// Get user info and check existence in single query
 		const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
@@ -417,76 +471,39 @@ export class UsageTrackingService {
 			this.getUserLimits(userId, planTier),
 			this.getCurrentMonthUsage(userId, planTier)
 		]);
+
+		const limitKey = `${usageType}GenerationLimit` as keyof UsageLimits;
+		const usageKey = `${usageType}GenerationCount` as keyof CurrentUsage;
 		
-		const limit = limits.creditLimit;
-		const used = currentUsage.creditsUsed;
+		const limit = limits[limitKey];
+		const used = currentUsage[usageKey];
 
 		// null or -1 means unlimited
 		if (limit === null || limit === -1) {
 			return; // Unlimited usage
 		}
 
-		const totalLimit = limit + (user.creditBalance || 0);
-
-		// Fire low balance notification exactly once when crossing the 75% threshold
-		if (totalLimit !== null && totalLimit !== -1) {
-			const threshold = totalLimit * 0.75;
-			if (used < threshold && (used + cost) >= threshold) {
-				if (user.autoTopupEnabled && user.autoTopupAmount && user.autoTopupCredits) {
-					// Trigger auto top-up
-					try {
-						const { StripeService } = await import('./stripe');
-						const { sql } = await import('drizzle-orm');
-						const success = await StripeService.chargeAutoTopup(userId, user.autoTopupAmount * 100, user.autoTopupCredits);
-						const { createNotification } = await import('./notifications');
-						if (success) {
-							await db.execute(sql`UPDATE "user" SET "creditBalance" = COALESCE("creditBalance", 0) + ${user.autoTopupCredits} WHERE id = ${userId}`);
-							await createNotification(userId, 'Auto Top-up Successful', `Added ${user.autoTopupCredits} credits.`, 'billing', '/settings');
-						} else {
-							await db.update(users).set({ autoTopupEnabled: false }).where(eq(users.id, userId));
-							await createNotification(userId, 'Auto Top-up Failed', `Payment declined. Auto top-up disabled.`, 'billing', '/settings');
-						}
-					} catch (err) {
-						console.error('Failed to execute auto top-up', err);
-					}
-				} else {
-					try {
-						const { createNotification } = await import('./notifications');
-						await createNotification(
-							userId,
-							'Low Balance Warning',
-							`You have used 75% of your available credits.`,
-							'billing',
-							'/settings'
-						);
-					} catch (err) {
-						console.error('Failed to trigger low balance notification', err);
-					}
-				}
-			}
-		}
-
-		if (used + cost > totalLimit) {
+		if (used >= limit) {
 			// Check for grace period if user has exceeded limits
 			const hasGracePeriod = await this.checkGracePeriod(userId);
 			
 			if (!hasGracePeriod) {
 				const remaining = Math.max(0, limit - used);
 				throw new UsageLimitError(
-					`Insufficient credits. This action costs ${cost} credits, but you only have ${remaining} credits remaining this month.`,
+					`${usageType.charAt(0).toUpperCase() + usageType.slice(1)} generation limit exceeded. You have used ${used}/${limit} for this month.`,
 					remaining
 				);
 			}
 			
 			// Allow usage during grace period but log it
-			console.log(`Grace period usage for user ${userId} (cost: ${cost})`);
+			console.log(`Grace period usage for user ${userId}: ${usageType}`);
 		}
 	}
 
 	/**
 	 * Track usage after successful generation
 	 */
-	static async trackUsage(userId: string, cost: number): Promise<void> {
+	static async trackUsage(userId: string, usageType: 'text' | 'image' | 'video' | 'audio'): Promise<void> {
 		// Check if user exists in database - if not, skip tracking
 		const userExistsInDb = await this.userExists(userId);
 		if (!userExistsInDb) {
@@ -504,17 +521,31 @@ export class UsageTrackingService {
 				userId,
 				month: currentMonth,
 				year: currentYear,
-				creditsUsed: cost,
+				textGenerationCount: usageType === 'text' ? 1 : 0,
+				imageGenerationCount: usageType === 'image' ? 1 : 0,
+				videoGenerationCount: usageType === 'video' ? 1 : 0,
+				audioGenerationCount: usageType === 'audio' ? 1 : 0,
 				lastResetAt: now,
 			}).onConflictDoUpdate({
 				target: [usageTracking.userId, usageTracking.month, usageTracking.year],
 				set: {
-					creditsUsed: sql`${usageTracking.creditsUsed} + ${cost}`,
+					textGenerationCount: usageType === 'text'
+						? sql`${usageTracking.textGenerationCount} + 1`
+						: usageTracking.textGenerationCount,
+					imageGenerationCount: usageType === 'image'
+						? sql`${usageTracking.imageGenerationCount} + 1`
+						: usageTracking.imageGenerationCount,
+					videoGenerationCount: usageType === 'video'
+						? sql`${usageTracking.videoGenerationCount} + 1`
+						: usageTracking.videoGenerationCount,
+					audioGenerationCount: usageType === 'audio'
+						? sql`${usageTracking.audioGenerationCount} + 1`
+						: usageTracking.audioGenerationCount,
 					updatedAt: now,
 				}
 			});
 
-			console.log(`Tracked usage for user ${userId} (cost: ${cost})`);
+			console.log(`Tracked ${usageType} usage for user ${userId}`);
 		} catch (error) {
 			console.error('Error tracking usage:', error);
 			// Don't throw - usage tracking failure shouldn't block the request
@@ -524,15 +555,23 @@ export class UsageTrackingService {
 	/**
 	 * Check and track usage in one call (for middleware)
 	 */
-	static async checkAndTrackUsage(userId: string, cost: number): Promise<void> {
+	static async checkAndTrackUsage(userId: string, usageType: 'text' | 'image' | 'video' | 'audio'): Promise<void> {
 		// First check if user can make the request
-		await this.checkUsageLimit(userId, cost);
+		await this.checkUsageLimit(userId, usageType);
 
 		// If successful, track the usage
-		await this.trackUsage(userId, cost);
+		await this.trackUsage(userId, usageType);
 	}
 
-	static async checkUsageWarnings(userId: string): Promise<boolean> {
+	/**
+	 * Check if user is approaching usage limits (>75%)
+	 */
+	static async checkUsageWarnings(userId: string): Promise<{
+		text: boolean;
+		image: boolean;
+		video: boolean;
+		audio: boolean;
+	}> {
 		// Get plan tier once to avoid duplicate queries
 		const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 		const planTier = user?.planTier ?? 'free';
@@ -542,13 +581,20 @@ export class UsageTrackingService {
 			this.getCurrentMonthUsage(userId, planTier)
 		]);
 
-		const totalLimit = limits.creditLimit !== null && limits.creditLimit !== -1 
-			? limits.creditLimit + (user?.creditBalance || 0)
-			: null;
-
-		return totalLimit !== null
-			? (currentUsage.creditsUsed / totalLimit) > 0.75
-			: false;
+		return {
+			text: limits.textGenerationLimit !== null && limits.textGenerationLimit !== -1
+				? (currentUsage.textGenerationCount / limits.textGenerationLimit) > 0.75
+				: false,
+			image: limits.imageGenerationLimit !== null && limits.imageGenerationLimit !== -1
+				? (currentUsage.imageGenerationCount / limits.imageGenerationLimit) > 0.75
+				: false,
+			video: limits.videoGenerationLimit !== null && limits.videoGenerationLimit !== -1
+				? (currentUsage.videoGenerationCount / limits.videoGenerationLimit) > 0.75
+				: false,
+			audio: limits.audioGenerationLimit !== null && limits.audioGenerationLimit !== -1
+				? (currentUsage.audioGenerationCount / limits.audioGenerationLimit) > 0.75
+				: false
+		};
 	}
 
 	/**
@@ -557,17 +603,14 @@ export class UsageTrackingService {
 	static async getUsageSummary(userId: string, planTier?: string) {
 		// Single query to get user info if plan tier not provided
 		let userPlanTier = planTier;
-		let dbUser = null;
-		
-		try {
-			const results = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-			dbUser = results[0];
-			if (!userPlanTier) {
-				userPlanTier = dbUser?.planTier ?? 'free';
+		if (!userPlanTier) {
+			try {
+				const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+				userPlanTier = user?.planTier ?? 'free';
+			} catch (error) {
+				console.error('Error getting user plan tier:', error);
+				userPlanTier = 'free'; // Safe fallback
 			}
-		} catch (error) {
-			console.error('Error getting user plan tier:', error);
-			userPlanTier = 'free'; // Safe fallback
 		}
 
 		const [limits, currentUsage] = await Promise.all([
@@ -575,16 +618,33 @@ export class UsageTrackingService {
 			this.getCurrentMonthUsage(userId, userPlanTier)
 		]);
 
-		const totalLimit = limits.creditLimit !== null && limits.creditLimit !== -1 
-			? limits.creditLimit + (dbUser?.creditBalance || 0)
-			: null;
-
 		return {
-			credits: {
-				used: currentUsage.creditsUsed,
-				limit: totalLimit,
-				percentage: totalLimit
-					? Math.min(100, (currentUsage.creditsUsed / totalLimit) * 100)
+			text: {
+				used: currentUsage.textGenerationCount,
+				limit: limits.textGenerationLimit,
+				percentage: limits.textGenerationLimit
+					? Math.min(100, (currentUsage.textGenerationCount / limits.textGenerationLimit) * 100)
+					: 0
+			},
+			image: {
+				used: currentUsage.imageGenerationCount,
+				limit: limits.imageGenerationLimit,
+				percentage: limits.imageGenerationLimit
+					? Math.min(100, (currentUsage.imageGenerationCount / limits.imageGenerationLimit) * 100)
+					: 0
+			},
+			video: {
+				used: currentUsage.videoGenerationCount,
+				limit: limits.videoGenerationLimit,
+				percentage: limits.videoGenerationLimit
+					? Math.min(100, (currentUsage.videoGenerationCount / limits.videoGenerationLimit) * 100)
+					: 0
+			},
+			audio: {
+				used: currentUsage.audioGenerationCount,
+				limit: limits.audioGenerationLimit,
+				percentage: limits.audioGenerationLimit
+					? Math.min(100, (currentUsage.audioGenerationCount / limits.audioGenerationLimit) * 100)
 					: 0
 			},
 			month: currentUsage.month,
@@ -711,7 +771,10 @@ export class UsageTrackingService {
 			await db
 				.update(usageTracking)
 				.set({
-					creditsUsed: 0,
+					textGenerationCount: 0,
+					imageGenerationCount: 0,
+					videoGenerationCount: 0,
+					audioGenerationCount: 0,
 					lastResetAt: now,
 					updatedAt: now,
 				})
@@ -730,27 +793,106 @@ export class UsageTrackingService {
 		}
 	}
 
+	// ==========================================
+	// ADVANCED ARCHITECTURE: TRANSACTIONAL CREDITS
+	// ==========================================
+
 	/**
-	 * Calculate cost in credits for a given usage type and model
+	 * Step 1: Hold (Retención de créditos)
+	 * Descuenta los créditos por adelantado y crea un registro de transacción PENDING.
 	 */
-	static calculateCost(usageType: 'text' | 'image' | 'video' | 'music' | 'sfx' | 'voice_change' | 'ai_vocals' | 'tts' | 'transcription', model?: string, length?: number): number {
-		switch (usageType) {
-			case 'music': return 50; // 50 credits per song
-			case 'sfx': return 25; // 25 credits per sound effect
-			case 'voice_change': return 100; // 100 credits per voice change
-			case 'ai_vocals': return 50; // 50 credits per AI vocals
-			case 'tts': return length ? Math.max(1, Math.ceil((length / 100) * 33)) : 33; // 33 credits per 100 characters
-			case 'transcription': return 5;
-			case 'image': return 5;
-			case 'video': return 10;
-			case 'text':
-				// Premium models cost more
-				if (model?.toLowerCase().includes('gpt-4') || model?.toLowerCase().includes('claude-3-5')) {
-					return 5;
-				}
-				return 1;
-			default:
-				return 1;
+	static async holdTransaction(userId: string, creditsCost: number, resourceType: string, provider: string, model: string): Promise<string> {
+		const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+		
+		if (!user) {
+			throw new Error("User not found");
 		}
+
+		if (user.creditsBalance < creditsCost && user.planTier !== 'pro' && user.planTier !== 'advanced') {
+			// For non-unlimited plans, check balance
+			throw new UsageLimitError(`Insufficient credits. You need ${creditsCost} credits but have ${user.creditsBalance}.`);
+		}
+
+		// Generate a reference ID for the transaction
+		const { randomUUID } = await import('crypto');
+		const referenceId = randomUUID();
+
+		// Deduct credits immediately
+		await db.update(users)
+			.set({ creditsBalance: sql`${users.creditsBalance} - ${creditsCost}` })
+			.where(eq(users.id, userId));
+
+		// Record the 'hold' transaction
+		await db.insert(creditTransactions).values({
+			userId,
+			type: 'hold',
+			amount: -creditsCost,
+			resourceType,
+			provider,
+			model,
+			status: 'pending',
+			referenceId
+		});
+
+		return referenceId;
+	}
+
+	/**
+	 * Step 2a: Commit (Confirmación exitosa)
+	 * Confirma que la API devolvió 200 OK y marca la transacción como COMPLETED.
+	 */
+	static async commitTransaction(referenceId: string): Promise<void> {
+		await db.update(creditTransactions)
+			.set({ 
+				status: 'completed',
+				updatedAt: new Date()
+			})
+			.where(and(eq(creditTransactions.referenceId, referenceId), eq(creditTransactions.type, 'hold')));
+	}
+
+	/**
+	 * Step 2b: Rollback (Reembolso automático por fallo de API o Timeout)
+	 * Devuelve los créditos al usuario y registra el fallo.
+	 */
+	static async rollbackTransaction(referenceId: string, errorMessage: string): Promise<void> {
+		// Find the original hold transaction
+		const [holdTx] = await db.select()
+			.from(creditTransactions)
+			.where(and(eq(creditTransactions.referenceId, referenceId), eq(creditTransactions.type, 'hold')))
+			.limit(1);
+
+		if (!holdTx || holdTx.status !== 'pending') {
+			return; // Transaction already completed or doesn't exist
+		}
+
+		// Refund credits to user
+		const refundAmount = Math.abs(holdTx.amount);
+		await db.update(users)
+			.set({ creditsBalance: sql`${users.creditsBalance} + ${refundAmount}` })
+			.where(eq(users.id, holdTx.userId));
+
+		// Mark hold as failed
+		await db.update(creditTransactions)
+			.set({ 
+				status: 'failed',
+				errorMessage,
+				updatedAt: new Date()
+			})
+			.where(eq(creditTransactions.id, holdTx.id));
+
+		// Record the rollback transaction explicitly
+		await db.insert(creditTransactions).values({
+			userId: holdTx.userId,
+			type: 'rollback',
+			amount: refundAmount,
+			resourceType: holdTx.resourceType,
+			provider: holdTx.provider,
+			model: holdTx.model,
+			status: 'completed',
+			referenceId,
+			errorMessage: `Rollback due to: ${errorMessage}`
+		});
+
+		console.warn(`[ROLLBACK] Refunded ${refundAmount} credits to user ${holdTx.userId} for failed transaction ${referenceId}. Reason: ${errorMessage}`);
 	}
 }

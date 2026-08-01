@@ -1,13 +1,13 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { streamText, smoothStream, stepCountIs, type ModelMessage } from 'ai';
-import type { AIProvider, AIModelConfig, AIMessage, AIResponse, AIStreamChunk, ChatCompletionParams, ArchitectureObject, AIToolResult } from '../types';
-const env = process.env;
-import { db } from '@/src/lib/server/db/index';
-import { images } from '@/src/lib/server/db/schema';
+import type { AIProvider, AIModelConfig, AIMessage, AIResponse, AIStreamChunk, ChatCompletionParams, ArchitectureObject, AIToolResult } from '../types.js';
+import { env } from '$env/dynamic/private';
+import { db } from '$lib/server/db/index.js';
+import { images } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
-import { getOpenRouterApiKey, getOpenRouterSystemPrompt, getPublicOrigin, getSiteName } from '@/src/lib/server/settings-store';
-import { storageService } from '@/src/lib/server/storage';
-import type { ToolInstance } from '../tools/index';
+import { getOpenRouterApiKey, getOpenRouterSystemPrompt, getPublicOrigin, getSiteName } from '$lib/server/settings-store.js';
+import { storageService } from '$lib/server/storage.js';
+import type { ToolInstance } from '../tools/index.js';
 
 // Get API key from database or fallback to environment variable
 async function getApiKey(): Promise<string> {
@@ -967,7 +967,7 @@ export const openRouterProvider: AIProvider = {
 		// Get AI SDK v6 tool instances by name
 		let aiSdkTools: Record<string, ToolInstance> | undefined;
 		if (toolNames && toolNames.length > 0) {
-			const { getToolsAsObject } = await import('../tools/index');
+			const { getToolsAsObject } = await import('../tools/index.js');
 			aiSdkTools = getToolsAsObject(toolNames);
 		}
 
@@ -1053,7 +1053,7 @@ export const openRouterProvider: AIProvider = {
 		// Get AI SDK v6 tool instances by name
 		let aiSdkTools: Record<string, ToolInstance> | undefined;
 		if (toolNames && toolNames.length > 0) {
-			const { getToolsAsObject } = await import('../tools/index');
+			const { getToolsAsObject } = await import('../tools/index.js');
 			aiSdkTools = getToolsAsObject(toolNames);
 		}
 
@@ -1161,7 +1161,7 @@ async function* createAISDKStreamIterator(result: any): AsyncIterableIterator<AI
 					};
 					break;
 
-				case 'finish': {
+				case 'finish':
 					const usage = await result.usage;
 					yield {
 						content: '',
@@ -1175,7 +1175,6 @@ async function* createAISDKStreamIterator(result: any): AsyncIterableIterator<AI
 						} : undefined
 					};
 					break;
-				}
 
 				case 'error':
 					throw new Error(part.error?.message || 'Unknown streaming error');

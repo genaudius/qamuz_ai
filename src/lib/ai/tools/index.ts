@@ -1,5 +1,5 @@
-import { deepResearchTool } from './deep-research';
-import { thinkLongerTool } from './think-longer';
+import { deepResearchTool } from './deep-research.js';
+import { thinkLongerTool } from './think-longer.js';
 
 // Tool registry with all available AI SDK v6 tools
 export const AVAILABLE_TOOLS = {
@@ -77,7 +77,7 @@ export function getToolDisplayName(toolName: string): string {
  */
 export function getToolDescription(toolName: string): string {
 	const tool = AVAILABLE_TOOLS[toolName as ToolName];
-	return typeof tool?.description === 'function' ? tool.description({} as any) : (tool?.description || 'No description available');
+	return tool?.description || 'No description available';
 }
 
 /**

@@ -1,4 +1,4 @@
-import { rateLimiter, type RateLimitConfig } from './security-headers';
+import { rateLimiter, type RateLimitConfig } from './security-headers.js';
 
 /**
  * Rate limiting configurations for file upload operations

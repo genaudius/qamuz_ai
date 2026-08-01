@@ -5,8 +5,50 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1785304521584,
-      "tag": "0000_steady_korvac",
+      "when": 1769113297117,
+      "tag": "0000_shiny_brood",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770126935260,
+      "tag": "0001_violet_thundra",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773654760243,
+      "tag": "0002_gifted_puff_adder",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773663587780,
+      "tag": "0003_phase2_authjs_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785472200282,
+      "tag": "0004_mean_randall",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785530015333,
+      "tag": "0005_petite_alex_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785548968699,
+      "tag": "0006_rich_logan",
       "breakpoints": true
     }
   ]

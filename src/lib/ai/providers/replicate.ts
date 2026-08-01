@@ -8,16 +8,16 @@ import type {
 	AIImageResponse,
 	VideoGenerationParams,
 	AIVideoResponse
-} from '../types';
-const env = process.env;
-import { saveImageAndGetId, saveVideoAndGetId, createProviderError } from '../utils';
-import { getReplicateApiKey } from '@/src/lib/server/settings-store';
-import { db } from '@/src/lib/server/db/index';
-import { images } from '@/src/lib/server/db/schema';
+} from '../types.js';
+import { env } from '$env/dynamic/private';
+import { saveImageAndGetId, saveVideoAndGetId, createProviderError } from '../utils.js';
+import { getReplicateApiKey } from '$lib/server/settings-store.js';
+import { db } from '$lib/server/db/index.js';
+import { images } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
-import { storageService } from '@/src/lib/server/storage';
+import { storageService } from '$lib/server/storage.js';
 import Replicate from 'replicate';
-import { MODEL_CONFIGS, MODEL_IDENTIFIERS, type ModelParamConfig } from '@/src/lib/constants/replicate-model-configs';
+import { MODEL_CONFIGS, MODEL_IDENTIFIERS, type ModelParamConfig } from '$lib/constants/replicate-model-configs.js';
 
 // Cache for Replicate client instances (invalidated when API key changes)
 let cachedClient: Replicate | null = null;
@@ -1259,19 +1259,9 @@ async function generateVideo(params: VideoGenerationParams): Promise<AIVideoResp
 
 		// Add duration if provided and model supports it via durationParam config
 		if (params.duration !== undefined && modelConfig?.durationParam) {
-			const { name, min, max, unit, options } = modelConfig.durationParam;
-			
-			let durationValue: number;
-			if (options && options.length > 0) {
-				// Find the closest allowed option (e.g. if user asks for 5s but only 4,6,8 are allowed, pick 4 or 6)
-				durationValue = options.reduce((prev, curr) => 
-					Math.abs(curr - params.duration!) < Math.abs(prev - params.duration!) ? curr : prev
-				);
-			} else {
-				// Clamp the value within the allowed range
-				durationValue = Math.max(min, Math.min(max, params.duration));
-			}
-			
+			const { name, min, max, unit } = modelConfig.durationParam;
+			// Clamp the value within the allowed range
+			let durationValue = Math.max(min, Math.min(max, params.duration));
 			// Convert to frames if model expects frames
 			if (unit === 'frames') {
 				durationValue = Math.round(durationValue * (params.fps || 24));
@@ -1435,9 +1425,6 @@ async function chat(params: {
 }): Promise<AIResponse | AsyncIterableIterator<AIStreamChunk>> {
 	throw new Error('Replicate provider does not support text chat. Use OpenRouter instead.');
 }
-
-// Export utilities needed by the webhook and render endpoints
-export { getClient as getReplicateClient, fetchImageAsDataUri };
 
 // Export the Replicate provider
 export const replicateProvider: AIProvider = {

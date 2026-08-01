@@ -1,4 +1,4 @@
-const browser = typeof window !== 'undefined';
+import { browser } from '$app/environment';
 
 /**
  * Create SVG base element with common attributes

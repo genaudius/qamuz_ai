@@ -1,14 +1,15 @@
-import { env } from 'process';
+import { env } from '$env/dynamic/private';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { captcha } from 'better-auth/plugins';
-import { nextCookies } from 'better-auth/next-js';
-import * as schema from './server/db/schema';
-import { db } from './server/db/index';
-import { getSocialProviders } from './server/oauth-providers';
-import { resolveTurnstileCaptchaConfig } from './server/turnstile';
-import { sendPasswordResetEmail, sendWelcomeEmail } from './server/email';
-import { getPublicOrigin } from './server/settings-store';
+import { sveltekitCookies } from 'better-auth/svelte-kit';
+import { getRequestEvent } from '$app/server';
+import * as schema from '$lib/server/db/schema.js';
+import { db } from '$lib/server/db/index.js';
+import { getSocialProviders } from '$lib/server/oauth-providers.js';
+import { resolveTurnstileCaptchaConfig } from '$lib/server/turnstile.js';
+import { sendPasswordResetEmail, sendWelcomeEmail } from '$lib/server/email.js';
+import { getPublicOrigin } from '$lib/server/settings-store.js';
 
 const AUTH_CACHE_TTL = 5 * 60 * 1000;
 const IS_PRODUCTION = env.NODE_ENV === 'production';
@@ -28,27 +29,22 @@ function normalizeOrigin(origin: string): string {
 }
 
 function resolveBaseURL(): string | undefined {
-  // Behind a TLS-terminating reverse proxy (preview env / vite dev) the internal
-  // request origin differs from the public origin. better-auth's isAuthPath does a
-  // strict origin match against a pinned baseURL, so pinning it there makes every
-  // /api/auth/* request 404. In those environments we leave baseURL undefined and
-  // let better-auth infer it from the incoming request; CSRF stays enforced via
-  // trustedOrigins. In production (adapter-node computes origin from ORIGIN) the
-  // origins align, so we pin baseURL for stability.
-  if (IS_PRODUCTION) {
-    const candidates = [env.BETTER_AUTH_URL, env.ORIGIN];
+  const candidates = [env.BETTER_AUTH_URL, env.ORIGIN];
 
-    for (const candidate of candidates) {
-      if (!candidate) {
-        continue;
-      }
-
-      try {
-        return new URL(candidate).origin;
-      } catch (error) {
-        console.warn('[Auth] Invalid auth base URL candidate; ignoring value.', error);
-      }
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
     }
+
+    try {
+      return new URL(candidate).origin;
+    } catch (error) {
+      console.warn('[Auth] Invalid auth base URL candidate; ignoring value.', error);
+    }
+  }
+
+  if (!IS_PRODUCTION) {
+    return 'http://localhost:5173';
   }
 
   return undefined;
@@ -69,24 +65,11 @@ function getTrustedOrigins(): string[] {
     }
   }
 
-  // Comma-separated extra origins (exact or wildcard) via env, works in all envs.
-  if (env.ADDITIONAL_TRUSTED_ORIGINS) {
-    for (const raw of env.ADDITIONAL_TRUSTED_ORIGINS.split(',')) {
-      const value = raw.trim();
-      if (value) origins.add(value);
-    }
-  }
-
   if (!IS_PRODUCTION) {
     origins.add('http://localhost:5173');
     origins.add('http://127.0.0.1:5173');
     origins.add('http://localhost:4173');
     origins.add('http://127.0.0.1:4173');
-    // Emergent preview / CDN inject a sibling hostname (e.g. *.cluster-N.preview.emergentcf.cloud)
-    // that differs from the public ORIGIN. Trust the preview domain families via wildcards so
-    // browser logins work behind the reverse proxy while keeping CSRF/origin checks enabled.
-    origins.add('https://*.preview.emergentagent.com');
-    origins.add('https://*.preview.emergentcf.cloud');
   }
 
   return Array.from(origins);
@@ -108,31 +91,12 @@ async function createAuthInstance() {
     );
   }
 
-  plugins.push(nextCookies());
+  plugins.push(sveltekitCookies(getRequestEvent));
 
   return betterAuth({
-    appName: 'GenAudius',
+    appName: 'qamuz_ai',
     secret: env.BETTER_AUTH_SECRET || env.AUTH_SECRET,
     baseURL: resolveBaseURL(),
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            try {
-              const { createAdminNotification } = await import('./server/notifications');
-              await createAdminNotification(
-                'New User Signup',
-                `A new user just registered: ${user.email}`,
-                'admin',
-                '/admin'
-              );
-            } catch (err) {
-              console.error('Failed to trigger new user notification', err);
-            }
-          }
-        }
-      }
-    },
     database: drizzleAdapter(db, {
       provider: 'pg',
       schema: {
@@ -162,6 +126,16 @@ async function createAuthInstance() {
           type: 'string',
           required: false,
           input: false,
+        },
+        professionalRole: {
+          type: 'string',
+          required: false,
+          input: true,
+        },
+        portfolioUrl: {
+          type: 'string',
+          required: false,
+          input: true,
         },
       },
     },

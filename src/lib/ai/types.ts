@@ -254,6 +254,20 @@ export interface AudioGenerationParams {
 	chatId?: string;
 }
 
+export interface VoiceDesignParams {
+	text: string;
+	gender: 'male' | 'female';
+	age: 'young' | 'middle_aged' | 'old';
+	accent: string;
+	accentStrength: number; // 0.0 to 2.0
+}
+
+export interface VoiceDesignResponse {
+	audioData: string; // Base64 encoded audio preview
+	mimeType: string;
+	generatedVoiceId: string; // The ID required to save this designed voice
+}
+
 export interface AIAudioResponse {
 	audioData: string; // Base64 encoded audio
 	mimeType: string; // e.g., 'audio/mpeg'
@@ -298,21 +312,19 @@ export interface AIVoiceChangeResponse {
 	targetVoiceId: string;
 }
 
-// Music generation types for ElevenLabs Music API and Suno
+// Music generation types for ElevenLabs Music API / Suno
 export interface MusicGenerationParams {
 	prompt: string; // Text description of the music (max 4100 chars)
 	musicLengthMs?: number; // Duration in milliseconds (3000-300000, i.e., 3s-5min)
 	modelId?: string; // Model ID (default: 'music_v1')
 	forceInstrumental?: boolean; // Guarantee instrumental output (default: false)
 	outputFormat?: string; // Output format (default: 'mp3_44100_128')
-	// Suno-specific fields
-	customMode?: boolean; // Enable custom mode (use style/title fields)
-	style?: string; // Musical style tags (only in customMode)
-	title?: string; // Song title (only in customMode)
-	callBackUrl?: string; // Webhook URL required by Suno async API
-	userId?: string; // Required by providers that save to storage
-	chatId?: string; // Optional chat context for storage
-	vocalGender?: string; // Optional vocal gender for MusicGPT
+	vocalGender?: string; // e.g., 'male' or 'female'
+	customMode?: boolean; // Suno custom mode
+	style?: string; // Suno style tags
+	title?: string; // Suno track title
+	callBackUrl?: string; // Suno webhook callback URL
+	referenceAudioUrl?: string; // Audio URL used for references/extend
 }
 
 export interface AIMusicResponse {
@@ -322,7 +334,9 @@ export interface AIMusicResponse {
 	model: string; // Model ID used
 	durationMs: number; // Duration in milliseconds
 	isInstrumental: boolean; // Whether music is instrumental only
-	musicId?: string; // DB record ID (populated by providers that save internally)
+	imageUrl?: string;
+	videoUrl?: string;
+	lyrics?: string;
 }
 
 // Sound effects generation types for ElevenLabs Text-to-Sound-Effects API

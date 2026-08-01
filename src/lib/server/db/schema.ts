@@ -16,7 +16,7 @@ import { randomUUID } from 'crypto';
 
 export const users = pgTable("user", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	name: text("name"),
 	email: text("email").unique(),
@@ -30,13 +30,14 @@ export const users = pgTable("user", {
 		enum: ["active", "canceled", "incomplete", "incomplete_expired", "past_due", "trialing", "unpaid"] 
 	}).default("incomplete"),
 	planTier: text("planTier", { 
-		enum: ["free", "plus", "pro"] 
+		enum: ["free", "starter", "pro", "advanced"] 
 	}).default("free"),
-	autoTopupEnabled: boolean("autoTopupEnabled").notNull().default(false),
-	autoTopupAmount: integer("autoTopupAmount"),
-	autoTopupCredits: integer("autoTopupCredits"),
-	creditBalance: integer("creditBalance").default(100),
 	marketingConsent: boolean("marketingConsent").notNull().default(false),
+	professionalRole: text("professionalRole", {
+		enum: ["artist", "producer", "musician", "label", "none"]
+	}),
+	portfolioUrl: text("portfolioUrl"),
+	creditsBalance: integer("creditsBalance").notNull().default(0),
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 })
@@ -62,7 +63,7 @@ export const betterAuthAccounts = pgTable(
 	"betterAuthAccount",
 	{
 		id: text("id")
-			.primaryKey()
+			.primaryKey().notNull()
 			.$defaultFn(() => randomUUID()),
 		accountId: text("accountId").notNull(),
 		providerId: text("providerId").notNull(),
@@ -89,7 +90,7 @@ export const betterAuthSessions = pgTable(
 	"betterAuthSession",
 	{
 		id: text("id")
-			.primaryKey()
+			.primaryKey().notNull()
 			.$defaultFn(() => randomUUID()),
 		expiresAt: timestamp("expiresAt", { mode: "date" }).notNull(),
 		token: text("token").notNull().unique(),
@@ -110,7 +111,7 @@ export const betterAuthVerifications = pgTable(
 	"betterAuthVerification",
 	{
 		id: text("id")
-			.primaryKey()
+			.primaryKey().notNull()
 			.$defaultFn(() => randomUUID()),
 		identifier: text("identifier").notNull(),
 		value: text("value").notNull(),
@@ -125,7 +126,7 @@ export const betterAuthVerifications = pgTable(
 
 export const images = pgTable("image", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	filename: text("filename").notNull(),
 	userId: text("userId")
@@ -158,7 +159,7 @@ export const images = pgTable("image", {
 
 export const videos = pgTable("video", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	filename: text("filename").notNull(),
 	userId: text("userId")
@@ -193,7 +194,7 @@ export const videos = pgTable("video", {
 
 export const audio = pgTable("audio", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	filename: text("filename").notNull(),
 	userId: text("userId")
@@ -222,7 +223,7 @@ export const audio = pgTable("audio", {
 
 export const transcriptions = pgTable("transcriptions", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	filename: text("filename").notNull(),
 	userId: text("userId")
@@ -247,7 +248,7 @@ export const transcriptions = pgTable("transcriptions", {
 
 export const voiceChanges = pgTable("voice_changes", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	// Output audio info (the transformed/converted audio)
 	filename: text("filename").notNull(),
@@ -279,7 +280,7 @@ export const voiceChanges = pgTable("voice_changes", {
 
 export const music = pgTable("music", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	filename: text("filename").notNull(),
 	userId: text("userId")
@@ -290,11 +291,17 @@ export const music = pgTable("music", {
 	fileSize: integer("fileSize").notNull(),
 	durationMs: integer("durationMs"), // Music duration in milliseconds
 	prompt: text("prompt").notNull(), // The prompt used to generate music
+	title: text("title"), // The title of the song, can be edited by user
+	isPublic: boolean("isPublic").notNull().default(false), // Whether the song is published to the home feed
+	likesCount: integer("likesCount").notNull().default(0), // Number of likes
+	playsCount: integer("playsCount").notNull().default(0), // Number of plays
 	model: text("model").notNull(), // Music model used (e.g., "music_v1")
 	isInstrumental: boolean("isInstrumental").notNull().default(false), // Whether music is instrumental only
+	imageUrl: text("imageUrl"), // Cover art URL
+	videoUrl: text("videoUrl"), // Video URL
+	lyrics: text("lyrics"), // Lyrics text
 	storageLocation: text("storageLocation").notNull().default("local"), // 'local' | 'r2'
 	cloudPath: text("cloudPath"), // Path/key for cloud storage (null for local files)
-	coverUrl: text("coverUrl"), // Cover image URL for generated music (e.g., from Suno)
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 }, (table) => [
 	// Composite index for library queries (order by createdAt DESC for user)
@@ -305,7 +312,7 @@ export const music = pgTable("music", {
 
 export const soundEffects = pgTable("sound_effects", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	filename: text("filename").notNull(),
 	userId: text("userId")
@@ -330,7 +337,7 @@ export const soundEffects = pgTable("sound_effects", {
 
 export const projects = pgTable("project", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.notNull()
@@ -346,7 +353,7 @@ export const projects = pgTable("project", {
 
 export const projectFiles = pgTable("project_file", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	projectId: text("projectId")
 		.notNull()
@@ -362,7 +369,7 @@ export const projectFiles = pgTable("project_file", {
 
 export const chats = pgTable("chat", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.notNull()
@@ -394,11 +401,11 @@ export const chats = pgTable("chat", {
 
 export const pricingPlans = pgTable("pricing_plan", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	name: text("name").notNull(),
 	tier: text("tier", { 
-		enum: ["free", "plus", "pro"] 
+		enum: ["free", "starter", "pro", "advanced"] 
 	}).notNull(),
 	stripePriceId: text("stripePriceId").notNull().unique(),
 	priceAmount: integer("priceAmount").notNull(), // Price in cents
@@ -406,11 +413,10 @@ export const pricingPlans = pgTable("pricing_plan", {
 	billingInterval: text("billingInterval", { 
 		enum: ["month", "year"] 
 	}).notNull().default("month"),
-	creditLimit: integer("creditLimit"), // null = unlimited
-	textGenerationLimit: integer("textGenerationLimit"),
-	imageGenerationLimit: integer("imageGenerationLimit"),
-	videoGenerationLimit: integer("videoGenerationLimit"),
-	audioGenerationLimit: integer("audioGenerationLimit"),
+	textGenerationLimit: integer("textGenerationLimit"), // null = unlimited
+	imageGenerationLimit: integer("imageGenerationLimit"), // null = unlimited
+	videoGenerationLimit: integer("videoGenerationLimit"), // null = unlimited
+	audioGenerationLimit: integer("audioGenerationLimit"), // null = unlimited
 	features: json("features").$type<string[]>().notNull().default([]),
 	isActive: boolean("isActive").notNull().default(true),
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
@@ -419,7 +425,7 @@ export const pricingPlans = pgTable("pricing_plan", {
 
 export const subscriptions = pgTable("subscription", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.notNull()
@@ -427,10 +433,10 @@ export const subscriptions = pgTable("subscription", {
 	stripeSubscriptionId: text("stripeSubscriptionId").notNull().unique(),
 	stripePriceId: text("stripePriceId").notNull(),
 	planTier: text("planTier", { 
-		enum: ["free", "plus", "pro"] 
+		enum: ["free", "starter", "pro", "advanced"] 
 	}).notNull(),
 	previousPlanTier: text("previousPlanTier", { 
-		enum: ["free", "plus", "pro"] 
+		enum: ["free", "starter", "pro", "advanced"] 
 	}), // Track previous plan for plan change analytics
 	status: text("status", { 
 		enum: ["active", "canceled", "incomplete", "incomplete_expired", "past_due", "trialing", "unpaid"] 
@@ -447,14 +453,17 @@ export const subscriptions = pgTable("subscription", {
 
 export const usageTracking = pgTable("usage_tracking", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.notNull()
 		.references(() => users.id, { onDelete: "cascade" }),
 	month: integer("month").notNull(), // 1-12
 	year: integer("year").notNull(),
-	creditsUsed: integer("creditsUsed").notNull().default(0),
+	textGenerationCount: integer("textGenerationCount").notNull().default(0),
+	imageGenerationCount: integer("imageGenerationCount").notNull().default(0),
+	videoGenerationCount: integer("videoGenerationCount").notNull().default(0),
+	audioGenerationCount: integer("audioGenerationCount").notNull().default(0),
 	lastResetAt: timestamp("lastResetAt", { mode: "date" }).notNull().defaultNow(),
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
@@ -464,7 +473,7 @@ export const usageTracking = pgTable("usage_tracking", {
 
 export const paymentHistory = pgTable("payment_history", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.references(() => users.id, { onDelete: "set null" }), // Keep payment records for audit/legal purposes
@@ -487,7 +496,7 @@ export const paymentHistory = pgTable("payment_history", {
 
 export const adminSettings = pgTable("admin_settings", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	key: text("key").notNull().unique(), // Setting key (e.g., 'site_name', 'stripe_public_key')
 	value: text("value"), // Setting value (JSON for complex values)
@@ -502,7 +511,7 @@ export const adminSettings = pgTable("admin_settings", {
 
 export const favoriteModels = pgTable("favorite_model", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.notNull()
@@ -518,7 +527,7 @@ export const favoriteModels = pgTable("favorite_model", {
 
 export const adminFiles = pgTable("admin_files", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	filename: text("filename").notNull(),
 	originalName: text("originalName").notNull(),
@@ -534,244 +543,104 @@ export const adminFiles = pgTable("admin_files", {
 	index('admin_files_category_idx').on(table.category),
 ])
 
-// ─── GenAudius Platform Tables ────────────────────────────────────────────────
-
-export const artistProfiles = pgTable("artist_profile", {
+export const auditLogs = pgTable("audit_log", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.references(() => users.id, { onDelete: "cascade" }),
+	action: text("action").notNull(), // e.g. "accepted_terms", "generation_blocked"
+	ipAddress: text("ipAddress"),
+	userAgent: text("userAgent"),
+	details: json("details"), // JSON payload with exact checkboxes ticked or block reason
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	index('audit_logs_user_idx').on(table.userId),
+	index('audit_logs_action_idx').on(table.action),
+])
+
+// --- NEW TABLES FOR ADVANCED ARCHITECTURE ---
+
+export const creditTransactions = pgTable("credit_transactions", {
+	id: text("id")
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.notNull()
-		.unique()
 		.references(() => users.id, { onDelete: "cascade" }),
-	displayName: text("displayName"),
-	bio: text("bio"),
-	bannerUrl: text("bannerUrl"),
-	genres: json("genres").$type<string[]>().notNull().default([]),
-	socialLinks: json("socialLinks").$type<Record<string, string>>().notNull().default({}),
-	isVerified: boolean("isVerified").notNull().default(false),
+	type: text("type", { enum: ["hold", "commit", "rollback", "recharge"] }).notNull(),
+	amount: integer("amount").notNull(), // Negative for deduction, positive for addition/refund
+	resourceType: text("resourceType").notNull(), // 'text', 'image', 'video', 'audio', 'credit'
+	provider: text("provider"), // e.g., 'replicate', 'openrouter', 'suno'
+	model: text("model"), // Specific model name
+	status: text("status", { enum: ["pending", "completed", "failed"] }).notNull(),
+	errorMessage: text("errorMessage"), // Stores error message if failed
+	referenceId: text("referenceId"), // ID to link hold, commit, and rollback transactions
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 }, (table) => [
-	index('artist_profiles_user_idx').on(table.userId),
+	index('credit_txn_user_idx').on(table.userId),
+	index('credit_txn_ref_idx').on(table.referenceId),
+	index('credit_txn_status_idx').on(table.status),
 ])
 
-export const publications = pgTable("publication", {
+export const aiJobs = pgTable("ai_jobs", {
 	id: text("id")
-		.primaryKey()
+		.primaryKey().notNull()
 		.$defaultFn(() => randomUUID()),
 	userId: text("userId")
 		.notNull()
 		.references(() => users.id, { onDelete: "cascade" }),
-	type: text("type", { enum: ["music", "video", "image"] }).notNull(),
-	title: text("title").notNull(),
-	description: text("description"),
-	prompt: text("prompt"),
-	audioUrl: text("audioUrl"),
-	videoUrl: text("videoUrl"),
-	coverUrl: text("coverUrl"),
-	lyrics: json("lyrics").$type<Array<{ time: number; text: string }>>(),
-	tags: text("tags"),
-	model: text("model"),
-	durationMs: integer("durationMs"),
-	isInstrumental: boolean("isInstrumental").notNull().default(false),
-	externalId: text("externalId"),
-	musicId: text("musicId").references(() => music.id, { onDelete: "set null" }),
-	videoId: text("videoId").references(() => videos.id, { onDelete: "set null" }),
-	imageId: text("imageId").references(() => images.id, { onDelete: "set null" }),
-	isPublic: boolean("isPublic").notNull().default(false),
-	playCount: integer("playCount").notNull().default(0),
-	likeCount: integer("likeCount").notNull().default(0),
+	type: text("type").notNull(), // e.g., 'music-generation', 'video-generation'
+	payload: json("payload").notNull(), // The parameters required to execute the job
+	priority: integer("priority").notNull().default(10), // Lower number = higher priority (1 = Pro, 10 = Free)
+	status: text("status", { enum: ["queued", "processing", "completed", "failed"] }).notNull().default("queued"),
+	result: json("result"), // The successful response from the AI provider
+	errorMessage: text("errorMessage"), // Error details if failed
+	attempts: integer("attempts").notNull().default(0), // Number of retries
+	transactionId: text("transactionId"), // Link to the 'hold' transaction to commit/rollback later
+	startedAt: timestamp("startedAt", { mode: "date" }),
+	completedAt: timestamp("completedAt", { mode: "date" }),
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 }, (table) => [
-	index('publications_user_created_idx').on(table.userId, table.createdAt),
-	index('publications_public_plays_idx').on(table.isPublic, table.playCount),
-	index('publications_type_idx').on(table.type),
+	index('ai_jobs_status_priority_idx').on(table.status, table.priority), // Critical for efficient queue fetching
+	index('ai_jobs_user_idx').on(table.userId),
 ])
 
-export const follows = pgTable("follow", {
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => randomUUID()),
-	followerId: text("followerId")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	followingId: text("followingId")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+// Artists table
+export const artists = pgTable("artist", {
+  id: text("id").primaryKey().notNull().$defaultFn(() => randomUUID()),
+  userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bio: text("bio"),
+  verifiedAt: timestamp("verifiedAt", { mode: "date" }),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 }, (table) => [
-	unique('follow_pair_unique').on(table.followerId, table.followingId),
-	index('follows_follower_idx').on(table.followerId),
-	index('follows_following_idx').on(table.followingId),
-])
-
-export const likes = pgTable("like", {
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => randomUUID()),
-	userId: text("userId")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	publicationId: text("publicationId")
-		.notNull()
-		.references(() => publications.id, { onDelete: "cascade" }),
-	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-}, (table) => [
-	unique('like_user_pub_unique').on(table.userId, table.publicationId),
-	index('likes_publication_idx').on(table.publicationId),
-	index('likes_user_idx').on(table.userId),
-])
-
-export const listeningHistory = pgTable("listening_history", {
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => randomUUID()),
-	userId: text("userId")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	publicationId: text("publicationId")
-		.notNull()
-		.references(() => publications.id, { onDelete: "cascade" }),
-	playedAt: timestamp("playedAt", { mode: "date" }).notNull().defaultNow(),
-	playDurationMs: integer("playDurationMs").notNull().default(0),
-}, (table) => [
-	index('listening_history_user_idx').on(table.userId, table.playedAt),
-	index('listening_history_pub_idx').on(table.publicationId),
-])
-
-export const playlists = pgTable("playlist", {
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => randomUUID()),
-	userId: text("userId")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	name: text("name").notNull(),
-	description: text("description"),
-	coverUrl: text("coverUrl"),
-	isPublic: boolean("isPublic").notNull().default(false),
-	trackCount: integer("trackCount").notNull().default(0),
-	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
-}, (table) => [
-	index('playlists_user_idx').on(table.userId),
-])
-
-export const playlistItems = pgTable("playlist_item", {
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => randomUUID()),
-	playlistId: text("playlistId")
-		.notNull()
-		.references(() => playlists.id, { onDelete: "cascade" }),
-	publicationId: text("publicationId")
-		.notNull()
-		.references(() => publications.id, { onDelete: "cascade" }),
-	sortOrder: integer("sortOrder").notNull().default(0),
-	addedAt: timestamp("addedAt", { mode: "date" }).notNull().defaultNow(),
-}, (table) => [
-	unique('playlist_item_unique').on(table.playlistId, table.publicationId),
-	index('playlist_items_playlist_order_idx').on(table.playlistId, table.sortOrder),
-])
-
-// ─── Video Project (AI Song-to-Video pipeline) ────────────────────────────────
-export const videoProjects = pgTable("video_project", {
-	id: text("id")
-		.primaryKey()
-		.$defaultFn(() => randomUUID()),
-	userId: text("userId")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	publicationId: text("publicationId")
-		.references(() => publications.id, { onDelete: "set null" }),
-	title: text("title").notNull(),
-	audioUrl: text("audioUrl"),
-	coverUrl: text("coverUrl"),
-	lyrics: text("lyrics"),
-	style: text("style"),
-	prompt: text("prompt"),
-	config: json("config").$type<{ platform: string; durationSec: number; hookText?: string }>(),
-	// Pipeline state
-	status: text("status", {
-		enum: ["script", "storyboard", "rendering", "editor", "done", "error"],
-	}).notNull().default("script"),
-	// JSON data per step
-	script: json("script").$type<VideoScene[]>(),
-	scenes: json("scenes").$type<VideoSceneWithImage[]>(),
-	clips: json("clips").$type<VideoClip[]>(),
-	finalVideoUrl: text("finalVideoUrl"),
-	errorMessage: text("errorMessage"),
-	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
-}, (table) => [
-	index('video_projects_user_idx').on(table.userId, table.createdAt),
-])
-
-// Social accounts connected by users for publishing
-export const socialAccounts = pgTable("social_account", {
-	id: text("id").primaryKey().$defaultFn(() => randomUUID()),
-	userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
-	platform: text("platform", {
-		enum: ["youtube", "tiktok", "instagram", "facebook", "twitter"]
-	}).notNull(),
-	platformUserId:   text("platformUserId").notNull(),
-	platformUsername: text("platformUsername"),
-	platformAvatar:   text("platformAvatar"),
-	accessToken:      text("accessToken").notNull(),
-	refreshToken:     text("refreshToken"),
-	tokenExpiresAt:   timestamp("tokenExpiresAt", { mode: "date" }),
-	scope:            text("scope"),
-	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
-}, (t) => [
-	unique("social_account_user_platform_unique").on(t.userId, t.platform),
-	index("social_account_user_idx").on(t.userId),
+  index("artist_user_idx").on(table.userId),
 ]);
 
-export type SocialPlatform = "youtube" | "tiktok" | "instagram" | "facebook" | "twitter";
+// Playlists table
+export const playlists = pgTable("playlist", {
+  id: text("id").primaryKey().notNull().$defaultFn(() => randomUUID()),
+  userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  isPublic: boolean("isPublic").notNull().default(false),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+  index("playlist_user_idx").on(table.userId),
+]);
 
-export interface VideoScene {
-	index: number;
-	startSec: number;
-	endSec: number;
-	type?: "vocals" | "instrumental";   // undefined for legacy projects
-	description: string;
-	prompt: string;
-	cameraMovement?: string;            // undefined for legacy projects
-}
-
-export interface VideoSceneWithImage extends VideoScene {
-	imageUrl?: string;
-	imageStatus: "pending" | "generating" | "done" | "error";
-}
-
-export interface VideoClip extends VideoSceneWithImage {
-	clipUrl?: string;
-	clipStatus: "pending" | "generating" | "done" | "error";
-	taskId?: string;
-}
-
-export const creditPackages = pgTable("creditPackage", {
-	id: text("id").primaryKey().$defaultFn(() => randomUUID()),
-	stripePriceId: text("stripePriceId").notNull(),
-	priceAmount: integer("priceAmount").notNull(), // Amount in dollars
-	credits: integer("credits").notNull(),
-	oldCredits: integer("oldCredits"), // For strikethrough logic
-	badgeText: text("badgeText"), // e.g. "20% More"
-	isActive: boolean("isActive").notNull().default(true),
-	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
-});
-
-export const notifications = pgTable("notification", {
-	id: text("id").primaryKey().$defaultFn(() => randomUUID()),
-	userId: text("userId").notNull().references(() => users.id, { onDelete: 'cascade' }),
-	type: text("type", { enum: ["system", "promo", "alert", "billing", "admin"] }).notNull().default("system"),
-	title: text("title").notNull(),
-	message: text("message").notNull(),
-	link: text("link"),
-	isRead: boolean("isRead").notNull().default(false),
-	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-})
+// Playlist items
+export const playlistItems = pgTable("playlist_item", {
+  id: text("id").primaryKey().notNull().$defaultFn(() => randomUUID()),
+  playlistId: text("playlistId").notNull().references(() => playlists.id, { onDelete: "cascade" }),
+  musicId: text("musicId").notNull().references(() => music.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+  index("playlist_item_playlist_idx").on(table.playlistId),
+  index("playlist_item_music_idx").on(table.musicId),
+]);

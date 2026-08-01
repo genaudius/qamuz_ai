@@ -53,7 +53,7 @@ export const ELEVENLABS_STS_MODELS = [
 // ElevenLabs Music Models
 // These are the available music generation models
 export const ELEVENLABS_MUSIC_MODELS = [
-	{ id: 'eleven_music_v1', name: 'Eleven Music v1' }
+	{ id: 'music_v1', name: 'Music v1' }
 ] as const;
 
 // ElevenLabs Sound Effects Models

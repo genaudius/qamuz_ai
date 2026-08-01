@@ -3,6 +3,8 @@
  * Prevents information disclosure while maintaining good user experience
  */
 
+import { fail } from '@sveltejs/kit';
+
 /**
  * Security-focused error level types
  */
@@ -66,11 +68,10 @@ export function createAuthError(
   message: string,
   fieldData?: Record<string, any>
 ) {
-  return {
-    status: statusCode,
+  return fail(statusCode, {
     error: message,
     ...fieldData
-  };
+  });
 }
 
 /**
@@ -80,7 +81,7 @@ export function handleAuthError(
   error: unknown,
   context: string,
   level: SecurityErrorLevel = 'user'
-) {
+): ReturnType<typeof fail> {
   // Log error details for debugging (only in development)
   if (process.env.NODE_ENV === 'development') {
     console.error(`[Auth Error - ${context}]:`, error);

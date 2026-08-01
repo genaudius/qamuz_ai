@@ -1,5 +1,5 @@
-const env = process.env;;
-import { getOAuthSettings } from '@/src/lib/server/settings-store';
+import { env } from '$env/dynamic/private';
+import { getOAuthSettings } from '$lib/server/settings-store.js';
 
 export type OAuthProviderName = 'google' | 'apple' | 'twitter' | 'facebook';
 

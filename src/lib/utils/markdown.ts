@@ -1,7 +1,7 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-const browser = typeof window !== 'undefined';
-import { addCopyButtonsToCodeBlocks } from './code-copy';
+import { browser } from '$app/environment';
+import { addCopyButtonsToCodeBlocks } from './code-copy.js';
 
 // Configure marked with basic options
 marked.use({

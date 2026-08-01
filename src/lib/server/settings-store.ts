@@ -40,12 +40,6 @@ export interface CachedSettings {
   sunoApiKey: string;
   musicgptApiKey: string;
 
-  // Music APIs
-  spotifyClientId: string;
-  spotifyClientSecret: string;
-  lastfmApiKey: string;
-  musicTags: any; // JSON object containing genres and styles
-
   // Cloud Storage settings
   r2AccountId: string;
   r2AccessKeyId: string;
@@ -66,6 +60,8 @@ export interface CachedSettings {
   logoWidth: string;
   logoHeight: string;
   currentFavicon: string | null;
+  sidebarIconUrlDark: string | null;
+  sidebarIconUrlLight: string | null;
 
   // Metadata
   lastUpdated: Date;
@@ -97,6 +93,8 @@ export interface PublicSettings {
   logoWidth: string;
   logoHeight: string;
   currentFavicon: string | null;
+  sidebarIconUrlDark: string | null;
+  sidebarIconUrlLight: string | null;
   lastUpdated: Date;
   isFallback?: boolean;
 }
@@ -128,6 +126,8 @@ export function toPublicSettings(settings: CachedSettings): PublicSettings {
     logoWidth: settings.logoWidth,
     logoHeight: settings.logoHeight,
     currentFavicon: settings.currentFavicon,
+    sidebarIconUrlDark: settings.sidebarIconUrlDark,
+    sidebarIconUrlLight: settings.sidebarIconUrlLight,
     lastUpdated: settings.lastUpdated,
     isFallback: settings.isFallback,
   };
@@ -135,9 +135,9 @@ export function toPublicSettings(settings: CachedSettings): PublicSettings {
 
 // Default fallback values
 const DEFAULT_SETTINGS: Omit<CachedSettings, 'lastUpdated'> = {
-  siteName: "GenAudius",
-  siteTitle: "GenAudius - AI Music & Chat",
-  siteDescription: "GenAudius AI — music generation, chat with 65+ AI models, and more.",
+  siteName: "AI Chat Interface",
+  siteTitle: "AI Chat Interface - 65+ Models",
+  siteDescription: "A unified web application for interacting with 65+ AI models from 9 different providers through a single, intuitive interface.",
   defaultLanguage: "en",
   defaultTheme: "dark",
   defaultPage: "landing",
@@ -164,10 +164,6 @@ const DEFAULT_SETTINGS: Omit<CachedSettings, 'lastUpdated'> = {
   elevenlabsApiKey: "",
   sunoApiKey: "",
   musicgptApiKey: "",
-  spotifyClientId: "",
-  spotifyClientSecret: "",
-  lastfmApiKey: "",
-  musicTags: null,
   r2AccountId: "",
   r2AccessKeyId: "",
   r2SecretAccessKey: "",
@@ -176,8 +172,8 @@ const DEFAULT_SETTINGS: Omit<CachedSettings, 'lastUpdated'> = {
   r2BrandingPublicUrl: "",
   turnstileSiteKey: "",
   turnstileSecretKey: "",
-  logoUrlDark: "",
-  logoUrlLight: "",
+  logoUrlDark: "/branding/logos/default-dark-logo.png", // Default fallback for dark mode
+  logoUrlLight: "/branding/logos/default-light-logo.png", // Default fallback for light mode
   logoWidth: "170", // Default logo width in pixels
   logoHeight: "27", // Default logo height in pixels
   currentFavicon: null // Default no custom favicon
@@ -291,8 +287,8 @@ class SettingsStore {
     try {
       console.log('Refreshing settings cache from database...');
 
-      // Load general, payment, oauth, ai model, cloud storage, security, branding settings, music apis, and branding files from database
-      const [generalSettings, paymentSettings, oauthSettings, aiModelSettings, cloudStorageSettings, securitySettings, brandingSettings, musicApiSettings, brandingDarkFile, brandingLightFile, faviconFile] = await Promise.all([
+      // Load general, payment, oauth, ai model, cloud storage, security, branding settings, and branding files from database
+      const [generalSettings, paymentSettings, oauthSettings, aiModelSettings, cloudStorageSettings, securitySettings, brandingSettings, brandingDarkFile, brandingLightFile, faviconFile, sidebarIconDarkFile, sidebarIconLightFile] = await Promise.all([
         adminSettingsService.getSettingsByCategory('general'),
         adminSettingsService.getSettingsByCategory('payment'),
         adminSettingsService.getSettingsByCategory('oauth'),
@@ -300,10 +296,11 @@ class SettingsStore {
         adminSettingsService.getSettingsByCategory('cloud_storage'),
         adminSettingsService.getSettingsByCategory('security'),
         adminSettingsService.getSettingsByCategory('branding'),
-        adminSettingsService.getSettingsByCategory('music_apis'),
         getCurrentBrandingFile('logo-dark'),
         getCurrentBrandingFile('logo-light'),
-        getCurrentBrandingFile('favicon')
+        getCurrentBrandingFile('favicon'),
+        getCurrentBrandingFile('sidebar-icon-dark'),
+        getCurrentBrandingFile('sidebar-icon-light')
       ]);
 
       // Transform database settings to our cached format
@@ -337,10 +334,6 @@ class SettingsStore {
         elevenlabsApiKey: aiModelSettings.elevenlabs_api_key || DEFAULT_SETTINGS.elevenlabsApiKey,
         sunoApiKey: aiModelSettings.suno_api_key || DEFAULT_SETTINGS.sunoApiKey,
         musicgptApiKey: aiModelSettings.musicgpt_api_key || DEFAULT_SETTINGS.musicgptApiKey,
-        spotifyClientId: musicApiSettings.spotify_client_id || DEFAULT_SETTINGS.spotifyClientId,
-        spotifyClientSecret: musicApiSettings.spotify_client_secret || DEFAULT_SETTINGS.spotifyClientSecret,
-        lastfmApiKey: musicApiSettings.lastfm_api_key || DEFAULT_SETTINGS.lastfmApiKey,
-        musicTags: musicApiSettings.music_tags_cache ? JSON.parse(musicApiSettings.music_tags_cache) : DEFAULT_SETTINGS.musicTags,
         r2AccountId: cloudStorageSettings.r2_account_id || DEFAULT_SETTINGS.r2AccountId,
         r2AccessKeyId: cloudStorageSettings.r2_access_key_id || DEFAULT_SETTINGS.r2AccessKeyId,
         r2SecretAccessKey: cloudStorageSettings.r2_secret_access_key || DEFAULT_SETTINGS.r2SecretAccessKey,
@@ -354,6 +347,8 @@ class SettingsStore {
         logoWidth: brandingSettings.logo_width || DEFAULT_SETTINGS.logoWidth,
         logoHeight: brandingSettings.logo_height || DEFAULT_SETTINGS.logoHeight,
         currentFavicon: faviconFile?.url || DEFAULT_SETTINGS.currentFavicon,
+        sidebarIconUrlDark: sidebarIconDarkFile?.url || null,
+        sidebarIconUrlLight: sidebarIconLightFile?.url || null,
         lastUpdated: new Date(),
         isFallback: false // Mark as real settings from database
       };
@@ -561,7 +556,9 @@ export async function getAIModelSettings() {
   return {
     openrouterApiKey: settings.openrouterApiKey,
     replicateApiKey: settings.replicateApiKey,
-    elevenlabsApiKey: settings.elevenlabsApiKey
+    elevenlabsApiKey: settings.elevenlabsApiKey,
+    sunoApiKey: settings.sunoApiKey,
+    musicgptApiKey: settings.musicgptApiKey
   };
 }
 
@@ -587,33 +584,6 @@ export async function getSunoApiKey(): Promise<string> {
 export async function getMusicGptApiKey(): Promise<string> {
   const key = await settingsStore.getSetting('musicgptApiKey');
   return typeof key === 'string' ? key : '';
-}
-
-// Music APIs convenience functions
-export async function getMusicApiSettings() {
-  const settings = await settingsStore.getSettings();
-  return {
-    spotifyClientId: settings.spotifyClientId,
-    spotifyClientSecret: settings.spotifyClientSecret,
-    lastfmApiKey: settings.lastfmApiKey,
-    musicTags: settings.musicTags
-  };
-}
-
-export async function getSpotifyClientId(): Promise<string> {
-  return await settingsStore.getSetting('spotifyClientId');
-}
-
-export async function getSpotifyClientSecret(): Promise<string> {
-  return await settingsStore.getSetting('spotifyClientSecret');
-}
-
-export async function getLastfmApiKey(): Promise<string> {
-  return await settingsStore.getSetting('lastfmApiKey');
-}
-
-export async function getMusicTags(): Promise<any> {
-  return await settingsStore.getSetting('musicTags');
 }
 
 // Cloud Storage settings convenience functions
@@ -712,5 +682,6 @@ export async function getPublicOrigin(): Promise<string> {
     return settings.publicOrigin.trim();
   }
   // Fallback to env var, then localhost
-  return process.env.ORIGIN || 'http://localhost:5173';
+  const { env } = await import('$env/dynamic/private');
+  return env.ORIGIN || 'http://localhost:5173';
 }

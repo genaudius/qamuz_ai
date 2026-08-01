@@ -1,9 +1,9 @@
 import nodemailer from 'nodemailer'
-const env = process.env;
+import { env } from '$env/dynamic/private'
 import { getMailingSettings } from './admin-settings'
 import { getPublicOrigin, getLogoUrlLight, getLogoWidth, getLogoHeight, getSiteName } from './settings-store'
-import { welcomeVerifyEmailTemplate } from './sys-email-templates/welcome-verify-email.ts'
-import { resetPasswordEmailTemplate } from './sys-email-templates/reset-password.ts'
+import welcomeVerifyEmailTemplate from './sys-email-templates/welcome-verify-email.html?raw'
+import resetPasswordEmailTemplate from './sys-email-templates/reset-password.html?raw'
 
 // Email configuration types
 /**

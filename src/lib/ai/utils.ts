@@ -1,7 +1,6 @@
-import { db } from '@/src/lib/server/db/index';
-import { images, videos, audio, transcriptions, voiceChanges, music, soundEffects } from '@/src/lib/server/db/schema';
-import { storageService } from '@/src/lib/server/storage';
-import { notifyProviderBalanceEmpty } from '@/src/lib/server/emergency-notifier';
+import { db } from '$lib/server/db/index.js';
+import { images, videos, audio, transcriptions, voiceChanges, music, soundEffects } from '$lib/server/db/schema.js';
+import { storageService } from '$lib/server/storage.js';
 
 /**
  * Helper function to clean up orphaned files when database operations fail.
@@ -439,7 +438,7 @@ export async function saveVoiceChangeAndGetId(
  * @returns Database ID of the created music record
  */
 export async function saveMusicAndGetId(
-	audioData: string | Buffer,
+	audioData: string,
 	mimeType: string,
 	userId: string,
 	prompt: string,
@@ -447,14 +446,16 @@ export async function saveMusicAndGetId(
 	durationMs: number,
 	isInstrumental: boolean,
 	chatId?: string,
-	coverUrl?: string
+	imageUrl?: string,
+	videoUrl?: string,
+	lyrics?: string
 ): Promise<string> {
 	// Generate unique filename
 	const extension = mimeType.split('/')[1] || 'mp3';
 	const filename = storageService.generateFilename(`file.${extension}`);
 
-	// Convert base64 to buffer if needed
-	const audioBuffer = Buffer.isBuffer(audioData) ? audioData : Buffer.from(audioData, 'base64');
+	// Convert base64 to buffer
+	const audioBuffer = Buffer.from(audioData, 'base64');
 
 	// Upload to storage (R2 or local)
 	const storageResult = await storageService.upload(
@@ -483,9 +484,11 @@ export async function saveMusicAndGetId(
 				prompt,
 				model,
 				isInstrumental,
+				imageUrl: imageUrl || null,
+				videoUrl: videoUrl || null,
+				lyrics: lyrics || null,
 				storageLocation: storageResult.storageLocation,
-				cloudPath: storageResult.path,
-				coverUrl: coverUrl || null
+				cloudPath: storageResult.path
 			})
 			.returning();
 
@@ -575,26 +578,7 @@ export async function saveSoundEffectAndGetId(
  */
 export function createProviderError(providerName: string, operation: string, originalError: unknown): Error {
 	const message = originalError instanceof Error ? originalError.message : 'Unknown error';
-	const fullMessage = `${providerName} ${operation} error: ${message}`;
-	
-	// Check for billing/balance errors
-	const lowerMsg = message.toLowerCase();
-	if (
-		lowerMsg.includes('402') || 
-		lowerMsg.includes('payment') || 
-		lowerMsg.includes('insufficient credit') || 
-		lowerMsg.includes('quota') ||
-		lowerMsg.includes('out of credits') ||
-		lowerMsg.includes('balance') ||
-		lowerMsg.includes('billing')
-	) {
-		// Fire and forget notification
-		notifyProviderBalanceEmpty(providerName, fullMessage).catch(err => {
-			console.error(`Failed to notify admin of ${providerName} billing error:`, err);
-		});
-	}
-	
-	return new Error(fullMessage);
+	return new Error(`${providerName} ${operation} error: ${message}`);
 }
 
 /**

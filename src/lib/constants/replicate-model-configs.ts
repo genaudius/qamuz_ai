@@ -35,7 +35,6 @@ export interface ModelParamConfig {
 		min: number;           // Minimum duration
 		max: number;           // Maximum duration
 		unit: 'seconds' | 'frames';  // Whether the model expects seconds or frames
-		options?: readonly number[]; // Specific allowed durations (e.g., [4, 6, 8])
 	};
 	imageStartParam?: {
 		name: string;          // Parameter name (e.g., "start_image", "first_frame", "image_start")
@@ -360,40 +359,40 @@ export const MODEL_CONFIGS: Record<string, ModelParamConfig> = {
 
 	// Google models
 	'veo-3.1': {
-		imageInputParam: { name: 'image', isArray: false, needsDataUri: true },
+		imageInputParam: { name: 'image', isArray: false, needsDataUri: false },
 		sizeParam: { name: 'aspect_ratio', options: ['9:16', '16:9'] },
 		seedParam: { name: 'seed', type: 'integer' },
 		qualityParam: { name: 'resolution', options: ['720p', '1080p'] },
-		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds', options: [4, 6, 8] },
-		imageEndParam: { name: 'last_frame', isArray: false, needsDataUri: true }
+		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds' },
+		imageEndParam: { name: 'last_frame', isArray: false, needsDataUri: false }
 	},
 	'veo-3.1-fast': {
-		imageInputParam: { name: 'image', isArray: false, needsDataUri: true },
+		imageInputParam: { name: 'image', isArray: false, needsDataUri: false },
 		sizeParam: { name: 'aspect_ratio', options: ['9:16', '16:9'] },
 		seedParam: { name: 'seed', type: 'integer' },
 		qualityParam: { name: 'resolution', options: ['720p', '1080p'] },
-		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds', options: [4, 6, 8] },
-		imageEndParam: { name: 'last_frame', isArray: false, needsDataUri: true }
+		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds' },
+		imageEndParam: { name: 'last_frame', isArray: false, needsDataUri: false }
 	},
 	'veo-3': {
 		imageInputParam: { name: 'image', isArray: false, needsDataUri: false },
 		sizeParam: { name: 'aspect_ratio', options: ['9:16', '16:9'] },
 		seedParam: { name: 'seed', type: 'integer' },
 		qualityParam: { name: 'resolution', options: ['720p', '1080p'] },
-		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds', options: [4, 6, 8] },
+		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds' },
 	},
 	'veo-3-fast': {
 		imageInputParam: { name: 'image', isArray: false, needsDataUri: false },
 		sizeParam: { name: 'aspect_ratio', options: ['9:16', '16:9'] },
 		seedParam: { name: 'seed', type: 'integer' },
 		qualityParam: { name: 'resolution', options: ['720p', '1080p'] },
-		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds', options: [4, 6, 8] },
+		durationParam: { name: 'duration', min: 4, max: 8, unit: 'seconds' },
 	},
 	'veo-2': {
 		imageInputParam: { name: 'image', isArray: false, needsDataUri: false },
 		sizeParam: { name: 'aspect_ratio', options: ['9:16', '16:9'] },
 		seedParam: { name: 'seed', type: 'integer' },
-		durationParam: { name: 'duration', min: 5, max: 8, unit: 'seconds', options: [5, 8] },
+		durationParam: { name: 'duration', min: 5, max: 8, unit: 'seconds' },
 	},
 
 	// Luma models

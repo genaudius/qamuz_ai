@@ -1,5 +1,5 @@
 import { getSecuritySettings } from './admin-settings';
-const env = process.env;;
+import { env } from '$env/dynamic/private';
 
 interface TurnstileCaptchaConfig {
   enabled: boolean;

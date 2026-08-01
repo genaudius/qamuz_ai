@@ -1,5 +1,6 @@
-const env = process.env;
-import { getPublicOrigin } from './settings-store';
+import type { Handle } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
+import { getPublicOrigin } from './settings-store.js';
 
 /**
  * Security headers middleware for comprehensive protection
@@ -115,7 +116,7 @@ export function getSecurityHeaders(): Record<string, string> {
       'magnetometer=()',
       'accelerometer=()',
       'gyroscope=()',
-      'autoplay=(self)',
+      'autoplay=()',
       'encrypted-media=()',
       'picture-in-picture=()'
     ].join(', '),
@@ -151,7 +152,7 @@ export function getSecurityHeaders(): Record<string, string> {
 /**
  * Security headers middleware
  */
-export const securityHeaders = async ({ event, resolve }: any) => {
+export const securityHeaders: Handle = async ({ event, resolve }) => {
   // Get the response first
   const response = await resolve(event);
 

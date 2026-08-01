@@ -4,9 +4,8 @@ import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, resolve, sep } from 'path';
 import { randomUUID } from 'crypto';
-// Import environment variables with fallbacks for undefined vars.
-// Use dynamic private env so the build does not fail when optional R2 vars are absent.
-const env = process.env;;
+// Import environment variables with fallbacks for undefined vars
+import * as env from '$env/static/private';
 const R2_ACCOUNT_ID = env.R2_ACCOUNT_ID || '';
 const R2_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID || '';
 const R2_SECRET_ACCESS_KEY = env.R2_SECRET_ACCESS_KEY || '';
@@ -338,7 +337,7 @@ class StorageService {
 	private async ensureInitialized() {
 		// Check if config has changed (admin updated credentials)
 		// This must happen BEFORE the early return to detect credential updates
-		const { settingsStore } = await import('./settings-store');
+		const { settingsStore } = await import('./settings-store.js');
 		const currentVersion = settingsStore.getConfigVersion();
 
 		if (this.configVersion !== 0 && this.configVersion !== currentVersion) {
@@ -666,7 +665,7 @@ class StorageService {
 		}
 
 		try {
-			const { getR2BrandingBucketName, getR2BrandingPublicUrl } = await import('./settings-store');
+			const { getR2BrandingBucketName, getR2BrandingPublicUrl } = await import('./settings-store.js');
 			const bucketName = await getR2BrandingBucketName();
 			const publicUrl = await getR2BrandingPublicUrl();
 
