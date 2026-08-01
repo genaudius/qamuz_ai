@@ -9,3 +9,5 @@ coverage/
 
 .next/
 static/uploads/
+error.html
+output.html
