@@ -173,8 +173,9 @@
         <!-- Gender & Age -->
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <label class="text-sm font-medium text-foreground">Gender</label>
+            <label for="voice-gender" class="text-sm font-medium text-foreground">Gender</label>
             <select
+              id="voice-gender"
               bind:value={gender}
               class="w-full bg-[#282828] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500/50 transition-colors"
             >
@@ -183,8 +184,9 @@
             </select>
           </div>
           <div class="space-y-2">
-            <label class="text-sm font-medium text-foreground">Age</label>
+            <label for="voice-age" class="text-sm font-medium text-foreground">Age</label>
             <select
+              id="voice-age"
               bind:value={age}
               class="w-full bg-[#282828] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500/50 transition-colors"
             >
@@ -197,8 +199,9 @@
 
         <!-- Accent -->
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">Accent</label>
+          <label for="voice-accent" class="text-sm font-medium text-foreground">Accent</label>
           <input
+            id="voice-accent"
             type="text"
             bind:value={accent}
             placeholder="e.g. American, British, Australian"
@@ -209,10 +212,11 @@
         <!-- Accent Strength -->
         <div class="space-y-2">
           <div class="flex justify-between items-center">
-            <label class="text-sm font-medium text-foreground">Accent Strength</label>
+            <label for="voice-accent-strength" class="text-sm font-medium text-foreground">Accent Strength</label>
             <span class="text-xs text-muted-foreground">{Math.round(accentStrength * 100)}%</span>
           </div>
           <input
+            id="voice-accent-strength"
             type="range"
             bind:value={accentStrength}
             min="0.1"
@@ -224,8 +228,9 @@
 
         <!-- Preview Text -->
         <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">Preview Text</label>
+          <label for="voice-preview-text" class="text-sm font-medium text-foreground">Preview Text</label>
           <textarea
+            id="voice-preview-text"
             bind:value={text}
             rows="3"
             class="w-full bg-[#282828] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-500/50 transition-colors resize-none"
@@ -275,8 +280,9 @@
             <!-- Save Section -->
             <div class="space-y-4 bg-teal-950/10 p-4 rounded-xl border border-teal-500/20">
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Voice Name</label>
+                <label for="voice-name" class="text-sm font-medium text-foreground">Voice Name</label>
                 <input
+                  id="voice-name"
                   type="text"
                   bind:value={voiceName}
                   placeholder="Give your new voice a name..."
@@ -284,8 +290,9 @@
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Description (Optional)</label>
+                <label for="voice-description" class="text-sm font-medium text-foreground">Description (Optional)</label>
                 <input
+                  id="voice-description"
                   type="text"
                   bind:value={voiceDescription}
                   placeholder="e.g. A calm, authoritative British male voice"

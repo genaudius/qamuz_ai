@@ -6,6 +6,7 @@
   import { fade, scale } from "svelte/transition";
   import { toast } from "svelte-sonner";
   import Loader2 from "@lucide/svelte/icons/loader-2";
+  import * as m from "$lib/../paraglide/messages.js";
   import type { MusicState } from "../../routes/audio/music.svelte";
 
   let { isOpen = $bindable(false), musicState } = $props<{

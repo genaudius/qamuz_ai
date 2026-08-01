@@ -19,7 +19,16 @@
   const session = $derived(getSession?.() || null);
   const musicState = getContext<GlobalMusicState>("musicState");
 
-  // In a real implementation, these would come from an API
+  const fallbackRecentTracks = [
+    { id: "1", title: "Blinding Lights", artist: "The Weeknd", coverUrl: "https://i.scdn.co/image/ab67616d00001e028863bc11d2aa12b54f5aeb36", durationMs: 200000, url: "" },
+    { id: "2", title: "Anti-Hero", artist: "Taylor Swift", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bb54dde1edccdbb69436798b", durationMs: 200000, url: "" },
+    { id: "3", title: "Me Porto Bonito", artist: "Bad Bunny", coverUrl: "https://i.scdn.co/image/ab67616d00001e0249d6fd6e8f6e806f8664160a", durationMs: 200000, url: "" },
+    { id: "4", title: "Rich Flex", artist: "Drake", coverUrl: "https://i.scdn.co/image/ab67616d00001e020286377e68fa7075cdafc210", durationMs: 200000, url: "" },
+    { id: "5", title: "Levitating", artist: "Dua Lipa", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bd26ede1ae69327010d49946", durationMs: 200000, url: "" },
+    { id: "6", title: "As It Was", artist: "Harry Styles", coverUrl: "https://i.scdn.co/image/ab67616d00001e022e02117d7742d9eef2934279", durationMs: 200000, url: "" }
+  ];
+
+  // Fallback/mock data used when home APIs are unavailable.
   let artists = $state([
     { id: "1", name: "The Weeknd", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb214f3cf1cbe7139c1e26ffbb" },
     { id: "2", name: "Taylor Swift", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb5a00969a4698c3132a15fbb0" },
@@ -28,21 +37,14 @@
     { id: "5", name: "Dua Lipa", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb4b96791e8dd2c22227d82531" }
   ]);
   
-  let recentTracks = $state([
-    { id: "1", title: "Blinding Lights", artist: "The Weeknd", coverUrl: "https://i.scdn.co/image/ab67616d00001e028863bc11d2aa12b54f5aeb36", durationMs: 200000, url: "" },
-    { id: "2", title: "Anti-Hero", artist: "Taylor Swift", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bb54dde1edccdbb69436798b", durationMs: 200000, url: "" },
-    { id: "3", title: "Me Porto Bonito", artist: "Bad Bunny", coverUrl: "https://i.scdn.co/image/ab67616d00001e0249d6fd6e8f6e806f8664160a", durationMs: 200000, url: "" },
-    { id: "4", title: "Rich Flex", artist: "Drake", coverUrl: "https://i.scdn.co/image/ab67616d00001e020286377e68fa7075cdafc210", durationMs: 200000, url: "" },
-    { id: "5", title: "Levitating", artist: "Dua Lipa", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bd26ede1ae69327010d49946", durationMs: 200000, url: "" },
-    { id: "6", title: "As It Was", artist: "Harry Styles", coverUrl: "https://i.scdn.co/image/ab67616d00001e022e02117d7742d9eef2934279", durationMs: 200000, url: "" }
-  ]);
+  let recentTracks = $state([...fallbackRecentTracks]);
 
   let featuredPlaylists = $state([
-    { id: "1", title: "Today's Top Hits", coverUrl: "https://i.scdn.co/image/ab67706f00000002b662363a033b08e2b8665f57", tracks: [recentTracks[0]] },
-    { id: "2", title: "RapCaviar", coverUrl: "https://i.scdn.co/image/ab67706f000000021c50005a30ed9bba057f9ed3", tracks: [recentTracks[3]] },
-    { id: "3", title: "Viva Latino", coverUrl: "https://i.scdn.co/image/ab67706f00000002b55b6074eda1dceec946caf2", tracks: [recentTracks[2]] },
-    { id: "4", title: "Mega Hit Mix", coverUrl: "https://i.scdn.co/image/ab67706f00000002b0fe40a6e1692822f5a9d8f1", tracks: [recentTracks[1]] },
-    { id: "5", title: "All Out 2010s", coverUrl: "https://i.scdn.co/image/ab67706f00000002b489d89283f5c90716262a40", tracks: [recentTracks[4]] }
+    { id: "1", title: "Today's Top Hits", coverUrl: "https://i.scdn.co/image/ab67706f00000002b662363a033b08e2b8665f57", tracks: [fallbackRecentTracks[0]] },
+    { id: "2", title: "RapCaviar", coverUrl: "https://i.scdn.co/image/ab67706f000000021c50005a30ed9bba057f9ed3", tracks: [fallbackRecentTracks[3]] },
+    { id: "3", title: "Viva Latino", coverUrl: "https://i.scdn.co/image/ab67706f00000002b55b6074eda1dceec946caf2", tracks: [fallbackRecentTracks[2]] },
+    { id: "4", title: "Mega Hit Mix", coverUrl: "https://i.scdn.co/image/ab67706f00000002b0fe40a6e1692822f5a9d8f1", tracks: [fallbackRecentTracks[1]] },
+    { id: "5", title: "All Out 2010s", coverUrl: "https://i.scdn.co/image/ab67706f00000002b489d89283f5c90716262a40", tracks: [fallbackRecentTracks[4]] }
   ]);
   
   let mockAlbums = $state([
@@ -53,6 +55,81 @@
   ]);
 
   let greeting = $state("Good evening");
+
+  async function loadHomeData() {
+    try {
+      const [trendingResponse, genresResponse] = await Promise.all([
+        fetch("/api/home/trending?limit=24"),
+        fetch("/api/home/genres"),
+      ]);
+
+      if (trendingResponse.ok) {
+        const trendingPayload = await trendingResponse.json();
+        const trendingTracks = Array.isArray(trendingPayload?.tracks)
+          ? trendingPayload.tracks
+          : [];
+
+        if (trendingTracks.length > 0) {
+          recentTracks = trendingTracks.map((track: any) => ({
+            id: track.id,
+            title: track.title || "Untitled",
+            artist: track.artistName || "Unknown",
+            coverUrl: track.imageUrl || "",
+            durationMs: track.durationMs || 200000,
+            url: "",
+          }));
+
+          const artistMap = new Map<string, { id: string; name: string; avatarUrl: string }>();
+          for (const track of trendingTracks) {
+            if (!track.artistId || artistMap.has(track.artistId)) {
+              continue;
+            }
+
+            artistMap.set(track.artistId, {
+              id: track.artistId,
+              name: track.artistName || "Unknown",
+              avatarUrl: "https://dummyimage.com/200x200/222/fff&text=Q",
+            });
+          }
+          artists = Array.from(artistMap.values()).slice(0, 8);
+
+          featuredPlaylists = [
+            {
+              id: "trending-now",
+              title: "Trending Now",
+              coverUrl: recentTracks[0]?.coverUrl || "",
+              tracks: recentTracks.slice(0, 8),
+            },
+            {
+              id: "for-you",
+              title: "For You",
+              coverUrl: recentTracks[1]?.coverUrl || recentTracks[0]?.coverUrl || "",
+              tracks: recentTracks.slice(2, 10),
+            },
+          ];
+        }
+      }
+
+      if (genresResponse.ok) {
+        const genresPayload = await genresResponse.json();
+        const genreTags = Array.isArray(genresPayload?.genres)
+          ? genresPayload.genres.slice(0, 4)
+          : [];
+
+        if (genreTags.length > 0) {
+          mockAlbums = genreTags.map((genre: string, index: number) => ({
+            id: `genre-${genre}`,
+            title: genre.charAt(0).toUpperCase() + genre.slice(1),
+            artist: "Genre Hub",
+            releaseYear: String(new Date().getFullYear()),
+            coverUrl: recentTracks[index]?.coverUrl || "https://dummyimage.com/400x400/111/fff&text=QAMUZ",
+          }));
+        }
+      }
+    } catch (loadError) {
+      console.warn("Failed to load home API data, using fallback values", loadError);
+    }
+  }
 
   onMount(() => {
     const hour = new Date().getHours();
@@ -68,6 +145,8 @@
     if (firstName) {
       greeting = `${greeting}, ${firstName}`;
     }
+
+    void loadHomeData();
   });
 
   function playTrack(track: any) {

@@ -10,6 +10,7 @@
     CreditCardIcon,
     KeyIcon,
     BrainIcon,
+    Music2Icon,
     CloudIcon,
     GemIcon,
     ShieldIcon,
@@ -61,6 +62,13 @@
       description: "Configure AI provider settings and API keys",
       icon: BrainIcon,
       path: "/admin/settings/ai-models",
+    },
+    {
+      id: "music-apis",
+      title: "Music APIs",
+      description: "Configure Spotify, Last.fm and discovery provider keys",
+      icon: Music2Icon,
+      path: "/admin/settings/music-apis",
     },
     {
       id: "cloud-storage",

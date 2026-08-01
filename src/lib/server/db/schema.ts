@@ -292,6 +292,8 @@ export const music = pgTable("music", {
 	durationMs: integer("durationMs"), // Music duration in milliseconds
 	prompt: text("prompt").notNull(), // The prompt used to generate music
 	title: text("title"), // The title of the song, can be edited by user
+	genre: text("genre"), // Optional genre label for discovery
+	tags: json("tags").$type<string[]>().notNull().default([]), // Search/discovery tags
 	isPublic: boolean("isPublic").notNull().default(false), // Whether the song is published to the home feed
 	likesCount: integer("likesCount").notNull().default(0), // Number of likes
 	playsCount: integer("playsCount").notNull().default(0), // Number of plays
@@ -613,11 +615,16 @@ export const artists = pgTable("artist", {
   id: text("id").primaryKey().notNull().$defaultFn(() => randomUUID()),
   userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   bio: text("bio"),
+	verificationEmail: text("verificationEmail"),
+	verificationToken: text("verificationToken"),
+	verificationTokenExpiresAt: timestamp("verificationTokenExpiresAt", { mode: "date" }),
+	verificationRequestedAt: timestamp("verificationRequestedAt", { mode: "date" }),
   verifiedAt: timestamp("verifiedAt", { mode: "date" }),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 }, (table) => [
   index("artist_user_idx").on(table.userId),
+	index("artist_verification_token_idx").on(table.verificationToken),
 ]);
 
 // Playlists table

@@ -30,14 +30,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Generate unique filename
 		const extension = path.extname(file.name) || '.mp3';
 		const filename = `${randomUUID()}${extension}`;
-		const storagePath = `reference-audio/${session.user.id}/${filename}`;
 
 		// Upload to storage
 		const result = await storageService.upload({
 			buffer,
 			mimeType: file.type,
-			filename: file.name
-		}, storagePath);
+			filename
+		}, session.user.id, 'audio', 'uploaded');
 
 		// Get URL
 		const url = await storageService.getUrl(result.path);

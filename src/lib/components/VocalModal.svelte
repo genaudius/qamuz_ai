@@ -45,7 +45,7 @@
       name: name,
       description: "Custom designed voice",
       preview_url: ""
-    });
+    } as unknown as ElevenLabsVoice);
     activeTab = "mine";
   }
 </script>

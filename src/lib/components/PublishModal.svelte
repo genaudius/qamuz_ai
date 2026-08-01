@@ -12,12 +12,21 @@
   const musicState = getContext<GlobalMusicState>("musicState");
 
   let title = $state("");
+  let genre = $state("");
+  let tagsInput = $state("");
   let zoomLevel = $state(50);
+  let isSubmitting = $state(false);
+  let submitError = $state("");
+  let submitSuccess = $state("");
 
   // Set initial title from the current track
   $effect(() => {
     if (musicState.isPublishModalOpen && musicState.currentTrack) {
       title = musicState.currentTrack.title || "";
+      genre = "";
+      tagsInput = "";
+      submitError = "";
+      submitSuccess = "";
     }
   });
 
@@ -25,11 +34,63 @@
     musicState.isPublishModalOpen = false;
   }
 
-  function handlePublish() {
-    // TODO: Implement actual publish to DB (wait for schema updates)
-    console.log("Publishing:", { title });
-    // Simulate publish and close
-    close();
+  async function handlePublish() {
+    if (!musicState.currentTrack?.id) {
+      submitError = "Could not determine the selected track.";
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      submitError = "Please provide a title before publishing.";
+      return;
+    }
+
+    const tags = tagsInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0)
+      .slice(0, 12);
+
+    submitError = "";
+    submitSuccess = "";
+    isSubmitting = true;
+
+    try {
+      const response = await fetch(`/api/music/${musicState.currentTrack.id}/publish`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: trimmedTitle,
+          genre: genre.trim() || null,
+          tags,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        submitError = payload?.error || "Failed to publish track.";
+        return;
+      }
+
+      submitSuccess = "Published successfully!";
+
+      if (musicState.currentTrack) {
+        musicState.currentTrack.title = trimmedTitle;
+      }
+
+      setTimeout(() => {
+        close();
+      }, 500);
+    } catch (error) {
+      console.error("Publish failed:", error);
+      submitError = "Network error while publishing track.";
+    } finally {
+      isSubmitting = false;
+    }
   }
 </script>
 
@@ -70,6 +131,18 @@
       </div>
 
       <div class="px-8 py-4 flex flex-col gap-6">
+        {#if submitError}
+          <div class="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {submitError}
+          </div>
+        {/if}
+
+        {#if submitSuccess}
+          <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            {submitSuccess}
+          </div>
+        {/if}
+
         <!-- Song title field -->
         <div class="flex flex-col gap-2">
           <label for="songTitle" class="text-white text-sm font-semibold"
@@ -86,6 +159,37 @@
             <span class="absolute right-4 text-xs font-mono text-[#666]">
               {title.length} / 50
             </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-2">
+            <label for="songGenre" class="text-white text-sm font-semibold"
+              >Genre</label
+            >
+            <input
+              id="songGenre"
+              type="text"
+              bind:value={genre}
+              maxlength="40"
+              placeholder="e.g. Bachata"
+              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-3 px-4 text-white text-sm transition-colors"
+            />
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label for="songTags" class="text-white text-sm font-semibold"
+              >Tags</label
+            >
+            <input
+              id="songTags"
+              type="text"
+              bind:value={tagsInput}
+              maxlength="180"
+              placeholder="romantic, guitar, tropical"
+              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-3 px-4 text-white text-sm transition-colors"
+            />
+            <p class="text-xs text-[#8a8a8a]">Comma separated, up to 12 tags.</p>
           </div>
         </div>
 
@@ -176,9 +280,10 @@
       <div class="p-8 pt-4">
         <button
           onclick={handlePublish}
+          disabled={isSubmitting}
           class="w-full bg-[#3ae0d5] hover:bg-[#3ae0d5]/90 text-black font-bold text-base py-3.5 rounded-xl transition-all shadow-md transform hover:scale-[1.01] active:scale-95"
         >
-          Publish
+          {isSubmitting ? "Publishing..." : "Publish"}
         </button>
       </div>
     </div>

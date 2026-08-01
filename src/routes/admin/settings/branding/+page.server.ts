@@ -230,6 +230,8 @@ export const actions: Actions = {
         currentLogoDark: logoDarkUrl || updatedSettings.currentLogoDark,
         currentLogoLight: logoLightUrl || updatedSettings.currentLogoLight,
         currentFavicon: faviconUrl || updatedSettings.currentFavicon,
+        currentSidebarIconDark: sidebarIconDarkUrl || updatedSettings.currentSidebarIconDark,
+        currentSidebarIconLight: sidebarIconLightUrl || updatedSettings.currentSidebarIconLight,
         logoWidth: updatedSettings.logo_width || "170",
         logoHeight: updatedSettings.logo_height || "27",
       }

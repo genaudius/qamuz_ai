@@ -517,6 +517,10 @@ export async function getAIModelSettings() {
   return await adminSettingsService.getSettingsByCategory('ai_models');
 }
 
+export async function getMusicApiSettings() {
+  return await adminSettingsService.getSettingsByCategory('music_apis');
+}
+
 export async function getCloudStorageSettings() {
   // Use cached settings instead of direct DB query to avoid race conditions
   // on serverless platforms (Vercel Lambda) during cold starts

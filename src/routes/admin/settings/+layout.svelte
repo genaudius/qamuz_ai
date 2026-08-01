@@ -11,6 +11,7 @@
     CreditCardIcon,
     KeyIcon,
     BrainIcon,
+    Music2Icon,
     CloudIcon,
     GemIcon,
     ShieldIcon,
@@ -63,6 +64,13 @@
       path: "/admin/settings/ai-models",
       href: resolve("/admin/settings/ai-models"),
       icon: BrainIcon,
+    },
+    {
+      id: "music-apis",
+      label: "Music APIs",
+      path: "/admin/settings/music-apis",
+      href: resolve("/admin/settings/music-apis"),
+      icon: Music2Icon,
     },
     {
       id: "cloud-storage",
@@ -234,6 +242,21 @@
             >
               <BrainIcon class="w-4.5 h-4.5" />
               AI Models
+            </a>
+            <a
+              href={resolve("/admin/settings/music-apis")}
+              data-sveltekit-preload-data="tap"
+              class="cursor-pointer w-full text-left px-3 py-1.5 text-md rounded-md transition-colors flex items-center gap-3 {activeNavItem ===
+              'music-apis'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted'}"
+              onmouseenter={() =>
+                warmRoute(resolve("/admin/settings/music-apis"))}
+              ontouchstart={() =>
+                warmRoute(resolve("/admin/settings/music-apis"))}
+            >
+              <Music2Icon class="w-4.5 h-4.5" />
+              Music APIs
             </a>
             <a
               href={resolve("/admin/settings/cloud-storage")}

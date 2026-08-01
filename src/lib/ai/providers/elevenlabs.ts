@@ -618,7 +618,7 @@ async function createDesignedVoice(
 	const client = await getClient();
 	try {
 		console.log(`Saving generated voice: ${voiceName}`);
-		const response = await client.voiceGeneration.createVoice({
+		const response = await (client as any).voiceGeneration.createVoice({
 			voice_name: voiceName,
 			voice_description: voiceDescription,
 			generated_voice_id: generatedVoiceId

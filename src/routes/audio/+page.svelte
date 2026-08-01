@@ -2905,5 +2905,5 @@
   }} 
 />
 
-<ReferenceModal bind:isOpen={isReferenceModalOpen} />
+<ReferenceModal bind:isOpen={isReferenceModalOpen} musicState={music} />
 <VocalModal bind:isOpen={isVocalModalOpen} bind:selectedVoice={selectedVoice} />
