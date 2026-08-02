@@ -490,7 +490,7 @@ export async function saveMusicAndGetId(
 				storageLocation: storageResult.storageLocation,
 				cloudPath: storageResult.path
 			})
-			.returning();
+			.returning({ id: music.id });
 
 		// Return database ID
 		return musicRecord.id;

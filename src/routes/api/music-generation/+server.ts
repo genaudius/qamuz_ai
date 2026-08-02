@@ -1,11 +1,47 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
-import { sunoProvider, musicgptProvider, openRouterProvider } from '$lib/ai/index.js';
+import { sunoProvider, musicgptProvider } from '$lib/ai/index.js';
 import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-tracking.js';
 import { CreditCostCalculator } from '$lib/server/ai/cost-calculator.js';
 import { PriorityQueueService } from '$lib/server/ai/queue.js';
-import { saveMusicAndGetId } from '$lib/ai/utils.js';
+import { db } from '$lib/server/db/index.js';
+import { aiJobs } from '$lib/server/db/schema.js';
+import { eq } from 'drizzle-orm';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+
+export const GET: RequestHandler = async ({ url, locals }) => {
+	const session = await locals.auth();
+	if (!session?.user?.id) {
+		return json({ error: 'Authentication required' }, { status: 401 });
+	}
+
+	const jobId = url.searchParams.get('jobId');
+	if (!jobId) {
+		return json({ error: 'Job ID is required' }, { status: 400 });
+	}
+
+	const [job] = await db
+		.select()
+		.from(aiJobs)
+		.where(eq(aiJobs.id, jobId))
+		.limit(1);
+
+	if (!job) {
+		return json({ error: 'Job not found' }, { status: 404 });
+	}
+
+	if (job.userId !== session.user.id) {
+		return json({ error: 'Access denied' }, { status: 403 });
+	}
+
+	return json({
+		jobId: job.id,
+		status: job.status,
+		result: job.result,
+		errorMessage: job.errorMessage,
+		payload: job.payload
+	});
+};
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -99,86 +135,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// ----------------------------------------------------
-		// 2. Generate Analysis Text
+		// 2. Queue the generation job and return immediately
 		// ----------------------------------------------------
-		let analysisText = '';
 		try {
-			const systemPrompt = `You are an expert music producer and DJ. The user will provide a prompt for a song they want to generate.
-Analyze the prompt and respond with a short, hype-filled, 1-2 paragraph description of the vibe, genre, and style of the song you are about to create for them.
-Keep it casual, enthusiastic, and sound like a pro producer. Example: "Got it. We’re heading into that lush, late-night R&B territory. Think deep bass and velvet textures..."`;
-
-			// Asignar coste de OpenRouter (estimado a 200 tokens) pero no hacemos hold en este momento para evitar transacciones complejas.
-			// Solo hacemos hold de la música pesada.
-			const chatResponse = await openRouterProvider.chat({
-				model: 'openai/gpt-4o-mini',
-				messages: [
-					{ role: 'system', content: systemPrompt },
-					{ role: 'user', content: prompt }
-				],
-				maxTokens: 200,
-				temperature: 0.8
-			});
-
-			// @ts-ignore
-			analysisText = 'content' in chatResponse ? chatResponse.content : '';
-		} catch (error) {
-			console.warn('Failed to generate analysis text:', error);
-			analysisText = 'Got the prompt! Generating your track now...';
-		}
-
-		// ----------------------------------------------------
-		// 3. Queue the generation job and wait for result
-		// ----------------------------------------------------
-		let response;
-		try {
-			// Enqueue job with transaction ID for auto-commit/rollback
 			const jobId = await PriorityQueueService.enqueue(
-				session.user.id, 
-				'music-generation', 
+				session.user.id,
+				'music-generation',
 				{
 					prompt: prompt.trim(),
 					modelId,
+					musicLengthMs: musicLengthMs ?? null,
 					forceInstrumental: Boolean(forceInstrumental),
 					referenceAudioUrl
 				},
 				transactionId
 			);
 
-			// We wait synchronously for the job to complete to avoid breaking the frontend UI.
-			// If we wanted to make it purely async, we would return 202 Accepted here with the jobId.
-			response = await PriorityQueueService.waitForJob(jobId, 240000); // Wait up to 4 minutes
-
+			return json({
+				jobId,
+				status: 'queued',
+				analysisText: 'Your track is generating in the background. You can keep using QAMUZ while it finishes.'
+			}, { status: 202 });
 		} catch (error: any) {
 			console.error('Music queue error:', error);
-			// Rollback if the queue completely crashed (should be handled by queue normally)
 			await UsageTrackingService.rollbackTransaction(transactionId, error.message);
 			return json({ error: error.message || 'Error generating music' }, { status: 500 });
 		}
-
-		// Save music to storage and database
-		const musicId = await saveMusicAndGetId(
-			response.audioData,
-			response.mimeType,
-			session.user.id,
-			response.prompt,
-			response.model,
-			response.durationMs,
-			response.isInstrumental,
-			undefined, // chatId
-			response.imageUrl,
-			response.videoUrl,
-			response.lyrics
-		);
-
-		// Track usage for successful music generation
-		UsageTrackingService.trackUsage(session.user.id, 'audio').catch(console.error);
-
-		// Return the music response with the database ID and the analysis text
-		return json({
-			...response,
-			musicId,
-			analysisText
-		});
 
 	} catch (error) {
 		console.error('Music generation API error:', error);

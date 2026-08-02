@@ -610,6 +610,25 @@ export const aiJobs = pgTable("ai_jobs", {
 	index('ai_jobs_user_idx').on(table.userId),
 ])
 
+export const artistProfiles = pgTable("artist_profile", {
+	id: text("id")
+		.primaryKey()
+		.notNull()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.unique()
+		.references(() => users.id, { onDelete: "cascade" }),
+	stageName: text("stageName"),
+	bio: text("bio"),
+	avatarUrl: text("avatarUrl"),
+	bannerUrl: text("bannerUrl"),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	index('artist_profiles_user_idx').on(table.userId),
+]);
+
 // Artists table
 export const artists = pgTable("artist", {
   id: text("id").primaryKey().notNull().$defaultFn(() => randomUUID()),
@@ -625,6 +644,24 @@ export const artists = pgTable("artist", {
 }, (table) => [
   index("artist_user_idx").on(table.userId),
 	index("artist_verification_token_idx").on(table.verificationToken),
+]);
+
+export const follows = pgTable("follow", {
+	id: text("id")
+		.primaryKey()
+		.notNull()
+		.$defaultFn(() => randomUUID()),
+	followerId: text("followerId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	followingId: text("followingId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	unique('follow_pair_unique').on(table.followerId, table.followingId),
+	index('follows_follower_idx').on(table.followerId),
+	index('follows_following_idx').on(table.followingId),
 ]);
 
 // Playlists table

@@ -40,7 +40,7 @@
   } from "$lib/icons/index.js";
 
   import type { SettingsState } from "$lib/stores/settings.svelte.js";
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
 
@@ -71,6 +71,7 @@
 
   // Music State (encapsulated in class)
   const music = new MusicState();
+  const librarySongs = $derived([...music.pendingLibrarySongs, ...data.songs]);
 
   // Sound Effects State (encapsulated in class)
   const sfx = new SoundEffectsState();
@@ -96,6 +97,10 @@
     if (activeMode === "music" && musicSubMode === "custom" && !globalMusic.showLibrary) {
       globalMusic.showLibrary = true;
     }
+  });
+
+  onMount(() => {
+    void music.resumePendingGeneration();
   });
 
   // Track if URL params have been processed (prevents re-processing)
@@ -1990,6 +1995,19 @@
         </InputGroup.Root>
       {:else if activeMode === "music" && musicSubMode === "easy"}
         <!-- Easy Mode Input -->
+        <div class="space-y-3 w-full max-w-2xl mx-auto">
+          {#if music.errorMessage && music.errorMessage.toLowerCase().includes("credits are insufficient")}
+            <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-sm">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="font-semibold text-sm">Suno API credits are insufficient</p>
+                  <p class="text-xs text-amber-100/80">Top up the Suno API account, then try generating again.</p>
+                </div>
+                <Button variant="secondary" size="sm" onclick={() => goto("/settings/billing")}>Go to Billing</Button>
+              </div>
+            </div>
+          {/if}
+
         <div class="border border-border/50 rounded-[1.5rem] p-4 flex flex-col w-full max-w-2xl min-w-[300px] resize-x overflow-hidden mx-auto shadow-sm transition-all focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20" style="background-color: #1c2120;">
           <textarea
             bind:value={music.inputPrompt}
@@ -2064,9 +2082,22 @@
             </button>
           </div>
         </div>
+      </div>
       {:else if activeMode === "music" && musicSubMode === "custom"}
         <!-- Music Input (Custom) -->
         <div class="w-full max-w-2xl min-w-[300px] mx-auto space-y-3">
+          {#if music.errorMessage && music.errorMessage.toLowerCase().includes("credits are insufficient")}
+            <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-sm">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="font-semibold text-sm">Suno API credits are insufficient</p>
+                  <p class="text-xs text-amber-100/80">Top up the Suno API account, then try generating again.</p>
+                </div>
+                <Button variant="secondary" size="sm" onclick={() => goto("/settings/billing")}>Go to Billing</Button>
+              </div>
+            </div>
+          {/if}
+
           <div class="flex items-center gap-2">
             <button
               type="button"
@@ -2226,19 +2257,32 @@
         </div>
       {:else if activeMode === "music"}
         <!-- Music Input (Soundtrack) -->
-        <InputGroup.Root
-          class="min-h-36 w-full max-w-2xl min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
-        >
-          <InputGroup.Textarea
-            bind:value={music.inputPrompt}
-            placeholder={data.isDemoMode
-              ? "Music generation is disabled in demo mode"
-              : "Describe the music you want to generate... (e.g., 'An upbeat electronic dance track with energetic synths and a driving beat')"}
-            disabled={data.isDemoMode}
-            class="min-h-24 max-h-24 overflow-y-auto bg-transparent p-5 text-base md:text-base"
-            maxlength={4100}
-          />
-          <InputGroup.Addon align="block-end">
+        <div class="space-y-3 w-full max-w-2xl mx-auto">
+          {#if music.errorMessage && music.errorMessage.toLowerCase().includes("credits are insufficient")}
+            <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-sm">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="font-semibold text-sm">Suno API credits are insufficient</p>
+                  <p class="text-xs text-amber-100/80">Top up the Suno API account, then try generating again.</p>
+                </div>
+                <Button variant="secondary" size="sm" onclick={() => goto("/settings/billing")}>Go to Billing</Button>
+              </div>
+            </div>
+          {/if}
+
+          <InputGroup.Root
+            class="min-h-36 w-full min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
+          >
+            <InputGroup.Textarea
+              bind:value={music.inputPrompt}
+              placeholder={data.isDemoMode
+                ? "Music generation is disabled in demo mode"
+                : "Describe the music you want to generate... (e.g., 'An upbeat electronic dance track with energetic synths and a driving beat')"}
+              disabled={data.isDemoMode}
+              class="min-h-24 max-h-24 overflow-y-auto bg-transparent p-5 text-base md:text-base"
+              maxlength={4100}
+            />
+            <InputGroup.Addon align="block-end">
             <!-- Character Count -->
             <span
               class="text-xs text-muted-foreground px-2 {music.isPromptTooLong
@@ -2365,6 +2409,7 @@
             </InputGroup.Button>
           </InputGroup.Addon>
         </InputGroup.Root>
+      </div>
       {:else}
         <!-- Sound Effects Input -->
         <InputGroup.Root
@@ -2516,7 +2561,7 @@
 
   {#if globalMusic.showLibrary && activeMode === "music"}
     <div class="flex-1 border-l border-border/50 pl-6 h-full overflow-hidden hidden lg:block animate-in fade-in slide-in-from-right-8 duration-300">
-      <LibraryPanel songs={data.songs} />
+      <LibraryPanel songs={librarySongs} />
     </div>
   {/if}
 </div> <!-- Close Split-Layout Wrapper -->

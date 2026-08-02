@@ -15,6 +15,7 @@
     UpgradeIcon,
     ExternalLinkIcon,
     HomeIcon,
+    Music2Icon,
   } from "$lib/icons/index.js";
 
   import * as m from "$lib/../paraglide/messages.js";
@@ -147,6 +148,17 @@
     {/if}
 
     {#if session?.user}
+      <Button
+        variant="outline"
+        size="sm"
+        onclick={() => goto("/artist")}
+        onmouseenter={() => warmRoute("/artist")}
+        ontouchstart={() => warmRoute("/artist")}
+        class="cursor-pointer"
+      >
+        <Music2Icon class="w-4 h-4" />
+        My Artist Profile
+      </Button>
       {#if session.user.planTier === "free"}
         <Button
           variant="outline"

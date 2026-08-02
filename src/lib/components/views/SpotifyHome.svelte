@@ -11,6 +11,7 @@
     CrownIcon
   } from "$lib/icons/index.js";
   import HeroCarousel from "./HeroCarousel.svelte";
+  import { DEMO_ARTIST_PROFILES } from "$lib/constants/demo-artists.js";
   
   // Theme state (if you have one, or just assume dark based on global classes)
   // For now, we'll assume dark theme styling based on the design
@@ -29,13 +30,9 @@
   ];
 
   // Fallback/mock data used when home APIs are unavailable.
-  let artists = $state([
-    { id: "1", name: "The Weeknd", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb214f3cf1cbe7139c1e26ffbb" },
-    { id: "2", name: "Taylor Swift", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb5a00969a4698c3132a15fbb0" },
-    { id: "3", name: "Bad Bunny", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb9e3ceaeb6cb242d8d6380d14" },
-    { id: "4", name: "Drake", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb4293385d324db8558179afd9" },
-    { id: "5", name: "Dua Lipa", avatarUrl: "https://i.scdn.co/image/ab6761610000e5eb4b96791e8dd2c22227d82531" }
-  ]);
+  let artists = $state(
+    DEMO_ARTIST_PROFILES.map(({ id, name, avatarUrl }) => ({ id, name, avatarUrl }))
+  );
   
   let recentTracks = $state([...fallbackRecentTracks]);
 
@@ -396,10 +393,10 @@
 
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
       {#each artists as artist}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
+        <a
+          href={`/artist/${artist.id}`}
           class="spotify-card p-3.5 rounded-lg flex flex-col items-center text-center gap-3 group cursor-pointer"
+          aria-label={`Open ${artist.name} profile`}
         >
           <div class="relative w-32 h-32 rounded-full overflow-hidden shadow-xl bg-zinc-800">
             <img 
@@ -417,7 +414,7 @@
               Artist
             </span>
           </div>
-        </div>
+        </a>
       {/each}
     </div>
   </section>

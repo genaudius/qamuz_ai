@@ -10,9 +10,8 @@
   import * as Select from "$lib/components/ui/select/index.js";
   import { goto, preloadData } from "$app/navigation";
   import { enhance } from "$app/forms";
-  import type { ActionData } from "./$types";
 
-  let { data, form }: { data: any; form: ActionData } = $props();
+  let { data, form }: { data: any; form: any } = $props();
 
   // Modal state
   let editDialogOpen = $state(false);
@@ -24,6 +23,9 @@
   let isSubmitting = $state(false);
   let formError = $state("");
   let successMessage = $state("");
+  let creditAmount = $state("100");
+  let isCreditsSubmitting = $state(false);
+  let creditsFormError = $state("");
 
   // Role management state
   let isRoleSubmitting = $state(false);
@@ -36,6 +38,7 @@
     formEmail = data.user.email || "";
     formError = "";
     roleFormError = "";
+    creditsFormError = "";
     successMessage = "";
     editDialogOpen = true;
   }
@@ -84,6 +87,7 @@
     if (form) {
       isSubmitting = false;
       isRoleSubmitting = false;
+      isCreditsSubmitting = false;
       if (form.success) {
         successMessage = form.message || "User updated successfully";
         // Update the data optimistically
@@ -103,12 +107,17 @@
           data.user.name = formName;
           data.user.email = formEmail;
           editDialogOpen = false;
+        } else if (form.action === "grantCredits") {
+          data.user.creditsBalance = form.creditsBalance;
+          creditAmount = "100";
         }
         // Clear success message after 3 seconds
         setTimeout(() => (successMessage = ""), 3000);
       } else if (form.error) {
         // Set error based on which dialog is open
-        if (roleDialogOpen) {
+        if (form.action === "grantCredits") {
+          creditsFormError = form.error;
+        } else if (roleDialogOpen) {
           roleFormError = form.error;
         } else if (editDialogOpen) {
           formError = form.error;
@@ -248,6 +257,10 @@
   function formatMonth(month: number, year: number) {
     const date = new Date(year, month - 1); // month - 1 because Date months are 0-indexed
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  }
+
+  function formatCredits(value: number | null | undefined) {
+    return (value ?? 0).toLocaleString();
   }
 
   function warmRoute(path: string) {
@@ -435,6 +448,83 @@
           </Table.Row>
         </Table.Body>
       </Table.Root>
+    </Card.Content>
+  </Card.Root>
+
+  <Card.Root>
+    <Card.Header>
+      <Card.Title>Credits Balance</Card.Title>
+      <Card.Description>
+        Current manual and purchased credit balance for this user.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content class="space-y-6">
+      <div class="flex items-end justify-between gap-4 rounded-lg border p-4">
+        <div>
+          <p class="text-sm text-muted-foreground">Available credits</p>
+          <p class="text-3xl font-semibold tracking-tight">
+            {formatCredits(data.user.creditsBalance)}
+          </p>
+        </div>
+        <Badge variant="secondary">Live balance</Badge>
+      </div>
+
+      <form
+        method="POST"
+        action="?/grantCredits"
+        class="space-y-4"
+        use:enhance={() => {
+          isCreditsSubmitting = true;
+          creditsFormError = "";
+          formError = "";
+          roleFormError = "";
+          return async ({ update }) => {
+            await update();
+          };
+        }}
+      >
+        {#if creditsFormError}
+          <div
+            class="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded-md text-sm"
+          >
+            {creditsFormError}
+          </div>
+        {/if}
+
+        <div class="grid gap-2 sm:max-w-xs">
+          <Label for="credits">Grant additional credits</Label>
+          <Input
+            id="credits"
+            name="credits"
+            type="number"
+            min="1"
+            step="1"
+            bind:value={creditAmount}
+            placeholder="Enter credits to add"
+            disabled={isCreditsSubmitting || data.isDemoMode}
+            required
+          />
+          <p class="text-xs text-muted-foreground">
+            Adds the amount directly to the user credit balance.
+          </p>
+        </div>
+
+        <Button
+          type="submit"
+          disabled={
+            isCreditsSubmitting ||
+            !creditAmount.trim() ||
+            Number(creditAmount) <= 0 ||
+            data.isDemoMode
+          }
+        >
+          {isCreditsSubmitting
+            ? "Granting..."
+            : data.isDemoMode
+              ? "Demo Mode - Read Only"
+              : "Grant Credits"}
+        </Button>
+      </form>
     </Card.Content>
   </Card.Root>
 

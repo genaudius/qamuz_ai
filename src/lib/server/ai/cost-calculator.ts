@@ -65,9 +65,10 @@ export class CreditCostCalculator {
 	 * Suno / MusicGPT: Costos muy altos por ser procesos largos.
 	 */
 	static getMusicCost(): CostCalculationResult {
-		// 15 créditos fijos por generación de música (2 canciones de 2 mins)
+		// Costo base por generación de música. Keep this intentionally lower so retries and
+		// background completion do not burn credits too aggressively.
 		return {
-			credits: 15,
+			credits: 5,
 			resourceType: 'audio'
 		};
 	}

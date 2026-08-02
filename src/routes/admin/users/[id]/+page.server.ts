@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types'
-import { db, users, paymentHistory, subscriptions, usageTracking, pricingPlans } from '$lib/server/db'
-import { eq, desc, and } from 'drizzle-orm'
+import { db, users, paymentHistory, subscriptions, usageTracking, pricingPlans, creditTransactions } from '$lib/server/db'
+import { eq, desc, and, sql } from 'drizzle-orm'
 import { error, fail } from '@sveltejs/kit'
 import { isDemoModeEnabled, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js'
 
@@ -252,6 +252,78 @@ export const actions: Actions = {
     } catch (err) {
       console.error('Error updating user role:', err)
       return fail(500, { error: 'Failed to update user role. Please try again.' })
+    }
+  },
+
+  grantCredits: async ({ request, params, locals }) => {
+    const session = await locals.auth()
+    if (!session?.user?.isAdmin) {
+      return fail(403, { error: 'Forbidden: Admin access required' })
+    }
+
+    if (isDemoModeEnabled()) {
+      return fail(403, {
+        error: DEMO_MODE_MESSAGES.ADMIN_SAVE_DISABLED
+      })
+    }
+
+    const userId = params.id
+    const formData = await request.formData()
+    const creditsRaw = formData.get('credits')?.toString()?.trim() ?? ''
+
+    if (!/^\d+$/.test(creditsRaw)) {
+      return fail(400, { error: 'Credits must be a whole number', action: 'grantCredits' })
+    }
+
+    const credits = Number.parseInt(creditsRaw, 10)
+
+    if (!Number.isSafeInteger(credits) || credits <= 0) {
+      return fail(400, { error: 'Credits must be greater than zero', action: 'grantCredits' })
+    }
+
+    const [existingUser] = await db
+      .select({ id: users.id, creditsBalance: users.creditsBalance })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+
+    if (!existingUser) {
+      return fail(404, { error: 'User not found', action: 'grantCredits' })
+    }
+
+    try {
+      await db
+        .update(users)
+        .set({
+          creditsBalance: sql`${users.creditsBalance} + ${credits}`,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+
+      try {
+        await db.insert(creditTransactions).values({
+          userId,
+          type: 'recharge',
+          amount: credits,
+          resourceType: 'credit',
+          provider: 'admin-manual',
+          model: `Granted by admin ${session.user.id}`,
+          status: 'completed',
+          referenceId: `admin-grant-${session.user.id}-${Date.now()}`
+        })
+      } catch (transactionError) {
+        console.warn('Credit transaction log unavailable, balance updated without ledger entry:', transactionError)
+      }
+
+      return {
+        success: true,
+        action: 'grantCredits',
+        message: `${credits} credits granted successfully.`,
+        creditsBalance: existingUser.creditsBalance + credits
+      }
+    } catch (err) {
+      console.error('Error granting credits:', err)
+      return fail(500, { error: 'Failed to grant credits. Please try again.', action: 'grantCredits' })
     }
   }
 }

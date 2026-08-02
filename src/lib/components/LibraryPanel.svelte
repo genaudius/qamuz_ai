@@ -14,6 +14,10 @@
   let sidebarOpen = $state(true);
   
   function playSong(song: any) {
+    if (song.status && song.status !== 'completed') {
+      return;
+    }
+
     const track = {
         id: song.id,
         url: `/api/music/${song.id}`,
@@ -71,9 +75,14 @@
               <Table.Body>
                 {#each songs as song, index}
                   {@const isPlayingThis = musicState.currentTrack?.id === song.id}
-                  <Table.Row class={`group cursor-pointer border-b/50 ${isPlayingThis ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-accent/50'}`} onclick={() => playSong(song)}>
+                  {@const isPending = song.status && song.status !== 'completed'}
+                  <Table.Row class={`group border-b/50 ${isPending ? 'cursor-default opacity-90' : 'cursor-pointer'} ${isPlayingThis ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-accent/50'}`} onclick={() => playSong(song)}>
                     <Table.Cell class="font-medium relative w-[40px] text-center px-2">
-                      {#if isPlayingThis && musicState.isPlaying}
+                      {#if isPending}
+                          <div class="flex items-center justify-center">
+                            <div class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></div>
+                          </div>
+                      {:else if isPlayingThis && musicState.isPlaying}
                           <!-- Animated playing indicator -->
                           <div class="flex gap-[2px] items-end h-4 w-4 mx-auto justify-center">
                               <div class="w-[3px] bg-primary animate-bounce h-full"></div>
@@ -102,7 +111,9 @@
                         <!-- Track details -->
                         <div class="flex flex-col min-w-0 pr-2">
                             <span class={`font-medium truncate leading-tight ${isPlayingThis ? 'text-primary' : 'text-foreground'}`} title={song.prompt}>{song.prompt || "Generated Track"}</span>
-                            {#if song.isInstrumental}
+                            {#if isPending}
+                                <span class="text-xs text-amber-500 mt-0.5 px-1.5 py-0.5 rounded-sm bg-amber-500/10 w-fit">Creating...</span>
+                            {:else if song.isInstrumental}
                                 <span class="text-xs text-muted-foreground mt-0.5 px-1.5 py-0.5 rounded-sm bg-muted/50 w-fit">Instrumental</span>
                             {/if}
                         </div>
@@ -110,7 +121,11 @@
                     </Table.Cell>
                     
                     <Table.Cell class="text-right pr-4 px-2">
-                      <span class="text-sm text-muted-foreground">{formatDate(song.createdAt)}</span>
+                      {#if isPending}
+                        <span class="text-sm text-amber-500">Working...</span>
+                      {:else}
+                        <span class="text-sm text-muted-foreground">{formatDate(song.createdAt)}</span>
+                      {/if}
                     </Table.Cell>
                   </Table.Row>
                 {/each}

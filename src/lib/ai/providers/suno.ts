@@ -102,7 +102,11 @@ const SUNO_MUSIC_MODELS: AIModelConfig[] = [
 ];
 
 interface SunoTrack {
-    audioUrl: string;
+    audioUrl?: string;
+    audio_url?: string;
+    downloadUrl?: string;
+    streamUrl?: string;
+    url?: string;
     duration: number;
     title?: string;
     tags?: string;
@@ -119,6 +123,25 @@ interface SunoStatusResponse {
             sunoData?: SunoTrack[];
         };
     };
+}
+
+function resolveTrackAudioUrl(track?: SunoTrack): string | null {
+    if (!track) {
+        return null;
+    }
+
+    return track.audioUrl || track.audio_url || track.downloadUrl || track.streamUrl || track.url || null;
+}
+
+function isProviderCreditError(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return (
+        normalized.includes('credits insufficient') ||
+        normalized.includes('insufficient credits') ||
+        normalized.includes('balance isn\'t enough') ||
+        normalized.includes('balance is not enough') ||
+        normalized.includes('top up to continue')
+    );
 }
 
 // ─── Public: submit task, return taskId immediately ───────────────────────────
@@ -158,11 +181,21 @@ export async function sunoSubmitTask(params: {
 
     if (!submitRes.ok) {
         const err = (await submitRes.json().catch(() => ({}))) as { msg?: string };
-        throw createProviderError('Suno', 'submit', new Error(err.msg || submitRes.statusText));
+        const message = err.msg || submitRes.statusText;
+        if (isProviderCreditError(message)) {
+            throw new Error('Suno account credits are insufficient. Please top up the Suno API account and try again.');
+        }
+
+        throw createProviderError('Suno', 'submit', new Error(message));
     }
 
     const submitJson = (await submitRes.json()) as { code: number; data?: { taskId?: string }; msg?: string };
     if (submitJson.code !== 200 || !submitJson.data?.taskId) {
+        const submitMessage = submitJson.msg || 'No task ID returned';
+        if (isProviderCreditError(submitMessage)) {
+            throw new Error('Suno account credits are insufficient. Please top up the Suno API account and try again.');
+        }
+
         throw createProviderError('Suno', 'submit API', new Error(submitJson.msg || 'No task ID returned'));
     }
 
@@ -189,9 +222,20 @@ export async function sunoCheckStatus(taskId: string): Promise<
     switch (data.status) {
         case 'SUCCESS':
         case 'FIRST_SUCCESS': {
-            const track = data.response?.sunoData?.[0];
-            if (!track?.audioUrl) return { status: 'error', errorMessage: 'No audio URL in response' };
-            return { status: 'done', track };
+            const track = data.response?.sunoData?.find((item) => resolveTrackAudioUrl(item));
+            const audioUrl = resolveTrackAudioUrl(track);
+
+            if (!track || !audioUrl) {
+                return { status: 'pending' };
+            }
+
+            return {
+                status: 'done',
+                track: {
+                    ...track,
+                    audioUrl,
+                }
+            };
         }
         case 'CREATE_TASK_FAILED':
         case 'GENERATE_AUDIO_FAILED':
@@ -227,12 +271,17 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
         const result = await sunoCheckStatus(taskId);
         if (result.status === 'done') { track = result.track; break; }
         if (result.status === 'error') throw createProviderError('Suno', 'generation task', new Error(result.errorMessage));
-        await new Promise((r) => setTimeout(r, 10_000));
+        await new Promise((r) => setTimeout(r, 3_000));
     }
 
     if (!track) throw new Error('Suno generation timed out after 10 minutes');
 
-    const audioRes = await fetch(track.audioUrl);
+    const audioUrl = resolveTrackAudioUrl(track);
+    if (!audioUrl) {
+        throw new Error('No audio URL in response');
+    }
+
+    const audioRes = await fetch(audioUrl);
     if (!audioRes.ok) throw new Error(`Failed to download Suno audio: ${audioRes.status}`);
     const audioData = Buffer.from(await audioRes.arrayBuffer()).toString('base64');
 

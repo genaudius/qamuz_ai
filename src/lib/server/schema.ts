@@ -544,12 +544,10 @@ export const artistProfiles = pgTable("artist_profile", {
 		.notNull()
 		.unique()
 		.references(() => users.id, { onDelete: "cascade" }),
-	displayName: text("displayName"),
+	stageName: text("stageName"),
 	bio: text("bio"),
+	avatarUrl: text("avatarUrl"),
 	bannerUrl: text("bannerUrl"),
-	genres: json("genres").$type<string[]>().notNull().default([]),
-	socialLinks: json("socialLinks").$type<Record<string, string>>().notNull().default({}),
-	isVerified: boolean("isVerified").notNull().default(false),
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 }, (table) => [

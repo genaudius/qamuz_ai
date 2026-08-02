@@ -37,6 +37,7 @@ export async function musicgptSubmitTask(params: {
     modelId?: string;
     forceInstrumental?: boolean;
     vocalGender?: string;
+    outputLengthSec?: number;
     webhookUrl?: string;
     referenceAudioUrl?: string;
 }): Promise<string> {
@@ -51,7 +52,7 @@ export async function musicgptSubmitTask(params: {
         vocal_only: false,
         gender: params.vocalGender || "neutral",
         voice_id: "",
-        output_length: 120
+        output_length: params.outputLengthSec ?? 45
     };
 
     if (params.webhookUrl) body.webhook_url = params.webhookUrl;
@@ -130,11 +131,15 @@ export const musicgptProvider: AIProvider = {
     },
     async generateMusic(params: MusicGenerationParams): Promise<AIMusicResponse> {
         const webhookUrl = (env as Record<string, string>)['MUSICGPT_WEBHOOK_URL'];
+        const requestedLengthSec = typeof params.musicLengthMs === 'number'
+            ? Math.max(10, Math.min(120, Math.round(params.musicLengthMs / 1000)))
+            : 45;
         const taskId = await musicgptSubmitTask({
             prompt: params.prompt,
             modelId: params.modelId,
             forceInstrumental: params.forceInstrumental,
             vocalGender: params.vocalGender,
+            outputLengthSec: requestedLengthSec,
             webhookUrl,
             referenceAudioUrl: params.referenceAudioUrl
         });
@@ -147,7 +152,7 @@ export const musicgptProvider: AIProvider = {
             const result = await musicgptCheckStatus(taskId);
             if (result.status === 'done') { track = result.track; break; }
             if (result.status === 'error') throw createProviderError('MusicGPT', 'generation task', new Error(result.errorMessage));
-            await new Promise((r) => setTimeout(r, 10_000));
+            await new Promise((r) => setTimeout(r, 3_000));
         }
 
         if (!track) throw new Error('MusicGPT generation timed out after 10 minutes');
