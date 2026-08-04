@@ -220,6 +220,7 @@ export class PriorityQueueService {
 	 * Ejecutor específico para música
 	 */
 	private static async executeMusicGeneration(job: any): Promise<any> {
+		const { getLocalMusicConfig, localAceStepProvider } = await import('$lib/ai/providers/local-acestep.js');
 		const { sunoProvider } = await import('$lib/ai/providers/suno.js');
 		const { musicgptProvider } = await import('$lib/ai/providers/musicgpt.js');
 		// Dynamic import avoids circular dependencies or issues at boot
@@ -227,6 +228,18 @@ export class PriorityQueueService {
 
 		const requestedModel = payload.modelId || 'suno-v5.5';
 		const isSunoModel = typeof requestedModel === 'string' && requestedModel.startsWith('suno-');
+		const localConfig = await getLocalMusicConfig();
+
+		// Local mode is exclusive: never leak a development job to a paid third-party API.
+		if (localConfig.enabled) {
+			return await localAceStepProvider.generateMusic?.({
+				prompt: payload.prompt,
+				modelId: 'qamuz-local-music',
+				musicLengthMs: payload.musicLengthMs ?? undefined,
+				forceInstrumental: payload.forceInstrumental,
+				referenceAudioUrl: payload.referenceAudioUrl
+			});
+		}
 
 		const runMusicGpt = async (modelId: string) => {
 			const maxAttempts = 3;

@@ -14,7 +14,13 @@ export const load: PageServerLoad = async () => {
         replicateApiKey: settings.replicate_api_key || "",
         elevenlabsApiKey: settings.elevenlabs_api_key || "",
         sunoApiKey: settings.suno_api_key || "",
-        musicgptApiKey: settings.musicgpt_api_key || ""
+        musicgptApiKey: settings.musicgpt_api_key || "",
+        localMusicEnabled: settings.local_music_enabled === 'true',
+        localMusicBaseUrl: settings.local_music_base_url || 'http://localhost:42003',
+        localImageEnabled: settings.local_image_enabled === 'true',
+        localImageBaseUrl: settings.local_image_base_url || 'http://127.0.0.1:7860',
+        localVideoEnabled: settings.local_video_enabled === 'true',
+        localVideoBaseUrl: settings.local_video_base_url || 'http://127.0.0.1:42005'
       },
       isDemoMode: isDemoModeEnabled()
     }
@@ -25,7 +31,15 @@ export const load: PageServerLoad = async () => {
       settings: {
         openrouterApiKey: "",
         replicateApiKey: "",
-        elevenlabsApiKey: ""
+        elevenlabsApiKey: "",
+        sunoApiKey: "",
+        musicgptApiKey: "",
+        localMusicEnabled: false,
+        localMusicBaseUrl: 'http://localhost:42003',
+        localImageEnabled: false,
+        localImageBaseUrl: 'http://127.0.0.1:7860',
+        localVideoEnabled: false,
+        localVideoBaseUrl: 'http://127.0.0.1:42005'
       },
       isDemoMode: isDemoModeEnabled()
     }
@@ -48,6 +62,31 @@ export const actions: Actions = {
     const elevenlabsApiKey = data.get('elevenlabsApiKey')?.toString()
     const sunoApiKey = data.get('sunoApiKey')?.toString()
     const musicgptApiKey = data.get('musicgptApiKey')?.toString()
+    const localMusicEnabled = data.get('localMusicEnabled') === 'on'
+    const localMusicBaseUrl = data.get('localMusicBaseUrl')?.toString().trim() || 'http://localhost:42003'
+    const localImageEnabled = data.get('localImageEnabled') === 'on'
+    const localImageBaseUrl = data.get('localImageBaseUrl')?.toString().trim() || 'http://127.0.0.1:7860'
+    const localVideoEnabled = data.get('localVideoEnabled') === 'on'
+    const localVideoBaseUrl = data.get('localVideoBaseUrl')?.toString().trim() || 'http://127.0.0.1:42005'
+
+    try {
+      const parsedLocalUrl = new URL(localMusicBaseUrl)
+      if (!['http:', 'https:'].includes(parsedLocalUrl.protocol)) throw new Error('protocol')
+    } catch {
+      return fail(400, { error: 'Local music URL must be a valid HTTP or HTTPS URL.' })
+    }
+    for (const [label, value, required] of [
+      ['image', localImageBaseUrl, true],
+      ['video', localVideoBaseUrl, localVideoEnabled]
+    ] as const) {
+      if (!required && !value) continue
+      try {
+        const parsed = new URL(value)
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('protocol')
+      } catch {
+        return fail(400, { error: `Local ${label} URL must be a valid HTTP or HTTPS URL.` })
+      }
+    }
 
     // Validation for OpenRouter API Key
     if (openrouterApiKey && openrouterApiKey.length < 10) {
@@ -106,6 +145,24 @@ export const actions: Actions = {
       }
       if (shouldSaveValue(musicgptApiKey, currentSettings.musicgpt_api_key)) {
         settingsToSave.push({ key: 'musicgpt_api_key', value: musicgptApiKey!.trim(), category: 'ai_models', description: 'MusicGPT API key for music generation models (encrypted)' });
+      }
+      if (String(localMusicEnabled) !== currentSettings.local_music_enabled) {
+        settingsToSave.push({ key: 'local_music_enabled', value: String(localMusicEnabled), category: 'ai_models', description: 'Use the local music provider exclusively' });
+      }
+      if (localMusicBaseUrl !== currentSettings.local_music_base_url) {
+        settingsToSave.push({ key: 'local_music_base_url', value: localMusicBaseUrl, category: 'ai_models', description: 'Launcher-discovered local music API URL' });
+      }
+      if (String(localImageEnabled) !== currentSettings.local_image_enabled) {
+        settingsToSave.push({ key: 'local_image_enabled', value: String(localImageEnabled), category: 'ai_models', description: 'Use the local image provider exclusively' });
+      }
+      if (localImageBaseUrl !== currentSettings.local_image_base_url) {
+        settingsToSave.push({ key: 'local_image_base_url', value: localImageBaseUrl, category: 'ai_models', description: 'Launcher-discovered local image API URL' });
+      }
+      if (String(localVideoEnabled) !== currentSettings.local_video_enabled) {
+        settingsToSave.push({ key: 'local_video_enabled', value: String(localVideoEnabled), category: 'ai_models', description: 'Use the local video provider exclusively' });
+      }
+      if (localVideoBaseUrl && localVideoBaseUrl !== currentSettings.local_video_base_url) {
+        settingsToSave.push({ key: 'local_video_base_url', value: localVideoBaseUrl, category: 'ai_models', description: 'Launcher-discovered local video API URL' });
       }
 
       // Only save if there are actual changes

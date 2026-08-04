@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 import { env } from '$env/dynamic/private';
 import { db } from './db/index.js';
-import { users, subscriptions, pricingPlans, paymentHistory } from './db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { users, subscriptions, pricingPlans, paymentHistory, creditPackages, creditTransactions } from './db/schema.js';
+import { eq, and, sql } from 'drizzle-orm';
 import { getStripeSecretKey } from './settings-store.js';
 
 // Cache for the Stripe instance to avoid creating it repeatedly
@@ -88,6 +88,123 @@ export interface PaymentMethodInfo {
 }
 
 export class StripeService {
+	static async createCreditCheckoutSession(userId: string, packageId: string, returnUrl: string): Promise<Stripe.Checkout.Session> {
+		const [creditPackage] = await db
+			.select()
+			.from(creditPackages)
+			.where(and(eq(creditPackages.id, packageId), eq(creditPackages.isActive, true)))
+			.limit(1);
+
+		if (!creditPackage) {
+			throw new Error('Credit package not found');
+		}
+
+		const customerId = await this.getOrCreateCustomer(userId);
+		const stripe = await getStripe();
+		return stripe.checkout.sessions.create({
+			ui_mode: 'embedded',
+			customer: customerId,
+			mode: 'payment',
+			line_items: [{
+				price_data: {
+					currency: creditPackage.currency,
+					unit_amount: creditPackage.priceAmount,
+					product_data: {
+						name: creditPackage.name,
+						description: `${creditPackage.credits} Qamuz credits`,
+					},
+				},
+				quantity: 1,
+			}],
+			return_url: returnUrl,
+			metadata: {
+				purchaseType: 'credits',
+				userId,
+				packageId: creditPackage.id,
+			},
+			payment_intent_data: {
+				metadata: {
+					purchaseType: 'credits',
+					userId,
+					packageId: creditPackage.id,
+				},
+			},
+		});
+	}
+
+	static async handleCreditCheckoutCompleted(session: Stripe.Checkout.Session): Promise<boolean> {
+		if (session.mode !== 'payment' || session.payment_status !== 'paid' || session.metadata?.purchaseType !== 'credits') {
+			return false;
+		}
+
+		const userId = session.metadata.userId;
+		const packageId = session.metadata.packageId;
+		if (!userId || !packageId) {
+			throw new Error('Credit checkout metadata is incomplete');
+		}
+
+		const paymentIntentId = typeof session.payment_intent === 'string'
+			? session.payment_intent
+			: session.payment_intent?.id;
+
+		await db.transaction(async (tx) => {
+			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${session.id}))`);
+
+			const [alreadyProcessed] = await tx
+				.select({ id: creditTransactions.id })
+				.from(creditTransactions)
+				.where(and(
+					eq(creditTransactions.referenceId, session.id),
+					eq(creditTransactions.type, 'recharge'),
+					eq(creditTransactions.provider, 'stripe')
+				))
+				.limit(1);
+
+			if (alreadyProcessed) return;
+
+			const [creditPackage] = await tx
+				.select()
+				.from(creditPackages)
+				.where(eq(creditPackages.id, packageId))
+				.limit(1);
+
+			if (!creditPackage) throw new Error('Purchased credit package no longer exists');
+			if (session.amount_total !== creditPackage.priceAmount || session.currency !== creditPackage.currency) {
+				throw new Error('Paid amount does not match the credit package');
+			}
+
+			const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+			if (!user) throw new Error('Credit purchase user not found');
+
+			await tx.update(users)
+				.set({ creditsBalance: sql`${users.creditsBalance} + ${creditPackage.credits}`, updatedAt: new Date() })
+				.where(eq(users.id, userId));
+
+			await tx.insert(creditTransactions).values({
+				userId,
+				type: 'recharge',
+				amount: creditPackage.credits,
+				resourceType: 'credit',
+				provider: 'stripe',
+				model: creditPackage.id,
+				status: 'completed',
+				referenceId: session.id,
+			});
+
+			await tx.insert(paymentHistory).values({
+				userId,
+				stripePaymentIntentId: paymentIntentId || null,
+				amount: session.amount_total ?? creditPackage.priceAmount,
+				currency: session.currency || creditPackage.currency,
+				status: 'succeeded',
+				description: `${creditPackage.credits} Qamuz credits`,
+				paidAt: new Date(),
+			});
+		});
+
+		return true;
+	}
+
 	static async createCustomer({ email, name, userId }: CreateCustomerParams): Promise<Stripe.Customer> {
 		try {
 			const stripe = await getStripe();

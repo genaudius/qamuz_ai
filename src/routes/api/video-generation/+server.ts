@@ -4,6 +4,7 @@ import { getModelProvider } from '$lib/ai/index.js';
 import type { VideoGenerationParams } from '$lib/ai/types.js';
 import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-tracking.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { generateLocalVideo, getLocalVideoConfig } from '$lib/ai/providers/local-maestro.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -106,7 +107,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			imageUrl: imageUrl
 		});
 
-		const response = await provider.generateVideo(params);
+		const response = (await getLocalVideoConfig()).enabled
+			? await generateLocalVideo(params)
+			: await provider.generateVideo(params);
 		console.log('🎉 Video generation completed, response:', {
 			videoId: response.videoId,
 			model: response.model,
@@ -121,7 +124,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		console.error('Video generation API error:', error);
 		return json(
-			{ error: error instanceof Error ? error.message : 'Internal server error' },
+			{ error: 'The video could not be generated right now. Please try again later.', code: 'generation_unavailable' },
 			{ status: 500 }
 		);
 	}

@@ -416,6 +416,8 @@
     "loading_history": "Carregando histórico...",
     "transforming_voice": "Transformando voz...",
     "generating_music": "Gerando música...",
+    "music_generation_unavailable_title": "A geração de música está temporariamente indisponível",
+    "music_generation_unavailable_description": "Não foi possível concluir sua solicitação agora. Tente novamente mais tarde.",
     "generating_sound_effect": "Gerando efeito sonoro...",
     "no_speeches_yet": "Ainda não há falas geradas",
     "speeches_will_appear": "As falas geradas aparecerão aqui",

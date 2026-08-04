@@ -1429,7 +1429,9 @@ export class ChatState {
       } else {
         // Enhanced error recovery with retry logic
         const MAX_RETRIES = 3;
-        const STREAM_TIMEOUT_MS = 30000; // 30 seconds
+        // Local development models may need time to load/offload across GPU and RAM.
+        // This timeout only covers establishing the stream; once connected, streaming continues normally.
+        const STREAM_TIMEOUT_MS = import.meta.env.DEV ? 30 * 60_000 : 30_000;
         let retryCount = 0;
         let accumulatedContent = "";
         let streamSuccessful = false;
@@ -1484,6 +1486,7 @@ export class ChatState {
             const decoder = new TextDecoder();
 
             if (reader) {
+              let sseBuffer = "";
               try {
                 while (true) {
                   const { done, value } = await reader.read();
@@ -1493,8 +1496,11 @@ export class ChatState {
                   }
 
                   // Decode the chunk
-                  const chunk = decoder.decode(value, { stream: true });
-                  const lines = chunk.split('\n');
+                  // A JSON SSE event can be split across multiple network chunks.
+                  // Preserve the unfinished final line instead of silently discarding it.
+                  sseBuffer += decoder.decode(value, { stream: true });
+                  const lines = sseBuffer.split('\n');
+                  sseBuffer = lines.pop() || "";
 
                   for (const line of lines) {
                     if (line.startsWith('data: ')) {

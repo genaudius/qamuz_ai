@@ -4,11 +4,12 @@ import { getAllModels } from '$lib/ai/index.js';
 import { waitForEnrichmentCompletion } from '$lib/ai/providers/openrouter.js';
 import { isModelAllowedForGuests } from '$lib/constants/guest-limits.js';
 import { isDemoModeEnabled, isModelAllowedForDemo, isDemoModeRestricted } from '$lib/constants/demo-mode.js';
+import { dev } from '$app/environment';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		// Wait for OpenRouter architecture enrichment to complete (with 10s timeout)
-		const enrichmentSuccess = await waitForEnrichmentCompletion(10000);
+		const enrichmentSuccess = dev ? true : await waitForEnrichmentCompletion(10000);
 
 		if (!enrichmentSuccess) {
 			console.warn('Architecture enrichment timed out, returning basic models');
@@ -36,7 +37,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			filteredModels = allModels.filter(model =>
 				!model.supportsImageGeneration &&
 				!model.supportsVideoGeneration &&
-				!model.supportsAudioGeneration
+				!model.supportsAudioGeneration &&
+				(!dev || model.provider === 'local')
 			);
 		}
 

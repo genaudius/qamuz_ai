@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
-import { getModelProvider } from '$lib/ai/index.js';
+import { getChatModelProvider } from '$lib/ai/index.js';
 import type { AIResponse, AIImageResponse, AIMessage } from '$lib/ai/types.js';
 import { isDemoModeRestricted, isModelAllowedForDemo, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 
@@ -30,7 +30,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ error: 'Messages array is required and cannot be empty' }, { status: 400 });
 		}
 
-		const provider = getModelProvider(model);
+		const provider = getChatModelProvider(model);
 		if (!provider) {
 			return json({ error: `No provider found for model: ${model}` }, { status: 400 });
 		}

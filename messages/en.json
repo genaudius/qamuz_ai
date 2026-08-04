@@ -416,6 +416,8 @@
     "loading_history": "Loading history...",
     "transforming_voice": "Transforming voice...",
     "generating_music": "Generating music...",
+    "music_generation_unavailable_title": "Music generation is temporarily unavailable",
+    "music_generation_unavailable_description": "We couldn't complete your request right now. Please try again later.",
     "generating_sound_effect": "Generating sound effect...",
     "no_speeches_yet": "No speeches generated yet",
     "speeches_will_appear": "Generated speeches will appear here",

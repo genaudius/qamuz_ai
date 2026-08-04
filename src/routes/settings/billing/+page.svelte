@@ -27,10 +27,12 @@
     user: typeof data.user;
     subscription: typeof data.subscription;
     paymentHistory: typeof data.paymentHistory;
+    creditPackages: typeof data.creditPackages;
     currentUsage: typeof data.currentUsage;
   }>((() => data)());
   let isRefreshing = $state(false);
   let retryAttempt = $state(0);
+  let purchasingPackageId = $state<string | null>(null);
 
   $effect(() => {
     billingData = data;
@@ -160,7 +162,7 @@
   }
 
   // Handle checkout session completion
-  async function handleCheckoutSessionComplete(sessionId: string) {
+  async function handleCheckoutSessionComplete(sessionId: string, isCreditPurchase = false) {
     try {
       console.log("Processing checkout session completion:", sessionId);
 
@@ -181,7 +183,7 @@
         sessionData.payment_status === "paid"
       ) {
         // Show success message since this is where users land after checkout
-        toast.success(m["billing.toast_subscription_activated"]());
+        toast.success(isCreditPurchase ? "Credits purchased successfully!" : m["billing.toast_subscription_activated"]());
         console.log("Checkout session verified as complete and paid");
       } else if (
         sessionData.status === "complete" &&
@@ -222,7 +224,8 @@
     if (
       !urlParams.has("subscription_updated") &&
       !urlParams.has("subscription_error") &&
-      !urlParams.has("session_id")
+      !urlParams.has("session_id") &&
+      !urlParams.has("credit_purchase")
     ) {
       return;
     }
@@ -253,7 +256,7 @@
     if (urlParams.has("session_id")) {
       const sessionId = urlParams.get("session_id");
       if (sessionId) {
-        await handleCheckoutSessionComplete(sessionId);
+        await handleCheckoutSessionComplete(sessionId, urlParams.get("credit_purchase") === "true");
         shouldRefresh = true;
       }
     }
@@ -396,6 +399,25 @@
   // Navigate to pricing plans
   function pricingPagePlans() {
     goto("/pricing");
+  }
+
+  async function purchaseCredits(packageId: string, packageName: string) {
+    purchasingPackageId = packageId;
+    try {
+      const response = await fetch("/api/stripe/create-credit-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.clientSecret) {
+        throw new Error(result.message || result.error || "Unable to start checkout");
+      }
+      await goto(`/checkout?client_secret=${encodeURIComponent(result.clientSecret)}&plan=${encodeURIComponent(packageName)}`);
+    } catch (purchaseError) {
+      toast.error(purchaseError instanceof Error ? purchaseError.message : "Unable to purchase credits");
+      purchasingPackageId = null;
+    }
   }
 
   // Format card brand for display
@@ -543,6 +565,44 @@
           {/if}
         </div>
       {/if}
+    </Card.Content>
+  </Card.Root>
+
+  <!-- One-time Qamuz credit purchases -->
+  <Card.Root class="shadow-none">
+    <Card.Header>
+      <Card.Title class="flex items-center gap-2">
+        <WalletIcon class="w-5 h-5" />
+        Qamuz Credits
+      </Card.Title>
+      <Card.Description>
+        Current balance: {billingData.user?.creditsBalance ?? 0} credits. These credits pay for Qamuz generations and are separate from provider API balances.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content>
+      <div class="grid gap-3 md:grid-cols-3">
+        {#each billingData.creditPackages || [] as creditPackage}
+          <div class="relative rounded-lg border p-4 space-y-3">
+            {#if creditPackage.badgeText}
+              <Badge variant="secondary">{creditPackage.badgeText}</Badge>
+            {/if}
+            <div>
+              <p class="text-2xl font-semibold">{creditPackage.credits}</p>
+              <p class="text-sm text-muted-foreground">Qamuz credits</p>
+            </div>
+            <p class="text-xl font-medium">
+              {new Intl.NumberFormat("en-US", { style: "currency", currency: creditPackage.currency.toUpperCase() }).format(creditPackage.priceAmount / 100)}
+            </p>
+            <Button
+              class="w-full"
+              disabled={purchasingPackageId !== null}
+              onclick={() => purchaseCredits(creditPackage.id, creditPackage.name)}
+            >
+              {purchasingPackageId === creditPackage.id ? "Opening checkout..." : "Buy credits"}
+            </Button>
+          </div>
+        {/each}
+      </div>
     </Card.Content>
   </Card.Root>
 

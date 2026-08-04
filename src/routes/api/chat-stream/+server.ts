@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
-import { getModelProvider } from '$lib/ai/index.js';
+import { getChatModelProvider } from '$lib/ai/index.js';
 import type { AIMessage } from '$lib/ai/types.js';
 import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-tracking.js';
 import { GUEST_MESSAGE_LIMIT, isModelAllowedForGuests } from '$lib/constants/guest-limits.js';
@@ -130,7 +130,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		}
 
-		const provider = getModelProvider(model);
+		const provider = getChatModelProvider(model);
 		if (!provider) {
 			return json({ error: `No provider found for model: ${model}` }, { status: 400 });
 		}

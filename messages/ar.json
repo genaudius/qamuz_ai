@@ -416,6 +416,8 @@
     "loading_history": "جاري تحميل السجل...",
     "transforming_voice": "جاري تحويل الصوت...",
     "generating_music": "جاري إنشاء الموسيقى...",
+    "music_generation_unavailable_title": "إنشاء الموسيقى غير متاح مؤقتًا",
+    "music_generation_unavailable_description": "تعذر إكمال طلبك في الوقت الحالي. يُرجى المحاولة مرة أخرى لاحقًا.",
     "generating_sound_effect": "جاري إنشاء المؤثر الصوتي...",
     "no_speeches_yet": "لا توجد خطابات مُنشأة بعد",
     "speeches_will_appear": "ستظهر الخطابات المُنشأة هنا",

@@ -3,12 +3,20 @@ import { openRouterProvider } from './providers/openrouter.js';
 import { replicateProvider } from './providers/replicate.js';
 import { elevenlabsProvider } from './providers/elevenlabs.js';
 import { removeWebSearchSuffix } from '$lib/constants/web-search.js';
+import { dev } from '$app/environment';
+import { localOllamaProvider } from './providers/local-ollama.js';
 
 export const AI_PROVIDERS: AIProvider[] = [
+	localOllamaProvider,
 	openRouterProvider,
 	replicateProvider,
 	elevenlabsProvider
 ];
+
+export function getChatModelProvider(modelName: string): AIProvider | undefined {
+	if (dev) return localOllamaProvider;
+	return getModelProvider(modelName);
+}
 
 export function getAllModels(): AIModelConfig[] {
 	return AI_PROVIDERS.flatMap(provider => provider.models);
@@ -30,6 +38,7 @@ export * from './types.js';
 export { openRouterProvider } from './providers/openrouter.js';
 export { replicateProvider } from './providers/replicate.js';
 export { elevenlabsProvider } from './providers/elevenlabs.js';
+export { localOllamaProvider } from './providers/local-ollama.js';
 export { sunoProvider } from './providers/suno.js';
 export { musicgptProvider } from './providers/musicgpt.js';
 // Re-export client-safe constants from the constants file (single source of truth)

@@ -45,6 +45,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			case 'checkout.session.completed': {
 				const session = event.data.object as Stripe.Checkout.Session;
 				console.log('Checkout session completed:', session.id);
+
+				const credited = await StripeService.handleCreditCheckoutCompleted(session);
+				if (credited) {
+					console.log('Credit purchase processed:', session.id);
+					break;
+				}
 				
 				// Handle setting payment method as default for the customer
 				await StripeService.handleCheckoutSessionCompleted(session);

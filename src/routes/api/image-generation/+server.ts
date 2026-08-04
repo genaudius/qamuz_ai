@@ -4,6 +4,7 @@ import { getModelProvider } from '$lib/ai/index.js';
 import type { ImageGenerationParams, AIImageStreamChunk } from '$lib/ai/types.js';
 import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-tracking.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { generateLocalImage, getLocalImageConfig } from '$lib/ai/providers/local-forge.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -110,7 +111,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			compressionQuality
 		};
 
-		const response = await provider.generateImage(params);
+		const localImageEnabled = (await getLocalImageConfig()).enabled;
+		if (localImageEnabled && stream) {
+			return json({ error: 'Streaming previews are not available in local image mode' }, { status: 400 });
+		}
+		const response = localImageEnabled
+			? await generateLocalImage(params)
+			: await provider.generateImage(params);
 
 		// Handle streaming response
 		if (stream && Symbol.asyncIterator in response) {
@@ -162,7 +169,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (error) {
 		console.error('Image generation API error:', error);
 		return json(
-			{ error: error instanceof Error ? error.message : 'Internal server error' },
+			{ error: 'The image could not be generated right now. Please try again later.', code: 'generation_unavailable' },
 			{ status: 500 }
 		);
 	}

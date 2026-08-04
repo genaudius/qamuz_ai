@@ -416,6 +416,8 @@
     "loading_history": "Verlauf wird geladen...",
     "transforming_voice": "Stimme wird transformiert...",
     "generating_music": "Musik wird generiert...",
+    "music_generation_unavailable_title": "Die Musikgenerierung ist vorübergehend nicht verfügbar",
+    "music_generation_unavailable_description": "Wir konnten Ihre Anfrage momentan nicht abschließen. Bitte versuchen Sie es später erneut.",
     "generating_sound_effect": "Soundeffekt wird generiert...",
     "no_speeches_yet": "Noch keine Sprachen generiert",
     "speeches_will_appear": "Generierte Sprachen werden hier angezeigt",

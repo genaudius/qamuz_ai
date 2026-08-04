@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import { getOpenRouterApiKey, getOpenRouterSystemPrompt, getPublicOrigin, getSiteName } from '$lib/server/settings-store.js';
 import { storageService } from '$lib/server/storage.js';
 import type { ToolInstance } from '../tools/index.js';
+import { dev } from '$app/environment';
 
 // Get API key from database or fallback to environment variable
 async function getApiKey(): Promise<string> {
@@ -921,8 +922,13 @@ async function initializeModels() {
 	}
 }
 
-// Start enrichment process (non-blocking) and track with Promise
-enrichmentPromise = initializeModels();
+// Development chat is intentionally local-only; do not contact OpenRouter even for model metadata.
+if (dev) {
+	enrichmentCompleted = true;
+} else {
+	// Start enrichment process (non-blocking) and track with Promise
+	enrichmentPromise = initializeModels();
+}
 
 // Export function to wait for enrichment completion with timeout
 export async function waitForEnrichmentCompletion(timeoutMs: number = 10000): Promise<boolean> {

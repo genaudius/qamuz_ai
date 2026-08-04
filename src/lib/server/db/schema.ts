@@ -425,6 +425,18 @@ export const pricingPlans = pgTable("pricing_plan", {
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 })
 
+export const creditPackages = pgTable("credit_package", {
+	id: text("id").primaryKey().notNull(),
+	name: text("name").notNull(),
+	credits: integer("credits").notNull(),
+	priceAmount: integer("priceAmount").notNull(), // Price in cents
+	currency: text("currency").notNull().default("usd"),
+	badgeText: text("badgeText"),
+	isActive: boolean("isActive").notNull().default(true),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+})
+
 export const subscriptions = pgTable("subscription", {
 	id: text("id")
 		.primaryKey().notNull()

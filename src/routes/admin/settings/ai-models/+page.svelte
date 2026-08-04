@@ -36,6 +36,12 @@
   );
   let sunoApiKey = $state((() => data.settings?.sunoApiKey || "")());
   let musicgptApiKey = $state((() => data.settings?.musicgptApiKey || "")());
+  let localMusicEnabled = $state((() => data.settings?.localMusicEnabled || false)());
+  let localMusicBaseUrl = $state((() => data.settings?.localMusicBaseUrl || "http://localhost:42003")());
+  let localImageEnabled = $state((() => data.settings?.localImageEnabled || false)());
+  let localImageBaseUrl = $state((() => data.settings?.localImageBaseUrl || "http://127.0.0.1:7860")());
+  let localVideoEnabled = $state((() => data.settings?.localVideoEnabled || false)());
+  let localVideoBaseUrl = $state((() => data.settings?.localVideoBaseUrl || "http://127.0.0.1:42005")());
 
   // Derived display values for password fields
   $effect(() => {
@@ -45,6 +51,12 @@
     elevenlabsApiKey = settings?.elevenlabsApiKey || "";
     sunoApiKey = settings?.sunoApiKey || "";
     musicgptApiKey = settings?.musicgptApiKey || "";
+    localMusicEnabled = settings?.localMusicEnabled || false;
+    localMusicBaseUrl = settings?.localMusicBaseUrl || "http://localhost:42003";
+    localImageEnabled = settings?.localImageEnabled || false;
+    localImageBaseUrl = settings?.localImageBaseUrl || "http://127.0.0.1:7860";
+    localVideoEnabled = settings?.localVideoEnabled || false;
+    localVideoBaseUrl = settings?.localVideoBaseUrl || "http://127.0.0.1:42005";
   });
 
   // Check if providers are configured
@@ -107,8 +119,7 @@
       AI Models Configuration
     </h1>
     <p class="text-muted-foreground">
-      Configure API keys for AI model providers (OpenRouter for text gen,
-      Replicate for image/video gen).
+      Configure local development models and optional external AI providers.
     </p>
   </div>
 
@@ -381,6 +392,108 @@
       </Card.Content>
     </Card.Root>
 
+
+    <!-- Local music configuration -->
+    <Card.Root>
+      <Card.Header>
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <Card.Title class="flex items-center gap-2">
+              Local Music (Pinokio)
+              {#if localMusicEnabled}
+                <CheckCircleIcon class="w-4 h-4 text-green-500" />
+              {/if}
+            </Card.Title>
+            <Card.Description>
+              Use the local music engine for development and testing.
+            </Card.Description>
+          </div>
+          <label class="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              name="localMusicEnabled"
+              bind:checked={localMusicEnabled}
+              disabled={data.isDemoMode}
+              class="h-4 w-4 rounded border-gray-300"
+            />
+            Enabled
+          </label>
+        </div>
+      </Card.Header>
+      <Card.Content class="space-y-3">
+        <div class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          When enabled, music jobs run only on the local engine. External music APIs are never used as fallback.
+        </div>
+        <div class="space-y-2">
+          <Label for="localMusicBaseUrl">Local API URL</Label>
+          <Input
+            id="localMusicBaseUrl"
+            name="localMusicBaseUrl"
+            type="url"
+            bind:value={localMusicBaseUrl}
+            placeholder="http://localhost:42003"
+            disabled={data.isDemoMode}
+          />
+          <p class="text-xs text-muted-foreground">
+            Use the ready URL reported by Pinokio for ACE-Step Studio.
+          </p>
+        </div>
+      </Card.Content>
+    </Card.Root>
+
+    <Card.Root>
+      <Card.Header>
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <Card.Title class="flex items-center gap-2">
+              Local Image (Pinokio)
+              {#if localImageEnabled}<CheckCircleIcon class="w-4 h-4 text-green-500" />{/if}
+            </Card.Title>
+            <Card.Description>Generate and store images using the local GPU.</Card.Description>
+          </div>
+          <label class="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" name="localImageEnabled" bind:checked={localImageEnabled} disabled={data.isDemoMode} class="h-4 w-4 rounded border-gray-300" />
+            Enabled
+          </label>
+        </div>
+      </Card.Header>
+      <Card.Content class="space-y-3">
+        <div class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          When enabled, image jobs use only the local engine and are saved in the Qamuz library.
+        </div>
+        <div class="space-y-2">
+          <Label for="localImageBaseUrl">Local API URL</Label>
+          <Input id="localImageBaseUrl" name="localImageBaseUrl" type="url" bind:value={localImageBaseUrl} placeholder="http://127.0.0.1:7860" disabled={data.isDemoMode} />
+        </div>
+      </Card.Content>
+    </Card.Root>
+
+    <Card.Root>
+      <Card.Header>
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <Card.Title class="flex items-center gap-2">
+              Local Video (Pinokio)
+              {#if localVideoEnabled}<CheckCircleIcon class="w-4 h-4 text-green-500" />{/if}
+            </Card.Title>
+            <Card.Description>Generate videos locally after the video service is connected.</Card.Description>
+          </div>
+          <label class="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" name="localVideoEnabled" bind:checked={localVideoEnabled} disabled={data.isDemoMode} class="h-4 w-4 rounded border-gray-300" />
+            Enabled
+          </label>
+        </div>
+      </Card.Header>
+      <Card.Content class="space-y-3">
+        <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          Keep this disabled until the local video URL has been detected and verified.
+        </div>
+        <div class="space-y-2">
+          <Label for="localVideoBaseUrl">Local API URL</Label>
+          <Input id="localVideoBaseUrl" name="localVideoBaseUrl" type="url" bind:value={localVideoBaseUrl} placeholder="http://127.0.0.1:42005" disabled={data.isDemoMode} />
+        </div>
+      </Card.Content>
+    </Card.Root>
 
 <!-- Suno Configuration -->
     <Card.Root>

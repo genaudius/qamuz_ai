@@ -1,0 +1,5 @@
+ALTER TABLE "music"
+ADD COLUMN IF NOT EXISTS "genre" text;
+
+ALTER TABLE "music"
+ADD COLUMN IF NOT EXISTS "tags" json DEFAULT '[]'::json NOT NULL;

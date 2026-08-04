@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { StripeService } from '$lib/server/stripe.js';
 import { db } from '$lib/server/db/index.js';
-import { users, paymentHistory, usageTracking } from '$lib/server/db/schema.js';
+import { users, paymentHistory, usageTracking, creditPackages } from '$lib/server/db/schema.js';
 import { eq, desc, and } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ parent }) => {
@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 			user: null,
 			subscription: null,
 			paymentHistory: [],
+			creditPackages: [],
 			currentUsage: null,
 		};
 	}
@@ -34,6 +35,12 @@ export const load: PageServerLoad = async ({ parent }) => {
 			.where(eq(paymentHistory.userId, session.user.id))
 			.orderBy(desc(paymentHistory.createdAt))
 			.limit(10);
+
+		const packages = await db
+			.select()
+			.from(creditPackages)
+			.where(eq(creditPackages.isActive, true))
+			.orderBy(creditPackages.priceAmount);
 
 		// Get current month usage
 		const currentDate = new Date();
@@ -61,6 +68,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 				date: payment.createdAt.toLocaleDateString(),
 				status: payment.status,
 			})),
+			creditPackages: packages,
 			currentUsage: usage ? {
 				textGeneration: usage.textGenerationCount,
 				imageGeneration: usage.imageGenerationCount,
@@ -77,6 +85,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 			user: null,
 			subscription: null,
 			paymentHistory: [],
+			creditPackages: [],
 			currentUsage: null,
 		};
 	}

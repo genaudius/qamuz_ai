@@ -1996,12 +1996,12 @@
       {:else if activeMode === "music" && musicSubMode === "easy"}
         <!-- Easy Mode Input -->
         <div class="space-y-3 w-full max-w-2xl mx-auto">
-          {#if music.errorMessage && music.errorMessage.toLowerCase().includes("credits are insufficient")}
+          {#if music.errorMessage}
             <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-sm">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p class="font-semibold text-sm">Suno API credits are insufficient</p>
-                  <p class="text-xs text-amber-100/80">Top up the Suno API account, then try generating again.</p>
+                  <p class="font-semibold text-sm">{m["audio.music_generation_unavailable_title"]()}</p>
+                  <p class="text-xs text-amber-100/80">{m["audio.music_generation_unavailable_description"]()}</p>
                 </div>
                 <Button variant="secondary" size="sm" onclick={() => goto("/settings/billing")}>Go to Billing</Button>
               </div>
@@ -2086,12 +2086,12 @@
       {:else if activeMode === "music" && musicSubMode === "custom"}
         <!-- Music Input (Custom) -->
         <div class="w-full max-w-2xl min-w-[300px] mx-auto space-y-3">
-          {#if music.errorMessage && music.errorMessage.toLowerCase().includes("credits are insufficient")}
+          {#if music.errorMessage}
             <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-sm">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p class="font-semibold text-sm">Suno API credits are insufficient</p>
-                  <p class="text-xs text-amber-100/80">Top up the Suno API account, then try generating again.</p>
+                  <p class="font-semibold text-sm">{m["audio.music_generation_unavailable_title"]()}</p>
+                  <p class="text-xs text-amber-100/80">{m["audio.music_generation_unavailable_description"]()}</p>
                 </div>
                 <Button variant="secondary" size="sm" onclick={() => goto("/settings/billing")}>Go to Billing</Button>
               </div>
@@ -2258,12 +2258,12 @@
       {:else if activeMode === "music"}
         <!-- Music Input (Soundtrack) -->
         <div class="space-y-3 w-full max-w-2xl mx-auto">
-          {#if music.errorMessage && music.errorMessage.toLowerCase().includes("credits are insufficient")}
+          {#if music.errorMessage}
             <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-sm">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p class="font-semibold text-sm">Suno API credits are insufficient</p>
-                  <p class="text-xs text-amber-100/80">Top up the Suno API account, then try generating again.</p>
+                  <p class="font-semibold text-sm">{m["audio.music_generation_unavailable_title"]()}</p>
+                  <p class="text-xs text-amber-100/80">{m["audio.music_generation_unavailable_description"]()}</p>
                 </div>
                 <Button variant="secondary" size="sm" onclick={() => goto("/settings/billing")}>Go to Billing</Button>
               </div>

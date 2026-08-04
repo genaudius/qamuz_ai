@@ -8,6 +8,7 @@ import { db } from '$lib/server/db/index.js';
 import { aiJobs } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { getLocalMusicConfig } from '$lib/ai/providers/local-acestep.js';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const session = await locals.auth();
@@ -34,12 +35,19 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		return json({ error: 'Access denied' }, { status: 403 });
 	}
 
+	const result = job.result && typeof job.result === 'object'
+		? Object.fromEntries(Object.entries(job.result as Record<string, unknown>).filter(([key]) => key !== 'model'))
+		: job.result;
+	const prompt = job.payload && typeof job.payload === 'object'
+		? (job.payload as Record<string, unknown>).prompt
+		: undefined;
+
 	return json({
 		jobId: job.id,
 		status: job.status,
-		result: job.result,
-		errorMessage: job.errorMessage,
-		payload: job.payload
+		result,
+		errorCode: job.status === 'failed' ? 'generation_unavailable' : null,
+		payload: { prompt }
 	});
 };
 
@@ -107,7 +115,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Validate model ID
 		if (!modelId.startsWith('suno-') && !modelId.startsWith('musicgpt-')) {
-			return json({ error: `Invalid music model: ${modelId}. Valid models: Suno and MusicGPT models.` }, { status: 400 });
+			return json({ error: 'Invalid music model selection.' }, { status: 400 });
 		}
 
 		// ----------------------------------------------------
@@ -115,13 +123,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// ----------------------------------------------------
 		let transactionId: string | undefined;
 		try {
+			const localMusicEnabled = (await getLocalMusicConfig()).enabled;
 			const cost = CreditCostCalculator.getMusicCost();
 			transactionId = await UsageTrackingService.holdTransaction(
 				session.user.id, 
 				cost.credits, 
 				cost.resourceType, 
-				modelId.startsWith('musicgpt') ? 'musicgpt' : 'suno', 
-				modelId
+				localMusicEnabled ? 'local' : (modelId.startsWith('musicgpt') ? 'musicgpt' : 'suno'),
+				localMusicEnabled ? 'qamuz-local-music' : modelId
 			);
 		} catch (error) {
 			if (error instanceof UsageLimitError) {

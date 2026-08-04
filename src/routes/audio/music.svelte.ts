@@ -1,4 +1,5 @@
 import { toast } from "svelte-sonner";
+import * as m from "$lib/../paraglide/messages.js";
 
 /**
  * Music history item interface for generated music
@@ -52,10 +53,10 @@ export interface PendingLibrarySong {
 export class MusicState {
   // Constants (reference to imported constants)
   readonly models = [
-    { id: 'suno-v5.5', name: 'Suno V5.5' },
-    { id: 'suno-v5', name: 'Suno V5' },
-    { id: 'suno-v4.5', name: 'Suno V4.5' },
-    { id: 'musicgpt-v1', name: 'MusicGPT V1' }
+    { id: 'suno-v5.5', name: 'Qamuz Music Pro' },
+    { id: 'suno-v5', name: 'Qamuz Music Plus' },
+    { id: 'suno-v4.5', name: 'Qamuz Music' },
+    { id: 'musicgpt-v1', name: 'Qamuz Music Studio' }
   ];
 
   // Model Selection
@@ -238,7 +239,7 @@ export class MusicState {
       }
 
       if (data.status === 'failed') {
-        this.setJobFailed(aiMsgId, data.errorMessage || 'Music generation failed');
+        this.setJobFailed(aiMsgId, m["audio.music_generation_unavailable_description"]());
         return;
       }
 
@@ -337,7 +338,7 @@ export class MusicState {
       }
 
       if (data.status === 'failed') {
-        this.setJobFailed(aiMsgId, data.errorMessage || 'Music generation failed');
+        this.setJobFailed(aiMsgId, m["audio.music_generation_unavailable_description"]());
         return;
       }
 
