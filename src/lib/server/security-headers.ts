@@ -62,7 +62,8 @@ function generateCSP(): string {
     'frame-src': [
       "'self'",
       "https://js.stripe.com",
-      "https://challenges.cloudflare.com" // Turnstile
+      "https://challenges.cloudflare.com",
+      ...(isDev ? ["http://localhost:1420", "http://127.0.0.1:1420"] : [])
     ],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],

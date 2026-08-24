@@ -81,7 +81,6 @@
   // Keep session reactive to layout data updates
   const currentSession = $derived(data.session);
 
-  // Check if current route is a fully standalone page (no header, no sidebar)
   const isStandalonePage = $derived(
     (layoutPathname === "/" && !currentSession?.user) ||
       layoutPathname === "/login" ||
@@ -90,6 +89,7 @@
       layoutPathname === "/terms" ||
       layoutPathname === "/privacy" ||
       layoutPathname.startsWith("/admin") ||
+      layoutPathname.startsWith("/studio") ||
       layoutPathname === "/reset-password" ||
       layoutPathname.startsWith("/reset-password/") ||
       layoutPathname === "/verify-email" ||

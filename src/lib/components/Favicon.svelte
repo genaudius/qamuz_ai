@@ -5,7 +5,7 @@
 
   // Props
   let {
-    fallbackHref = "/branding/favicon/default-favicon.png",
+    fallbackHref = "/branding/qamuz/favicon.ico",
     elementId = "favicon"
   }: {
     fallbackHref?: string;

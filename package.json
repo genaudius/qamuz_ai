@@ -4,7 +4,10 @@
 	"version": "2.5.0",
 	"type": "module",
 	"scripts": {
+		"studio:sync": "node scripts/sync-qamuz-studio.mjs",
+		"predev": "npm run studio:sync",
 		"dev": "vite dev",
+		"prebuild": "npm run studio:sync",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",

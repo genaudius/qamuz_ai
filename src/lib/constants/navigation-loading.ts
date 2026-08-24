@@ -4,6 +4,7 @@ const EXACT_NAVIGATION_PATHS = new Set([
   "/newchat",
   "/image-video",
   "/audio",
+  "/studio",
   "/projects",
   "/settings",
   "/pricing",

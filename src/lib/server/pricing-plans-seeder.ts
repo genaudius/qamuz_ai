@@ -92,7 +92,8 @@ const pricingPlansData: PricingPlanSeed[] = [
 			'Higher rate limits',
 			'Priority processing',
 			'Advanced chat features',
-			'Priority email support'
+			'Priority email support',
+			'QAMUZ MASTER PRO in Studio'
 		],
 		isActive: true,
 	},
@@ -118,7 +119,8 @@ const pricingPlansData: PricingPlanSeed[] = [
 			'API access (coming soon)',
 			'Dedicated support',
 			'Custom integrations',
-			'Team collaboration features'
+			'Team collaboration features',
+			'QAMUZ MASTER PRO in Studio'
 		],
 		isActive: true,
 	},
@@ -164,7 +166,8 @@ const pricingPlansData: PricingPlanSeed[] = [
 			'Higher rate limits',
 			'Priority processing',
 			'Advanced chat features',
-			'Priority email support'
+			'Priority email support',
+			'QAMUZ MASTER PRO in Studio'
 		],
 		isActive: true,
 	},
@@ -190,7 +193,8 @@ const pricingPlansData: PricingPlanSeed[] = [
 			'API access (coming soon)',
 			'Dedicated support',
 			'Custom integrations',
-			'Team collaboration features'
+			'Team collaboration features',
+			'QAMUZ MASTER PRO in Studio'
 		],
 		isActive: true,
 	},

@@ -6,7 +6,7 @@
   let {
     class: className = "",
     alt = "App Logo",
-    fallbackSrc = "/branding/logos/default-dark-logo.png",
+    fallbackSrc = "/branding/qamuz/logo-dark.png",
   }: {
     class?: string;
     alt?: string;
@@ -29,8 +29,8 @@
   );
 
   // Logo URLs
-  const darkLogoUrl = $derived(settingsState?.logoUrlDark || fallbackSrc);
-  const lightLogoUrl = $derived(settingsState?.logoUrlLight || fallbackSrc);
+  const darkLogoUrl = $derived("/branding/qamuz/logo-dark.png");
+  const lightLogoUrl = $derived("/branding/qamuz/logo-light.png");
 
   // Error handling state
   let imageError = $state(false);
@@ -40,9 +40,13 @@
     isLoading = false;
   }
 
-  function handleImageError() {
+  function handleImageError(event: Event) {
     imageError = true;
     isLoading = false;
+    const image = event.currentTarget as HTMLImageElement;
+    image.src = image.classList.contains("dark:block")
+      ? "/branding/qamuz/logo-dark.png"
+      : "/branding/qamuz/logo-light.png";
   }
 
   // Final image sources - use fallback if there's an error

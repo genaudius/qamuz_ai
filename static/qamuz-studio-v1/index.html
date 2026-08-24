@@ -1,0 +1,4121 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#c5020b",
+                        "error-container": "#93000a",
+                        "on-primary-fixed-variant": "#004c6b",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-primary-fixed": "#001e2d",
+                        "primary-fixed": "#c6e7ff",
+                        "surface-container": "#201f1f",
+                        "on-secondary-fixed-variant": "#930005",
+                        "on-primary-container": "#003e58",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#53e16f",
+                        "on-tertiary-fixed-variant": "#00531c",
+                        "on-secondary": "#690003",
+                        "on-tertiary": "#003911",
+                        "surface-container-low": "#1c1b1b",
+                        "outline": "#87929b",
+                        "on-tertiary-container": "#004315",
+                        "on-secondary-fixed": "#410001",
+                        "tertiary": "#53e16f",
+                        "secondary-fixed": "#ffdad5",
+                        "surface-bright": "#393939",
+                        "on-tertiary-fixed": "#002107",
+                        "error": "#ffb4ab",
+                        "primary": "#82cfff",
+                        "surface": "#131313",
+                        "inverse-on-surface": "#313030",
+                        "secondary": "#ffb4aa",
+                        "on-primary": "#00344b",
+                        "on-background": "#e5e2e1",
+                        "surface-variant": "#353534",
+                        "surface-dim": "#131313",
+                        "on-error": "#690005",
+                        "outline-variant": "#3e4850",
+                        "tertiary-container": "#21bb4f",
+                        "inverse-surface": "#e5e2e1",
+                        "primary-fixed-dim": "#82cfff",
+                        "on-secondary-container": "#ffd2cc",
+                        "primary-container": "#00aeef",
+                        "surface-container-highest": "#353534",
+                        "inverse-primary": "#00658d",
+                        "surface-container-high": "#2a2a2a",
+                        "on-surface": "#e5e2e1",
+                        "tertiary-fixed": "#72fe88",
+                        "surface-tint": "#82cfff",
+                        "background": "#131313",
+                        "secondary-fixed-dim": "#ffb4aa",
+                        "on-surface-variant": "#bdc8d1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "1px",
+                        "panel-padding": "12px",
+                        "mixer-width": "80px",
+                        "unit": "4px",
+                        "track-height-sm": "32px",
+                        "track-height-md": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "label-xs": ["Inter"],
+                        "mono-label": ["JetBrains Mono"],
+                        "display-time": ["JetBrains Mono"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "label-xs": ["11px", { "lineHeight": "14px", "fontWeight": "500" }],
+                        "mono-label": ["10px", { "lineHeight": "12px", "fontWeight": "400" }],
+                        "display-time": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "500" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <title>QAMUZ Studio 1.0</title>
+    <link rel="icon" type="image/png" href="/branding/qamuz/icon-dark.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #08090b;
+        --panel: #121419;
+        --panel2: #191c22;
+        --line: #2b3039;
+        --muted: #9299a8;
+        --orange: #ff5a36;
+        --green: #48d597;
+        --track: 62px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: #f5f6f8;
+        font:
+          13px Inter,
+          Segoe UI,
+          system-ui,
+          sans-serif;
+        overflow: hidden;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      .app {
+        height: 100vh;
+        display: grid;
+        grid-template-rows: 54px 38px 1fr 30px;
+      }
+      .departments {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 14px;
+        background: #0b0d12;
+        border-bottom: 1px solid var(--line);
+      }
+      .department {
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: #737b8d;
+        height: 38px;
+        padding: 0 16px;
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+      }
+      .department.active {
+        color: #d9d5ff;
+        border-color: #755cff;
+      }
+      .department em {
+        font-style: normal;
+        color: #4e5667;
+        margin-left: 5px;
+      }
+      .session-name {
+        margin-left: auto;
+        width: 220px;
+        background: #10131a;
+        border: 1px solid #303644;
+        border-radius: 6px;
+        padding: 6px 9px;
+        font-size: 10px;
+      }
+      .department-panel {
+        min-height: 0;
+        overflow: auto;
+        padding: 28px;
+        background:
+          radial-gradient(circle at 50% 0, #1b1740 0, transparent 36%), #090a0e;
+      }
+      .department-panel[hidden],
+      .workspace[hidden] {
+        display: none;
+      }
+      .department-hero {
+        max-width: 1050px;
+        margin: auto;
+      }
+      .department-hero h1 {
+        font-size: 28px;
+        margin: 0 0 5px;
+      }
+      .department-hero > p {
+        color: var(--muted);
+        max-width: 680px;
+      }
+      .engine-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(190px, 1fr));
+        gap: 12px;
+        margin-top: 24px;
+      }
+      .engine-card {
+        border: 1px solid #31384a;
+        background: #11141b;
+        padding: 18px;
+        border-radius: 12px;
+      }
+      .engine-card.primary {
+        border-color: #6559b3;
+        background: linear-gradient(145deg, #17162a, #11141b);
+      }
+      .engine-card h3 {
+        margin: 0 0 8px;
+      }
+      .engine-card p {
+        color: #8992a5;
+        font-size: 10px;
+        line-height: 1.6;
+      }
+      .engine-card label {
+        display: block;
+        color: #8d96aa;
+        font-size: 9px;
+        margin: 10px 0 4px;
+      }
+      .engine-card input,
+      .engine-card select,
+      .engine-card textarea {
+        width: 100%;
+        background: #090b10;
+        border: 1px solid #343a49;
+        border-radius: 6px;
+        padding: 8px;
+      }
+      .engine-card textarea {
+        min-height: 75px;
+        resize: vertical;
+      }
+      .engine-action,
+      .empty-action {
+        border: 1px solid #6658bd;
+        background: #2a2452;
+        color: #d8d1ff;
+        border-radius: 7px;
+        padding: 8px 11px;
+        margin: 5px 4px 0 0;
+      }
+      .engine-action:disabled {
+        opacity: 0.45;
+      }
+      .capability {
+        display: inline-block;
+        margin: 3px;
+        padding: 4px 7px;
+        border-radius: 99px;
+        background: #171c27;
+        color: #8fa1bc;
+        font-size: 8px;
+      }
+      .capability.ready {
+        color: #8ee0bb;
+        background: #10251d;
+      }
+      .empty-actions {
+        margin-top: 15px;
+      }
+      .empty-action {
+        pointer-events: auto;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 0 15px;
+        background: #0e1014;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 215px;
+      }
+      .mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        display: block;
+        object-fit: contain;
+        background: #090b0f;
+        box-shadow: 0 0 0 1px #2b3340, 0 0 18px rgba(0, 219, 224, 0.12);
+      }
+      .brand small {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .transport {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .icon {
+        width: 34px;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #1a1d23;
+      }
+      .icon.play {
+        background: var(--orange);
+      }
+      .counter {
+        font:
+          600 15px Consolas,
+          monospace;
+        background: #07080a;
+        border: 1px solid var(--line);
+        padding: 7px 11px;
+        border-radius: 7px;
+      }
+      .tempo {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+      }
+      .tempo input {
+        width: 58px;
+        background: #08090b;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 6px;
+      }
+      .health {
+        margin-left: auto;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #eab308;
+      }
+      .dot.ok {
+        background: var(--green);
+      }
+      .dot.bad {
+        background: #ef4444;
+      }
+      .workspace {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: minmax(610px, 1fr);
+      }
+      .daw {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: 42px 1fr;
+        border-right: 1px solid var(--line);
+      }
+      .tools {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 11px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      .tool {
+        border: 1px solid var(--line);
+        background: #1a1d23;
+        border-radius: 6px;
+        padding: 6px 9px;
+      }
+      .tool.active {
+        background: #2c1915;
+        color: #ffc2b4;
+        border-color: #753b2d;
+      }
+      .tools span {
+        margin-left: auto;
+        color: var(--muted);
+      }
+      .arrange {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        overflow: auto;
+      }
+      .empty-session {
+        position: absolute;
+        inset: 28px 0 0 180px;
+        display: grid;
+        place-items: center;
+        z-index: 3;
+        pointer-events: none;
+      }
+      .empty-session.hidden {
+        display: none;
+      }
+      .empty-card {
+        text-align: center;
+        max-width: 390px;
+        padding: 30px;
+        border: 1px dashed #3b4260;
+        border-radius: 13px;
+        background: #0d1018dd;
+        color: #8f98ad;
+        pointer-events: auto;
+      }
+      .empty-card strong {
+        display: block;
+        color: #d7dceb;
+        font-size: 15px;
+        margin-bottom: 7px;
+      }
+      .empty-card span {
+        font-size: 10px;
+        line-height: 1.55;
+      }
+      .tool.import {
+        border-color: #4f4a92;
+        color: #c8c4ff;
+      }
+      .tool.export {
+        border-color: #275d53;
+        color: #9de1c9;
+      }
+      .smart-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        margin: 0 auto 9px;
+      }
+      .smart-actions button {
+        min-width: 0;
+        width: 100%;
+        min-height: 30px;
+        white-space: normal;
+        border: 1px solid #353b4a;
+        background: #171a22;
+        color: #9da6b9;
+        border-radius: 8px;
+        padding: 6px 7px;
+        font-size: 9px;
+        line-height: 1.2;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+      .smart-actions button:last-child {
+        grid-column: 1 / -1;
+      }
+      .smart-actions button:hover {
+        border-color: #6656b8;
+        color: #d4cbff;
+      }
+      .heads {
+        position: sticky;
+        left: 0;
+        z-index: 4;
+        padding-top: 28px;
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+      }
+      .head {
+        height: var(--track);
+        display: grid;
+        grid-template-columns: 7px 1fr auto;
+        gap: 7px;
+        align-items: center;
+        padding: 7px 9px;
+        border-bottom: 1px solid var(--line);
+      }
+      .color {
+        width: 5px;
+        height: 38px;
+        border-radius: 5px;
+        background: var(--c);
+      }
+      .name {
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .meta {
+        font-size: 9px;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .mini {
+        width: 21px;
+        height: 21px;
+        padding: 0;
+        border: 1px solid var(--line);
+        background: #090b0e;
+        border-radius: 4px;
+        font-size: 9px;
+      }
+      .timeline {
+        position: relative;
+        min-width: 950px;
+        background-image:
+          linear-gradient(90deg, #30343d66 1px, transparent 1px),
+          linear-gradient(90deg, #20242b 1px, transparent 1px);
+        background-size:
+          115px 100%,
+          28.75px 100%;
+      }
+      .ruler {
+        height: 28px;
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        display: flex;
+        background: #101217ed;
+        border-bottom: 1px solid var(--line);
+      }
+      .bar {
+        width: 115px;
+        flex: 0 0 115px;
+        padding: 7px;
+        color: #747b89;
+        font:
+          10px Consolas,
+          monospace;
+      }
+      .lane {
+        height: var(--track);
+        position: relative;
+        border-bottom: 1px solid var(--line);
+      }
+      .clip {
+        position: absolute;
+        left: var(--x);
+        top: 7px;
+        width: var(--w);
+        height: 47px;
+        padding: 5px 7px;
+        border: 1px solid var(--c);
+        border-radius: 5px;
+        background: color-mix(in srgb, var(--c), transparent 76%);
+        overflow: hidden;
+        font-size: 10px;
+      }
+      .clip:after {
+        content: "";
+        position: absolute;
+        inset: 20px 4px 5px;
+        background: repeating-linear-gradient(
+          90deg,
+          var(--c) 0 2px,
+          transparent 2px 6px
+        );
+        opacity: 0.6;
+        clip-path: polygon(
+          0 50%,
+          4% 15%,
+          8% 80%,
+          13% 30%,
+          18% 90%,
+          24% 20%,
+          30% 72%,
+          36% 35%,
+          43% 85%,
+          50% 18%,
+          58% 78%,
+          66% 29%,
+          74% 88%,
+          82% 20%,
+          91% 72%,
+          100% 45%,
+          100% 100%,
+          0 100%
+        );
+      }
+      .playhead {
+        position: absolute;
+        left: 14px;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: #ff6045;
+        z-index: 2;
+      }
+      .mixer {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(126px, 1fr));
+        gap: 1px;
+        background: var(--line);
+        border-top: 1px solid var(--line);
+        overflow: auto;
+      }
+      .channel {
+        background: var(--panel);
+        padding: 7px 8px;
+        display: grid;
+        grid-template-rows: 22px 30px 1fr 25px;
+        gap: 5px;
+      }
+      .channel-top {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .channel-top b {
+        font-size: 9px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+      .insert {
+        border: 1px dashed #505765;
+        border-radius: 5px;
+        background: #0c0e12;
+        color: #9ca4b2;
+        font-size: 9px;
+        cursor: pointer;
+      }
+      .insert.has-fx {
+        border-style: solid;
+        border-color: #7455ba;
+        background: #251b3a;
+        color: #d9c9ff;
+      }
+      .strip {
+        display: grid;
+        grid-template-columns: 26px 1fr 31px;
+        align-items: center;
+        gap: 5px;
+      }
+      .db-scale {
+        height: 70px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        text-align: right;
+        color: #69717f;
+        font:
+          8px Consolas,
+          monospace;
+      }
+      .meter {
+        height: 70px;
+        width: 13px;
+        margin: auto;
+        background: #07090b;
+        position: relative;
+        border: 1px solid #252a31;
+      }
+      .meter i {
+        position: absolute;
+        inset: auto 2px 2px;
+        height: var(--level);
+        background: linear-gradient(
+          #ef5b50 0 9%,
+          #e7d24c 9% 25%,
+          var(--green) 25%
+        );
+      }
+      .fader-wrap {
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .fader {
+        writing-mode: vertical-lr;
+        direction: rtl;
+        height: 70px;
+        width: 24px;
+        accent-color: #d5d9e0;
+      }
+      .db-read {
+        font:
+          9px Consolas,
+          monospace;
+        color: #c8ced8;
+        text-align: center;
+      }
+      .pan-row {
+        display: grid;
+        grid-template-columns: 28px 1fr 28px;
+        align-items: center;
+        gap: 4px;
+      }
+      .pan {
+        width: 100%;
+        accent-color: #7f8a9c;
+      }
+      .pan-value {
+        font:
+          8px Consolas,
+          monospace;
+        color: #aeb5c1;
+        text-align: center;
+      }
+      .ms {
+        display: flex;
+        gap: 3px;
+      }
+      .ms button {
+        width: 23px;
+        height: 21px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: #0b0d10;
+        font-size: 8px;
+      }
+      .ms button.on {
+        background: #d6a52e;
+        color: #111;
+      }
+      .editor-fx {
+        width: auto;
+        min-width: 28px;
+        padding: 0 5px;
+        border-color: #60469a;
+        color: #cbb8ff;
+      }
+      .mix-window {
+        position: fixed;
+        left: 22px;
+        right: 392px;
+        bottom: 48px;
+        height: 285px;
+        z-index: 30;
+        display: none;
+        grid-template-rows: 36px 1fr;
+        background: #0d0f13;
+        border: 1px solid #3b414d;
+        border-radius: 11px;
+        box-shadow: 0 28px 90px #000c;
+        overflow: hidden;
+        resize: vertical;
+      }
+      .mix-window.open {
+        display: grid;
+      }
+      .mix-titlebar {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 0 11px;
+        background: #191c22;
+        border-bottom: 1px solid var(--line);
+      }
+      .mix-titlebar b {
+        font-size: 10px;
+        letter-spacing: 0.4px;
+      }
+      .mix-titlebar span {
+        color: var(--muted);
+        font-size: 9px;
+      }
+      .mix-titlebar button {
+        margin-left: auto;
+        border: 0;
+        background: transparent;
+        font-size: 18px;
+      }
+      .mix-window .mixer {
+        min-height: 0;
+        border-top: 0;
+      }
+      .rack-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: none;
+        place-items: center;
+        background: #0009;
+      }
+      .rack-modal.open {
+        display: grid;
+      }
+      .rack {
+        width: min(620px, 92vw);
+        background: #15181e;
+        border: 1px solid #3b414d;
+        border-radius: 13px;
+        box-shadow: 0 30px 100px #000;
+        padding: 16px;
+      }
+      .rack.eq-mode {
+        width: min(900px, 94vw);
+        background: #090b13;
+        border-color: #4e4a91;
+        box-shadow:
+          0 0 0 1px #178cff55,
+          0 30px 110px #000;
+      }
+      .rack.compressor-mode {
+        width: min(760px, 94vw);
+        background: #090b13;
+        border-color: #4d477f;
+        box-shadow:
+          0 0 0 1px #7467ff44,
+          0 30px 110px #000;
+      }
+      .rack.reverb-mode {
+        width: min(840px, 94vw);
+        background: #090b13;
+        border-color: #514b87;
+        box-shadow:
+          0 0 0 1px #6c65ff44,
+          0 30px 110px #000;
+      }
+      .rack.delay-mode,
+      .rack.limiter-mode {
+        width: min(790px, 94vw);
+        background: #090b13;
+        border-color: #514b87;
+        box-shadow:
+          0 0 0 1px #6c65ff44,
+          0 30px 110px #000;
+      }
+      .rack-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .rack-head h2 {
+        font-size: 15px;
+        margin: 0;
+      }
+      .rack-head button {
+        border: 0;
+        background: transparent;
+        font-size: 20px;
+      }
+      .fx-grid {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin: 15px 0;
+      }
+      .fx-select {
+        border: 1px solid #3b414d;
+        border-radius: 8px;
+        background: #0d0f13;
+        padding: 10px;
+        width: 100%;
+      }
+      .fx-toggle {
+        border: 1px solid #3b414d;
+        border-radius: 8px;
+        background: #171a20;
+        padding: 0 14px;
+        min-width: 105px;
+      }
+      .fx-toggle.enabled {
+        border-color: #936ee8;
+        background: #271d3e;
+        color: #d9c9ff;
+      }
+      .module {
+        display: none;
+        border-top: 1px solid var(--line);
+        padding-top: 13px;
+      }
+      .module.show {
+        display: block;
+      }
+      .knobs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 11px;
+      }
+      .knob label {
+        display: block;
+        font-size: 9px;
+        color: #9ba3b1;
+        margin-bottom: 5px;
+      }
+      .knob input {
+        width: 100%;
+        accent-color: #9473df;
+      }
+      .knob output {
+        display: block;
+        font:
+          9px Consolas,
+          monospace;
+        text-align: center;
+        color: #d9caff;
+      }
+      .rack-note {
+        margin-top: 12px;
+        color: #838b99;
+        font-size: 9px;
+      }
+      .eq-shell {
+        border: 1px solid #272b55;
+        border-radius: 9px;
+        overflow: hidden;
+        background: linear-gradient(145deg, #080a12, #101023);
+      }
+      .eq-toolbar {
+        height: 38px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 9px;
+        border-bottom: 1px solid #272b55;
+        background: #0c0e18;
+      }
+      .eq-brand {
+        color: #6c72ff;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+        margin-right: auto;
+      }
+      .eq-brand em {
+        color: #21a6ff;
+        font-style: normal;
+      }
+      .eq-toolbar button,
+      .eq-toolbar select {
+        border: 1px solid #2c3155;
+        background: #111422;
+        border-radius: 4px;
+        padding: 5px 8px;
+        color: #aeb7d3;
+        font-size: 9px;
+      }
+      .eq-display {
+        position: relative;
+        height: 310px;
+        background-image:
+          linear-gradient(#20254166 1px, transparent 1px),
+          linear-gradient(90deg, #20254166 1px, transparent 1px),
+          radial-gradient(circle at 50% 120%, #36276d55, transparent 60%);
+        background-size:
+          100% 34px,
+          52px 100%,
+          100% 100%;
+      }
+      .eq-display svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .eq-node {
+        filter: drop-shadow(0 0 7px #329dff);
+      }
+      .eq-scale {
+        position: absolute;
+        right: 9px;
+        top: 9px;
+        bottom: 9px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        color: #7680a2;
+        font:
+          8px Consolas,
+          monospace;
+      }
+      .eq-freqs {
+        position: absolute;
+        left: 10px;
+        right: 32px;
+        bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+        color: #59627e;
+        font:
+          8px Consolas,
+          monospace;
+      }
+      .eq-meter {
+        position: absolute;
+        right: 1px;
+        top: 0;
+        bottom: 0;
+        width: 7px;
+        background: linear-gradient(
+          #ff455c 0 8%,
+          #ffb238 8% 27%,
+          #46dc9d 27% 100%
+        );
+        opacity: 0.8;
+      }
+      .eq-controls {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 9px;
+        padding: 12px;
+        border-top: 1px solid #272b55;
+        background: #0c0e18;
+      }
+      .eq-control {
+        padding: 8px;
+        border: 1px solid #262b4d;
+        border-radius: 7px;
+        background: #111422;
+      }
+      .eq-control label {
+        display: flex;
+        justify-content: space-between;
+        color: #9ba7ca;
+        font-size: 9px;
+      }
+      .eq-control output {
+        color: #6bbaff;
+        font:
+          9px Consolas,
+          monospace;
+      }
+      .eq-control input {
+        width: 100%;
+        margin-top: 9px;
+        accent-color: #7169ff;
+      }
+      .comp-shell {
+        border: 1px solid #292d50;
+        border-radius: 9px;
+        overflow: hidden;
+        background: #090b12;
+      }
+      .comp-toolbar {
+        height: 38px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 10px;
+        background: #0d0f19;
+        border-bottom: 1px solid #292d50;
+      }
+      .comp-brand {
+        color: #8175ff;
+        font-weight: 900;
+        letter-spacing: 1.3px;
+        margin-right: auto;
+      }
+      .comp-brand em {
+        color: #2fa7ff;
+        font-style: normal;
+      }
+      .comp-toolbar button,
+      .comp-toolbar select {
+        border: 1px solid #303457;
+        background: #121522;
+        border-radius: 4px;
+        padding: 5px 8px;
+        color: #adb5d0;
+        font-size: 9px;
+      }
+      .comp-graph {
+        height: 210px;
+        position: relative;
+        background-image:
+          linear-gradient(#232743 1px, transparent 1px),
+          linear-gradient(90deg, #232743 1px, transparent 1px);
+        background-size:
+          100% 35px,
+          55px 100%;
+      }
+      .comp-graph svg {
+        width: 100%;
+        height: 100%;
+      }
+      .comp-input-trace {
+        fill: none;
+        stroke: #6e7691;
+        stroke-width: 2;
+        opacity: 0.62;
+      }
+      .comp-output-trace {
+        fill: none;
+        stroke: #d87882;
+        stroke-width: 2;
+        opacity: 0.78;
+        filter: drop-shadow(0 0 4px #d65e7955);
+      }
+      .comp-gr-area {
+        fill: url(#grFill);
+        opacity: 0.32;
+      }
+      .comp-live .comp-input-trace,
+      .comp-live .comp-output-trace {
+        animation: tracePulse 1.5s ease-in-out infinite alternate;
+      }
+      @keyframes tracePulse {
+        from {
+          opacity: 0.42;
+        }
+        to {
+          opacity: 0.82;
+        }
+      }
+      .comp-graph-labels {
+        position: absolute;
+        right: 8px;
+        top: 7px;
+        bottom: 7px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        color: #68718f;
+        font:
+          8px Consolas,
+          monospace;
+      }
+      .comp-panel {
+        display: grid;
+        grid-template-columns: 46px repeat(4, 1fr) 46px;
+        gap: 10px;
+        align-items: end;
+        padding: 14px;
+        background: linear-gradient(180deg, #141724, #0d0f18);
+        border-top: 1px solid #292d50;
+      }
+      .comp-param {
+        text-align: center;
+      }
+      .comp-param label {
+        display: block;
+        color: #aeb6d0;
+        font-size: 9px;
+        font-weight: 700;
+        margin-top: 7px;
+      }
+      .comp-knob {
+        --turn: 55%;
+        width: 58px;
+        height: 58px;
+        margin: auto;
+        border-radius: 50%;
+        position: relative;
+        background: conic-gradient(
+          from 220deg,
+          #766cff 0 var(--turn),
+          #24283b var(--turn) 75%,
+          transparent 75%
+        );
+        box-shadow:
+          inset 0 0 0 8px #171a27,
+          0 4px 14px #0008;
+      }
+      .comp-knob:after {
+        content: "";
+        position: absolute;
+        width: 2px;
+        height: 17px;
+        left: 28px;
+        top: 8px;
+        background: #67b8ff;
+        transform-origin: 1px 21px;
+        transform: rotate(35deg);
+        box-shadow: 0 0 6px #4da5ff;
+      }
+      .comp-param input {
+        width: 90%;
+        accent-color: #736cff;
+      }
+      .comp-param output {
+        display: block;
+        color: #6dbbff;
+        font:
+          9px Consolas,
+          monospace;
+        margin-top: 3px;
+      }
+      .comp-meter {
+        height: 98px;
+        width: 13px;
+        margin: auto;
+        background: #05070b;
+        border: 1px solid #252944;
+        position: relative;
+      }
+      .comp-meter i {
+        position: absolute;
+        left: 2px;
+        right: 2px;
+        bottom: 2px;
+        height: 68%;
+        background: linear-gradient(#f35a6b, #f2c04a 20%, #45dbad 40%);
+        animation: meterBounce 0.72s ease-in-out infinite alternate;
+      }
+      @keyframes meterBounce {
+        from {
+          transform: scaleY(0.82);
+          transform-origin: bottom;
+        }
+        to {
+          transform: scaleY(1);
+          transform-origin: bottom;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .comp-live .comp-input-trace,
+        .comp-live .comp-output-trace,
+        .comp-meter i {
+          animation: none;
+        }
+      }
+      .comp-meter-label {
+        text-align: center;
+        color: #747d9a;
+        font-size: 8px;
+        margin-top: 4px;
+      }
+      .comp-options {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        padding: 8px 12px 12px;
+        background: #0d0f18;
+      }
+      .comp-options button {
+        border: 1px solid #303457;
+        background: #131624;
+        color: #8994b5;
+        border-radius: 4px;
+        padding: 6px 9px;
+        font-size: 8px;
+      }
+      .comp-options button.on {
+        border-color: #625cd7;
+        color: #a9c8ff;
+        background: #211d42;
+      }
+      .verb-shell {
+        border: 1px solid #2b3058;
+        border-radius: 9px;
+        overflow: hidden;
+        background: #090b14;
+      }
+      .verb-toolbar {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 10px;
+        background: #0e101c;
+        border-bottom: 1px solid #2b3058;
+      }
+      .verb-brand {
+        color: #8175ff;
+        font-weight: 900;
+        letter-spacing: 1.3px;
+        margin-right: auto;
+      }
+      .verb-brand em {
+        color: #34aaff;
+        font-style: normal;
+      }
+      .verb-toolbar button,
+      .verb-toolbar select {
+        border: 1px solid #30365e;
+        background: #131625;
+        border-radius: 4px;
+        padding: 6px 8px;
+        color: #b3bad2;
+        font-size: 9px;
+      }
+      .verb-toolbar .maestro-verb {
+        background: linear-gradient(135deg, #5646b5, #286ca9);
+        border-color: #766cff;
+        color: #fff;
+      }
+      .verb-design {
+        display: grid;
+        grid-template-columns: 1fr 1.3fr 1fr;
+        gap: 1px;
+        background: #292e54;
+      }
+      .verb-viz {
+        height: 145px;
+        position: relative;
+        padding: 9px;
+        background: #0b0e19;
+      }
+      .verb-viz h4 {
+        margin: 0;
+        color: #8895c4;
+        font-size: 9px;
+      }
+      .verb-viz svg {
+        position: absolute;
+        left: 7px;
+        right: 7px;
+        bottom: 9px;
+        width: calc(100% - 14px);
+        height: 105px;
+      }
+      .verb-time {
+        background: linear-gradient(180deg, #2a1d55, #111326);
+      }
+      .verb-room {
+        padding: 14px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        background: linear-gradient(180deg, #151827, #0d0f18);
+        border-top: 1px solid #2b3058;
+      }
+      .verb-param {
+        text-align: center;
+      }
+      .verb-param label {
+        display: block;
+        color: #9ea7c7;
+        font-size: 8px;
+        min-height: 21px;
+      }
+      .verb-param input {
+        writing-mode: vertical-lr;
+        direction: rtl;
+        height: 82px;
+        width: 24px;
+        accent-color: #766cff;
+      }
+      .verb-param output {
+        display: block;
+        color: #62b8ff;
+        font:
+          8px Consolas,
+          monospace;
+      }
+      .verb-footer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        background: #0c0e18;
+        border-top: 1px solid #2b3058;
+        color: #77819f;
+        font-size: 8px;
+      }
+      .verb-footer span:first-child {
+        color: #a9b4d7;
+      }
+      .verb-space {
+        margin-left: auto;
+        padding: 4px 8px;
+        border: 1px solid #343a65;
+        border-radius: 99px;
+        color: #8f8aff;
+      }
+      .delay-shell,
+      .limiter-shell {
+        border: 1px solid #2b3058;
+        border-radius: 9px;
+        overflow: hidden;
+        background: #090b14;
+      }
+      .plugin-toolbar {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 10px;
+        background: #0e101c;
+        border-bottom: 1px solid #2b3058;
+      }
+      .plugin-brand {
+        color: #8175ff;
+        font-weight: 900;
+        letter-spacing: 1.3px;
+        margin-right: auto;
+      }
+      .plugin-brand em {
+        color: #34aaff;
+        font-style: normal;
+      }
+      .plugin-toolbar button,
+      .plugin-toolbar select {
+        border: 1px solid #30365e;
+        background: #131625;
+        border-radius: 4px;
+        padding: 6px 8px;
+        color: #b3bad2;
+        font-size: 9px;
+      }
+      .delay-display {
+        height: 230px;
+        position: relative;
+        background-image:
+          linear-gradient(#222744 1px, transparent 1px),
+          linear-gradient(90deg, #222744 1px, transparent 1px),
+          radial-gradient(circle at 50% 110%, #38297966, transparent 64%);
+        background-size:
+          100% 38px,
+          62px 100%,
+          100% 100%;
+      }
+      .delay-display svg,
+      .limiter-display svg {
+        width: 100%;
+        height: 100%;
+      }
+      .delay-tap {
+        filter: drop-shadow(0 0 5px #4ca8ff);
+      }
+      .delay-controls,
+      .limiter-controls {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        padding: 14px;
+        background: #0d0f19;
+      }
+      .modern-param {
+        text-align: center;
+        padding: 8px;
+        border: 1px solid #292e52;
+        border-radius: 7px;
+        background: #121522;
+      }
+      .modern-param label {
+        display: block;
+        color: #a8b0cb;
+        font-size: 9px;
+      }
+      .modern-param input {
+        width: 100%;
+        accent-color: #716cff;
+        margin-top: 10px;
+      }
+      .modern-param output {
+        display: block;
+        color: #64b8ff;
+        font:
+          9px Consolas,
+          monospace;
+        margin-top: 4px;
+      }
+      .plugin-switches {
+        display: flex;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 12px 12px;
+        background: #0d0f19;
+      }
+      .plugin-switches button {
+        border: 1px solid #30365e;
+        background: #131625;
+        color: #8994b5;
+        border-radius: 4px;
+        padding: 6px 10px;
+        font-size: 8px;
+      }
+      .plugin-switches button.on {
+        border-color: #625cd7;
+        background: #211d42;
+        color: #b5c7ff;
+      }
+      .limiter-main {
+        display: grid;
+        grid-template-columns: 1fr 84px;
+        height: 240px;
+      }
+      .limiter-display {
+        position: relative;
+        background-image:
+          linear-gradient(#222744 1px, transparent 1px),
+          linear-gradient(90deg, #222744 1px, transparent 1px);
+        background-size:
+          100% 40px,
+          64px 100%;
+      }
+      .limit-meters {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        padding: 14px 9px;
+        background: #0b0d16;
+        border-left: 1px solid #2b3058;
+      }
+      .limit-meter {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        color: #78829e;
+        font-size: 7px;
+      }
+      .limit-bar {
+        width: 10px;
+        flex: 1;
+        background: #05070b;
+        border: 1px solid #252944;
+        position: relative;
+      }
+      .limit-bar i {
+        position: absolute;
+        left: 2px;
+        right: 2px;
+        bottom: 2px;
+        height: var(--level);
+        background: linear-gradient(#ef5466, #f2c34b 18%, #48dcaa 38%);
+      }
+      .limit-bar.gr i {
+        top: 2px;
+        bottom: auto;
+        background: linear-gradient(#886eff, #3e62c6);
+      }
+      @media (max-width: 700px) {
+        .eq-display {
+          height: 230px;
+        }
+        .eq-controls {
+          grid-template-columns: 1fr 1fr;
+        }
+        .fx-grid {
+          grid-template-columns: 1fr;
+        }
+        .fx-toggle {
+          height: 38px;
+        }
+      }
+      body.embedded {
+        background: transparent;
+      }
+      body.embedded .app {
+        display: block;
+        background: transparent;
+      }
+      body.embedded .departments,
+      body.embedded .status,
+      body.embedded .brand {
+        display: none;
+      }
+      body.embedded .top {
+        position: fixed;
+        left: 25%;
+        right: 25%;
+        top: 10px;
+        z-index: 28;
+        min-width: 470px;
+        height: 48px;
+        padding: 0 12px;
+        gap: 10px;
+        border: 1px solid #7664cb66;
+        border-radius: 13px;
+        background: linear-gradient(90deg, #111526e8, #0b0e18e8);
+        box-shadow: 0 12px 38px #020309aa, 0 0 25px #7358ce22;
+      }
+      body.embedded .workspace {
+        position: fixed;
+        left: 20%;
+        right: 20%;
+        top: 72px;
+        bottom: 35%;
+        z-index: 12;
+        min-width: 560px;
+        padding: 0;
+        background: transparent;
+      }
+      body.embedded .daw {
+        position: relative;
+        height: 100%;
+        display: block;
+        overflow: hidden;
+        border: 1px solid #7765c866;
+        border-radius: 15px;
+        background: #070b13d0;
+        box-shadow: 0 24px 70px #020309aa, inset 0 1px 0 #ffffff10;
+      }
+      .mhead {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        min-width: 0;
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #8a66e3, #5431ad);
+        font-weight: 900;
+      }
+      .mhead small {
+        display: block;
+        color: var(--green);
+        font-size: 10px;
+      }
+      .maestro-close {
+        width: 30px;
+        height: 30px;
+        margin-left: auto;
+        border: 1px solid #3d4567;
+        border-radius: 8px;
+        background: #151a27;
+        color: #cbd2e5;
+        font-size: 18px;
+      }
+      .messages {
+        min-width: 0;
+        overflow: auto;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+      }
+      .msg {
+        max-width: 94%;
+        padding: 10px 11px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: #1a1d23;
+        line-height: 1.45;
+      }
+      .msg.user {
+        align-self: flex-end;
+        background: #2c1915;
+        border-color: #673529;
+      }
+      .msg.working {
+        border-color: #6554c7;
+        background: linear-gradient(135deg, #201b3b, #141827);
+      }
+      .msg.working::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 8px;
+        border-radius: 50%;
+        background: #8f77ff;
+        box-shadow: 0 0 0 0 #8f77ff88;
+        animation: maestroPulse 1.2s infinite;
+      }
+      .msg.report {
+        max-width: 100%;
+        border-color: #3f5d78;
+        background: linear-gradient(145deg, #121b27, #17172a);
+        white-space: pre-line;
+      }
+      .msg.decision { border-color: #765bd8; background: #19152b; }
+      .decision-actions { display: flex; gap: 8px; margin-top: 10px; }
+      .decision-actions button { flex: 1; border: 1px solid #5d6380; border-radius: 8px; padding: 8px; background: #252a39; color: #eef1ff; }
+      .decision-actions button.primary { border-color: #8b6cff; background: #6848bd; }
+      @keyframes maestroPulse {
+        70% { box-shadow: 0 0 0 7px #8f77ff00; }
+        100% { box-shadow: 0 0 0 0 #8f77ff00; }
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 7px;
+      }
+      .chip {
+        font-size: 9px;
+        border: 1px solid #4a5060;
+        border-radius: 99px;
+        padding: 4px 6px;
+      }
+      .composer {
+        min-width: 0;
+        width: 100%;
+        border-top: 1px solid var(--line);
+        padding: 12px;
+        overflow: hidden;
+      }
+      .usage-bar {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 9px;
+        padding: 8px 9px;
+        border: 1px solid #343b55;
+        border-radius: 9px;
+        background: #10141dcc;
+        color: #9fa8ba;
+        font-size: 9px;
+      }
+      .usage-bar strong {
+        color: #dfe4f3;
+        font-size: 9px;
+      }
+      .usage-track {
+        height: 5px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: #262c3b;
+      }
+      .usage-track i {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #6f58db, #18cbd3);
+        transition: width 0.2s ease;
+      }
+      .usage-bar.warning .usage-track i {
+        background: linear-gradient(90deg, #ee9547, #ef5c67);
+      }
+      .usage-upgrade {
+        grid-column: 1 / -1;
+        justify-self: end;
+        border: 0;
+        background: transparent;
+        color: #69dce1;
+        padding: 0;
+        font-size: 9px;
+      }
+      .composer textarea {
+        display: block;
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+        height: 82px;
+        resize: none;
+        background: #080a0d;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 9px;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+        margin-top: 7px;
+      }
+      .actions button {
+        min-width: 0;
+        width: 100%;
+        border: 0;
+        border-radius: 7px;
+        padding: 9px;
+        text-align: center;
+        background: #252932;
+      }
+      .actions .send {
+        background: #6848bd;
+      }
+      .actions .create {
+        background: linear-gradient(135deg, #ff674a, #d93820);
+      }
+      .drawer {
+        position: fixed;
+        right: 18px;
+        top: 108px;
+        bottom: 48px;
+        width: min(390px, calc(100vw - 36px));
+        z-index: 25;
+        background:
+          radial-gradient(circle at 85% 0%, #24215a66, transparent 38%),
+          linear-gradient(180deg, #121622 0%, #0c0f17 100%);
+        border: 1px solid #4851a266;
+        border-radius: 14px;
+        padding: 14px;
+        overflow: auto;
+        transform: translateX(100%);
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          transform 0.2s ease,
+          opacity 0.2s ease;
+        box-shadow: -18px 0 40px #05060acc;
+      }
+      .drawer.open {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .app.direction-open .maestro {
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .app.maestro-closed .drawer {
+        transform: translateX(calc(100% + 40px));
+        opacity: 0;
+        pointer-events: none;
+      }
+      .direction-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        padding: 4px;
+        margin-bottom: 12px;
+        border: 1px solid #343a5966;
+        border-radius: 10px;
+        background: #090c13cc;
+      }
+      .direction-tabs button {
+        min-height: 34px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #8d96aa;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.09em;
+      }
+      .direction-tabs button.active {
+        color: #f4f5ff;
+        background: linear-gradient(135deg, #3844a8, #7a3fc1);
+        box-shadow: 0 0 18px #6a4ff044;
+      }
+      .drawer-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 2px 2px 12px;
+        border-bottom: 1px solid #343a5966;
+      }
+      .drawer-title button {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #3a4050;
+        border-radius: 7px;
+        background: #1a1e27;
+        color: #c8cfdd;
+        font-size: 18px;
+      }
+      .drawer-badge {
+        display: inline-block;
+        margin-top: 5px;
+        padding: 3px 7px;
+        border-radius: 99px;
+        background: #20285ccc;
+        color: #bac4ff;
+        font-size: 8px;
+        letter-spacing: 0.08em;
+      }
+      .drawer h2 {
+        margin: 0;
+        font-size: 17px;
+        letter-spacing: 0.02em;
+      }
+      .drawer p,
+      .hint {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .field {
+        margin: 11px 0;
+      }
+      .drawer .field {
+        padding: 9px;
+        border: 1px solid #2e344c;
+        border-radius: 10px;
+        background: linear-gradient(145deg, #151a27, #0d1018);
+      }
+      .field label {
+        display: block;
+        font-size: 10px;
+        margin-bottom: 5px;
+      }
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        background: #080a0d;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 8px;
+      }
+      .field textarea {
+        height: 65px;
+      }
+      .drawer .field input,
+      .drawer .field select,
+      .drawer .field textarea {
+        border-color: #3b4262;
+        background: #080b13;
+        color: #eef1ff;
+      }
+      .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .direction-modes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin: 12px 0 4px;
+      }
+      .direction-modes button {
+        min-height: 38px;
+        border: 1px solid #353c58;
+        border-radius: 8px;
+        background: #121724;
+        color: #a8b0c4;
+        font-size: 9px;
+      }
+      .direction-modes button.active {
+        border-color: #7c63ff;
+        color: #fff;
+        background: #302867;
+        box-shadow: inset 0 0 14px #735cff33;
+      }
+      .direction-summary {
+        margin-top: 13px;
+        padding: 10px;
+        min-height: 42px;
+        border: 1px dashed #3e4770;
+        border-radius: 9px;
+        color: #aeb7d1;
+        background: #0a0e17;
+        font-size: 9px;
+        line-height: 1.5;
+      }
+      .apply-direction {
+        width: 100%;
+        margin-top: 9px;
+        padding: 11px;
+        border: 0;
+        border-radius: 9px;
+        color: white;
+        font-weight: 800;
+        background: linear-gradient(135deg, #4e5ddd, #883ec0);
+        box-shadow: 0 8px 24px #4c42c433;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 17px;
+        padding: 0 11px;
+        background: #0e1014;
+        border-top: 1px solid var(--line);
+        color: #777e8c;
+        font-size: 9px;
+      }
+      .status span:last-child {
+        margin-left: auto;
+      }
+      @media (max-width: 1100px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        .maestro {
+          right: 10px;
+          top: 92px;
+          bottom: 38px;
+          width: min(390px, calc(100vw - 20px));
+          z-index: 20;
+        }
+        .drawer {
+          right: 10px;
+          top: 92px;
+          bottom: 38px;
+          width: min(390px, calc(100vw - 20px));
+          z-index: 25;
+        }
+        .engine-grid {
+          grid-template-columns: 1fr;
+        }
+        .session-name {
+          width: 140px;
+        }
+        .department {
+          padding: 0 7px;
+        }
+      }
+    </style>
+    <style id="docked-layout-css">
+      /* --- NEW DOCKED LAYOUT --- */
+      body.embedded .workspace {
+        position: fixed !important;
+        inset: 0 !important;
+        left: 0 !important; right: 0 !important; top: 0 !important; bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        box-sizing: border-box !important;
+        padding-top: 65px !important;
+        background: #070b13 !important;
+        z-index: 12 !important;
+        display: grid !important;
+        grid-template-columns: 1fr 350px !important;
+        grid-template-rows: 1fr 300px !important;
+        grid-template-areas: 
+          "daw maestro"
+          "mixer mixer" !important;
+      }
+      
+      body.embedded .daw {
+        grid-area: daw !important;
+        display: flex !important;
+        flex-direction: column !important;
+        position: relative !important;
+        border: none !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+      }
+      
+      body.embedded .arrange {
+        flex: 1 !important;
+        position: relative !important;
+        min-height: 0 !important;
+      }
+      
+      body.embedded .maestro {
+        grid-area: maestro !important;
+        width: 100% !important;
+        position: relative !important;
+        right: auto !important; top: auto !important; bottom: auto !important;
+        height: 100% !important;
+        border-radius: 0 !important;
+        border-left: 1px solid #7967d477;
+        background: #0b0e18 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        transform: none !important;
+      }
+      
+      body.embedded .mix-window {
+        grid-area: mixer !important;
+        height: 100% !important;
+        position: relative !important;
+        left: auto !important; right: auto !important; bottom: auto !important;
+        width: 100% !important;
+        border-radius: 0 !important;
+        border-top: 1px solid #6f55cf66;
+        display: flex !important;
+        flex-direction: column !important;
+        background: #080b14 !important;
+        transform: none !important;
+        z-index: 22 !important;
+      }
+      
+      /* Tabs UI */
+      body.embedded .layout-tabs {
+        display: flex;
+        position: fixed;
+        left: 20px;
+        top: 17px;
+        gap: 8px;
+        z-index: 1000;
+      }
+      body.embedded .tab-btn {
+        width: auto !important;
+        padding: 6px 14px !important;
+        font-size: 11px !important;
+        font-weight: bold;
+        color: #8892b0 !important;
+        background: #111526 !important;
+        border: 1px solid #333 !important;
+        border-radius: 6px;
+        cursor: pointer;
+        display: block !important;
+        position: static !important;
+        box-shadow: none !important;
+        transition: all 0.2s;
+      }
+      body.embedded .tab-btn:hover {
+        background: #232738 !important;
+        color: #fff !important;
+      }
+      body.embedded .tab-btn.active {
+        background: #5f56a1 !important;
+        color: #fff !important;
+        border-color: #7a70ca !important;
+      }
+      
+      /* TABS LOGIC */
+      body.embedded .workspace[data-tab="all"] {
+        grid-template-columns: 1fr 350px !important;
+        grid-template-rows: 1fr 300px !important;
+        grid-template-areas: 
+          "daw maestro"
+          "mixer mixer" !important;
+      }
+      
+      body.embedded .workspace[data-tab="arrange"] {
+        grid-template-columns: 1fr 0px !important;
+        grid-template-rows: 1fr 0px !important;
+        grid-template-areas: 
+          "daw daw"
+          "daw daw" !important;
+      }
+      body.embedded .workspace[data-tab="arrange"] .maestro,
+      body.embedded .workspace[data-tab="arrange"] .mix-window { display: none !important; }
+      
+      body.embedded .workspace[data-tab="mixer"] {
+        grid-template-columns: 1fr 0px !important;
+        grid-template-rows: 0px 1fr !important;
+        grid-template-areas: 
+          "mixer mixer"
+          "mixer mixer" !important;
+      }
+      body.embedded .workspace[data-tab="mixer"] .daw,
+      body.embedded .workspace[data-tab="mixer"] .maestro { display: none !important; }
+      
+      body.embedded .workspace[data-tab="maestro"] {
+        grid-template-columns: 0px 1fr !important;
+        grid-template-rows: 1fr 0px !important;
+        grid-template-areas: 
+          "maestro maestro"
+          "maestro maestro" !important;
+      }
+      body.embedded .workspace[data-tab="maestro"] .daw,
+      body.embedded .workspace[data-tab="maestro"] .mix-window { display: none !important; }
+      
+      /* Hide original toggle buttons to avoid clutter */
+      body.embedded #toggleMaestro, body.embedded #openMixer { display: none !important; }
+    </style>
+  
+  <style id="qamuz-channel-alignment">
+    .mixer {
+      grid-template-columns: none !important;
+      grid-template-rows: minmax(0, 1fr) !important;
+      grid-auto-flow: column !important;
+      grid-auto-columns: minmax(126px, 1fr) !important;
+      align-items: stretch !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+    }
+    .mixer .channel {
+      min-width: 126px !important;
+      height: 100% !important;
+      min-height: 0 !important;
+    }
+  </style>
+
+  <script id="qamuz-shared-shell-redirect">
+    (() => {
+      const params = new URLSearchParams(location.search);
+      if (window.top === window.self && params.get("embedded") === "1" && params.get("inner") !== "1") {
+        location.replace("/qamuz-studio-shell/" + location.search);
+      }
+    })();
+  </script>
+</head>
+  <body>
+    <div class="app">
+      <header class="top">
+  <body class="bg-background text-on-surface h-screen w-screen overflow-hidden flex flex-col font-body-sm select-none">
+    <!-- 1. CORTINA DE CARGA (Aparece primero) -->
+    <div id="loadingScreen">
+      <h1>QAMUZ STUDIO</h1>
+      <p>Cargando Motor de Audio...</p>
+      <div class="loader"></div>
+    </div>
+
+    <!-- 2. PANTALLA INICIAL (Bienvenida, Modo de trabajo) -->
+    <div id="welcomeScreen" class="hidden">
+      <div id="modeSelection"></div>
+    </div>
+
+    <!-- STITCH APP LAYOUT WRAPPER -->
+    <div id="app-layout" class="hidden w-full h-full flex-col">
+      <!-- TopNavBar -->
+      <header class="flex justify-between items-center w-full px-panel-padding h-track-height-md bg-surface-container dark:bg-surface-container border-b border-outline-variant flex-shrink-0 z-50">
+        <div class="flex items-center gap-6">
+          <img alt="Qamuz Studio Logo" class="h-8 w-8 rounded" src="/branding/qamuz/icon-dark.png">
+          <h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary" style="margin:0;">Qamuz Studio 1.0</h1>
+          <nav class="hidden md:flex items-center gap-4 ml-8">
+            <a class="font-headline-md text-headline-md text-on-surface-variant hover:bg-surface-variant transition-colors cursor-pointer active:scale-95 px-2 py-1 rounded flex items-center gap-1" onclick="window.top.location.href='/'">
+              <span class="material-symbols-outlined text-[18px]">home</span>Home
+            </a>
+            <a class="font-headline-md text-headline-md text-on-surface-variant hover:bg-surface-variant transition-colors cursor-pointer active:scale-95 px-2 py-1 rounded">File</a>
+            <a class="font-headline-md text-headline-md text-on-surface-variant hover:bg-surface-variant transition-colors cursor-pointer active:scale-95 px-2 py-1 rounded">Edit</a>
+            <a class="font-headline-md text-headline-md text-on-surface-variant hover:bg-surface-variant transition-colors cursor-pointer active:scale-95 px-2 py-1 rounded">Track</a>
+            <a class="font-headline-md text-headline-md text-on-surface-variant hover:bg-surface-variant transition-colors cursor-pointer active:scale-95 px-2 py-1 rounded">Mix</a>
+            <a class="font-headline-md text-headline-md text-primary font-bold hover:bg-surface-variant transition-colors cursor-pointer active:scale-95 px-2 py-1 rounded">View</a>
+          </nav>
+        </div>
+
+        <div class="flex items-center gap-6">
+          <div class="transport flex items-center gap-1">
+            <button class="icon bg-surface-variant text-on-surface p-1 rounded w-8 h-8 flex items-center justify-center hover:bg-surface-container-high transition-colors" id="stop">■</button>
+            <button class="icon play bg-primary text-on-primary p-1 rounded w-8 h-8 flex items-center justify-center font-bold hover:opacity-90 transition-opacity" id="play">▶</button>
+            <button class="icon bg-surface-variant text-error p-1 rounded w-8 h-8 flex items-center justify-center font-bold hover:bg-surface-container-high transition-colors">●</button>
+            <div class="counter text-primary font-mono text-label-md bg-surface-container-high px-2 py-1 h-8 flex items-center rounded border border-outline-variant" id="counter">001|01|000</div>
+          </div>
+          <div class="tempo flex items-center gap-2 text-label-md text-on-surface-variant">
+            <input id="bpm" type="number" min="55" max="200" value="130" class="bg-surface-container-high border border-outline-variant rounded px-1 h-6 w-12 text-center text-on-surface outline-none focus:border-primary" /> BPM · 4/4
+          </div>
+          <div class="health flex items-center gap-2 text-label-md">
+            <i class="dot w-2 h-2 rounded-full bg-error" id="dot"></i><span id="health" class="text-on-surface-variant text-[10px]">Comprobando…</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <!-- Editing Tools -->
+          <div class="flex bg-surface-container-high rounded p-1 mr-4 border border-outline-variant">
+            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant"><span class="material-symbols-outlined text-[18px]">arrow_selector_tool</span></button>
+            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant"><span class="material-symbols-outlined text-[18px]">content_cut</span></button>
+            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant"><span class="material-symbols-outlined text-[18px]">format_paint</span></button>
+          </div>
+          <span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">settings</span>
+          <span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">account_circle</span>
+        </div>
+      </header>
+
+      <div class="flex flex-1 overflow-hidden relative">
+        <!-- SideNavBar (Inspector) -->
+        <aside class="w-[240px] h-full bg-surface-container-low dark:bg-surface-container-low border-r border-outline-variant flex flex-col flex-shrink-0 z-40 overflow-y-auto">
+          <div class="p-4 border-b border-outline-variant flex gap-2">
+            <button class="flex-1 bg-surface-variant text-on-surface rounded py-1 text-label-xs font-bold border border-outline-variant">Inspector</button>
+            <button class="flex-1 bg-transparent text-on-surface-variant hover:bg-surface-variant rounded py-1 text-label-xs font-bold transition-colors">Files</button>
+            <button class="flex-1 bg-transparent text-on-surface-variant hover:bg-surface-variant rounded py-1 text-label-xs font-bold transition-colors">Plugins</button>
+          </div>
+          <div class="p-4 flex flex-col gap-4">
+            <div>
+              <h3 class="text-label-xs text-on-surface-variant uppercase tracking-wider mb-2">Track Settings</h3>
+              <div class="bg-surface rounded border border-outline-variant p-2 flex flex-col gap-2">
+                <div class="flex justify-between items-center"><span class="text-body-sm text-on-surface-variant">Input</span><span class="text-body-sm font-bold">Auto</span></div>
+                <div class="flex justify-between items-center"><span class="text-body-sm text-on-surface-variant">Output</span><span class="text-body-sm font-bold">Master</span></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- WORKSPACE (Contiene Arrange, Mixer, Maestro) -->
+        <div id="workspace" class="workspace flex-1 relative flex flex-col min-w-0" data-tab="maestro">
+          <nav class="departments" aria-label="Departamentos QAMUZ">
+            <button class="department active" data-department="studio">
+              QAMUZ STUDIO <em>mezcla</em>
+            </button>
+            <button class="department" data-department="master">
+              QAMUZ MASTER 1.0 <em>mastering</em>
+            </button>
+            <button class="department" data-department="midi">
+              QAMUZ MIDI <em>composición</em>
+            </button>
+            <button class="department" data-department="create">
+              CREAR CON MAESTRO <em>IA</em>
+            </button>
+            <input
+              class="session-name"
+              id="sessionName"
+              value="Sesión sin título"
+              aria-label="Nombre de la sesión"
+            />
+          </nav>
+          <div class="workspace" id="studioDepartment">
+            <section class="daw">
+              <div class="tools">
+                <button class="tool active">Selector</button
+                ><button class="tool">Cortar</button
+                ><button class="tool">Automatizar</button
+                ><button class="tool" id="toggleMaestro" title="Maestro" aria-label="Abrir Maestro">✦ Maestro</button
+                ><button class="tool" id="settings" title="Dirección musical" aria-label="Dirección musical">Dirección musical</button
+                ><button class="tool" id="openMixer" title="Consola de mezcla" aria-label="Consola de mezcla">Consola</button
+                ><button class="tool import" id="importAudio" title="Importar audio" aria-label="Importar audio">＋ Audio</button
+                ><button class="tool import" id="importMidi">＋ MIDI</button
+                ><button class="tool" id="addVirtual">＋ Instrumento virtual</button
+                ><button class="tool export" id="exportMix" title="Publicar o exportar" aria-label="Publicar o exportar">Exportar</button
+                ><span>− &nbsp; Zoom &nbsp; +</span>
+              </div>
+              <input
+                id="audioFiles"
+                type="file"
+                accept="audio/*,.wav,.mp3,.flac,.aiff,.m4a"
+                multiple
+                hidden
+              />
+              <input
+                id="midiFiles"
+                type="file"
+                accept=".mid,.midi,audio/midi"
+                multiple
+                hidden
+              />
+              <input
+                id="audioFolder"
+                type="file"
+                accept="audio/*,.wav,.mp3,.flac,.aiff,.m4a"
+                webkitdirectory
+                directory
+                multiple
+                hidden
+              />
+              <div class="arrange" id="arrangeWindow">
+                <header class="arrange-titlebar" id="arrangeTitlebar">QAMUZ TIMELINE</header>
+                <div class="empty-session" id="emptySession">
+                  <div class="empty-card">
+                    <strong>Sesión vacía</strong
+                    ><span
+                      >Importa audios, MIDI o crea un instrumento virtual. QAMUZ
+                      detectará formato, canales, duración y función probable de
+                      cada pista.</span
+                    >
+                    <div class="empty-actions">
+                      <button class="empty-action" id="emptyImportFolder">
+                        Importar carpeta de audio</button
+                      ><button class="empty-action" id="emptyImportFiles">
+                        Seleccionar audios</button
+                      ><button class="empty-action" id="emptyCreateMusic">
+                        Crear con Maestro
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="heads" id="heads"></div>
+                <div class="timeline">
+                  <div class="ruler" id="ruler"></div>
+                  <div id="lanes"><div class="playhead"></div></div>
+                </div>
+              </div>
+            </section>
+            <aside class="maestro" id="maestroWindow">
+              <div class="mhead" id="maestroTitlebar">
+                <div class="avatar">M</div>
+                <div><b>Maestro</b><small>● Agente musical disponible</small></div>
+                <button
+                  class="maestro-close"
+                  id="closeMaestro"
+                  aria-label="Cerrar Maestro"
+                >
+                  ×
+                </button>
+              </div>
+              <div class="messages" id="messages">
+                <div class="msg">
+                  Hola. Soy Maestro. Describe una idea sencilla y la convertiré en
+                  género, estilo, tempo, estructura e instrumentación dentro de esta
+                  sesión.
+                </div>
+              </div>
+              <div class="composer">
+                <div class="usage-bar" id="usageBar">
+                  <strong id="usagePlan">BASIC</strong>
+                  <div class="usage-track" aria-label="Consumo de tokens"><i id="usageFill"></i></div>
+                  <span id="usageText">Calculando…</span>
+                  <button class="usage-upgrade" id="usageUpgrade" hidden>Recargar o pasar a Pro</button>
+                </div>
+                <div class="smart-actions">
+                  <button data-maestro-action="mix">Mezclar sesión</button
+                  ><button data-maestro-action="rename">Organizar pistas</button
+                  ><button data-maestro-action="phrase">Cambiar frase</button
+                  ><button data-maestro-action="instrument">
+                    Editar instrumento</button
+                  ><button data-maestro-action="export">
+                    Preparar exportación
+                  </button>
+                </div>
+                <textarea
+                  id="chat"
+                  placeholder="Ej.: Crea una bachata bolero íntima sobre un amor que vuelve, con guitarra de nailon y cuerdas…"
+                ></textarea>
+                <div class="actions">
+                  <button id="openSettings">⚙ Ajustes</button
+                  ><button class="send" id="send">Interpretar</button
+                  ><button class="create" id="create">Crear</button>
+                </div>
+              </div>
+            </aside>
+            <section class="mix-window" id="mixWindow" aria-label="Consola de mezcla">
+              <header class="mix-titlebar" id="mixTitlebar">
+                <b>QAMUZ MIX CONSOLE</b
+                ><span id="mixerSummary">Ventana independiente · 0 canales</span
+                ><button id="closeMixer" aria-label="Cerrar consola">×</button>
+              </header>
+              <div class="mixer" id="mixer"></div>
+            </section>
+          </div>
+          <section class="department-panel" id="masterDepartment" hidden>
+            <div class="department-hero">
+              <h1>QAMUZ MASTER 1.0</h1>
+              <p>
+                Motor individual para analizar y masterizar una mezcla estéreo sin
+                alterar la sesión de Studio. Trabajará con objetivos de loudness,
+                dinámica, balance tonal y true peak.
+              </p>
+              <div class="engine-grid">
+                <article class="engine-card primary">
+                  <h3>Fuente estéreo</h3>
+                  <p>
+                    Importa el premaster WAV o AIFF. La fuente permanece intacta y
+                    el resultado se crea como archivo nuevo.
+                  </p>
+                  <button class="engine-action" id="masterImport">
+                    Importar premaster</button
+                  ><input
+                    id="masterFile"
+                    type="file"
+                    accept="audio/*,.wav,.aiff,.flac"
+                    hidden
+                  />
+                  <div id="masterFileInfo">
+                    <span class="capability">Sin archivo</span>
+                  </div>
+                </article>
+                <article class="engine-card">
+                  <h3>Objetivo</h3>
+                  <label>Perfil</label
+                  ><select id="masterProfile">
+                    <option>Streaming transparente</option>
+                    <option>Comercial moderno</option>
+                    <option>Dinámica amplia</option>
+                    <option>Bachata cálida</option>
+                    <option>Club / alta energía</option></select
+                  ><label>Loudness</label
+                  ><select id="masterLoudness">
+                    <option>-14 LUFS</option>
+                    <option>-12 LUFS</option>
+                    <option>-10 LUFS</option>
+                    <option>-9 LUFS</option></select
+                  ><label>True Peak</label
+                  ><select>
+                    <option>-1.0 dBTP</option>
+                    <option>-0.8 dBTP</option>
+                    <option>-0.3 dBTP</option>
+                  </select>
+                </article>
+                <article class="engine-card">
+                  <h3>Cadena inteligente</h3>
+                  <p>
+                    EQ correctivo → control dinámico → imagen estéreo → limitador
+                    true-peak → validación.
+                  </p>
+                  <span class="capability ready">Metadatos de fuente</span
+                  ><span class="capability">Análisis LUFS pendiente</span
+                  ><span class="capability">DSP pendiente</span
+                  ><button class="engine-action" id="masterAnalyze" disabled>
+                    Validar premaster</button
+                  ><button class="engine-action" id="masterRender" disabled>
+                    Crear master nuevo
+                  </button>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="department-panel" id="midiDepartment" hidden>
+            <div class="department-hero">
+              <h1>QAMUZ MIDI</h1>
+              <p>
+                Departamento para importar, editar y orquestar información musical
+                MIDI sin confundirla con audio grabado.
+              </p>
+              <div class="engine-grid">
+                <article class="engine-card primary">
+                  <h3>Importar MIDI</h3>
+                  <p>
+                    Crea una pista por archivo y conserva notas, tempo y eventos.
+                  </p>
+                  <button class="engine-action" id="midiDepartmentImport">
+                    Seleccionar MIDI
+                  </button>
+                </article>
+                <article class="engine-card">
+                  <h3>Instrumentación</h3>
+                  <p>
+                    Asigna piano, cuerdas, bajo, percusión, guitarra u otro
+                    instrumento virtual a cada pista.
+                  </p>
+                  <span class="capability ready">Pistas MIDI</span
+                  ><span class="capability">Render virtual pendiente</span>
+                </article>
+                <article class="engine-card">
+                  <h3>Maestro MIDI</h3>
+                  <p>
+                    Podrá reharmonizar, cambiar una frase o crear variaciones
+                    respetando tonalidad, métrica y estilo.
+                  </p>
+                  <button class="engine-action" id="midiAsk">
+                    Pedir arreglo al Maestro
+                  </button>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="department-panel" id="createDepartment" hidden>
+            <div class="department-hero">
+              <h1>Crear una canción con Maestro</h1>
+              <p>
+                Una idea sencilla puede convertirse en dirección musical, letra,
+                arreglo e instrumentación. El modo avanzado permite controlar lo
+                importante sin escribir un prompt técnico.
+              </p>
+              <div class="engine-grid">
+                <article class="engine-card primary">
+                  <h3>Idea musical</h3>
+                  <label>Describe la canción</label
+                  ><textarea
+                    id="advancedIdea"
+                    placeholder="Una bachata romántica sobre volver a encontrarse..."
+                  ></textarea
+                  ><label>Letra</label
+                  ><select id="lyricMode">
+                    <option value="auto">Maestro construye la letra</option>
+                    <option value="mine">Usar mi propia letra</option>
+                    <option value="instrumental">Instrumental</option></select
+                  ><button class="engine-action" id="sendAdvanced">
+                    Enviar a Maestro
+                  </button>
+                </article>
+                <article class="engine-card">
+                  <h3>Arreglo</h3>
+                  <label>Instrumentos principales</label
+                  ><select id="mainArrangement">
+                    <option>Bachata completa</option>
+                    <option>Bachata bolero</option>
+                    <option>Trío acústico</option>
+                    <option>Arreglo libre por Maestro</option></select
+                  ><label>Instrumentos adicionales</label>
+                  <div>
+                    <label
+                      ><input
+                        type="checkbox"
+                        value="piano"
+                        class="extraInstrument"
+                      />
+                      Piano</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        value="violines"
+                        class="extraInstrument"
+                      />
+                      Violines</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        value="chelo"
+                        class="extraInstrument"
+                      />
+                      Chelo</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        value="metales"
+                        class="extraInstrument"
+                      />
+                      Metales</label
+                    ><label
+                      ><input
+                        type="checkbox"
+                        value="sintetizadores"
+                        class="extraInstrument"
+                      />
+                      Sintetizadores</label
+                    >
+                  </div>
+                </article>
+                <article class="engine-card">
+                  <h3>Responsabilidad del Maestro</h3>
+                  <p>
+                    Diseña un arreglo nuevo usando el conocimiento musical y los
+                    instrumentos disponibles; no copia una grabación de
+                    entrenamiento. Después crea pistas organizadas en Studio para
+                    revisión humana.
+                  </p>
+                  <span class="capability ready">Prompt Maestro</span
+                  ><span class="capability ready">Plan musical</span
+                  ><span class="capability"
+                    >Generación multipista en integración</span
+                  >
+                </article>
+              </div>
+            </div>
+          </section>
+          <aside class="drawer" id="drawer" aria-hidden="true">
+            <nav class="direction-tabs" aria-label="Panel Maestro">
+              <button id="directionBackChat">← CHAT MAESTRO</button>
+              <button class="active" aria-current="page">DIRECCIÓN</button>
+            </nav>
+            <div class="drawer-title">
+              <div>
+                <h2>Dirección musical</h2>
+                <span class="drawer-badge"
+                  >MODO DIGITAL · CONTEXTO DEL MAESTRO</span
+                >
+              </div>
+              <button id="closeSettings" aria-label="Cerrar dirección musical">
+                ×
+              </button>
+            </div>
+            <p>Maestro completa estos controles usando la conversación.</p>
+            <div class="direction-modes" aria-label="Modos rápidos">
+              <button class="active" id="directionAuto">AUTOMÁTICO</button>
+              <button id="directionInstrumental">INSTRUMENTAL</button>
+              <button id="directionCustom">PERSONALIZADO</button>
+            </div>
+            <div class="field">
+              <label>Título</label><input id="title" placeholder="Automático" />
+            </div>
+            <div class="two">
+              <div class="field">
+                <label>Género</label
+                ><select id="genre">
+                  <option>Cargando…</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Estilo</label
+                ><select id="style"></select>
+              </div>
+            </div>
+            <div class="two">
+              <div class="field">
+                <label>Interpretación</label
+                ><select id="voice">
+                  <option value="male">Voz masculina</option>
+                  <option value="female">Voz femenina</option>
+                  <option value="duet">Dúo</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Duración</label
+                ><select id="duration">
+                  <option value="30">30 s (prueba)</option>
+                  <option value="60">1 min</option>
+                  <option value="120">2 min</option>
+                  <option value="180" selected>3 min</option>
+                  <option value="240">4 min</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Letra opcional</label><textarea id="lyrics"></textarea>
+            </div>
+            <label class="hint"
+              ><input id="instrumental" type="checkbox" /> Solamente
+              instrumental</label
+            >
+            <div class="direction-summary" id="directionSummary">
+              Maestro organizará título, género, estilo, voz y duración a partir de
+              la conversación.
+            </div>
+            <button class="apply-direction" id="applyDirection">
+              APLICAR Y VOLVER AL CHAT
+            </button>
+          </aside>
+          <div class="rack-modal" id="rackModal" role="dialog" aria-modal="true">
+            <section class="rack" id="pluginRack">
+              <div class="rack-head">
+                <div>
+                  <h2 id="rackTitle">Inserts</h2>
+                  <span class="hint">Procesamiento del canal</span>
+                </div>
+                <button id="closeRack" aria-label="Cerrar">×</button>
+              </div>
+              <div class="fx-grid" id="fxGrid"></div>
+              <div class="module" id="fxModule">
+                <div class="knobs" id="knobs"></div>
+              </div>
+              <div class="rack-note">
+                Maestro conoce la función y los parámetros de cada módulo. En esta
+                primera vista los controles preparan la automatización y los
+                presets; el procesamiento DSP se conectará al motor de audio.
+              </div>
+            </section>
+          </div>
+          <footer class="status">
+            <span>44.1 kHz</span><span>24-bit</span><span id="engineStatus">Motor: detenido</span
+            ><span id="jobStatus">Listo</span><span>LOCAL · QAMUZ</span>
+          </footer>
+        </div>
+      </div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const urlParams = new URLSearchParams(location.search);
+      const launchParams = new URLSearchParams(location.search);
+      if (launchParams.get("embedded") === "1") document.body.classList.add("embedded");
+      let catalog = { genres: [] },
+        playing = false,
+        timer,
+        beat = 0,
+        playOffset = 0,
+        playStartedAt = 0;
+      const tracks = [],
+        trackColors = [
+          "#a980ff",
+          "#ff8b4c",
+          "#ffca55",
+          "#5899ff",
+          "#48d597",
+          "#36bfc8",
+          "#e16a91",
+          "#7e86ff",
+        ];
+      const fxCatalog = {
+        eq: {
+          name: "EQ",
+          help: "Moldea graves, medios y agudos.",
+          params: [
+            ["Low", -12, 12, 0, "dB"],
+            ["Mid", -12, 12, 0, "dB"],
+            ["High", -12, 12, 0, "dB"],
+            ["Freq", 80, 12000, 1200, "Hz"],
+          ],
+        },
+        compressor: {
+          name: "Compresor",
+          help: "Controla dinámica y pegada.",
+          params: [
+            ["Threshold", -48, 0, -18, "dB"],
+            ["Ratio", 1, 20, 4, ":1"],
+            ["Attack", 1, 200, 25, "ms"],
+            ["Release", 20, 800, 180, "ms"],
+          ],
+        },
+        limiter: {
+          name: "Limitador",
+          help: "Evita picos y clipping.",
+          params: [
+            ["Ceiling", -12, 0, -1, "dB"],
+            ["Gain", 0, 18, 0, "dB"],
+            ["Release", 20, 800, 120, "ms"],
+            ["Mix", 0, 100, 100, "%"],
+          ],
+        },
+        reverb: {
+          name: "Reverb",
+          help: "Añade espacio y profundidad.",
+          params: [
+            ["Size", 0, 100, 38, "%"],
+            ["Pre-delay", 0, 200, 25, "ms"],
+            ["Decay", 1, 100, 35, "%"],
+            ["Mix", 0, 100, 18, "%"],
+          ],
+        },
+        delay: {
+          name: "Delay",
+          help: "Crea repeticiones rítmicas.",
+          params: [
+            ["Time", 1, 1000, 346, "ms"],
+            ["Feedback", 0, 95, 28, "%"],
+            ["Tone", 0, 100, 55, "%"],
+            ["Mix", 0, 100, 14, "%"],
+          ],
+        },
+      };
+      const channelState = [];
+      let audioContext = null;
+      let masterGain = null;
+      let meterFrame = 0;
+      let activeChannel = 0,
+        activeFx = "";
+      function dbToGain(db) {
+        return db <= -60 ? 0 : Math.pow(10, db / 20);
+      }
+      function ensureAudioEngine() {
+        if (!audioContext) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return null;
+          audioContext = new AudioContextClass();
+          masterGain = audioContext.createGain();
+          masterGain.connect(audioContext.destination);
+        }
+        return audioContext;
+      }
+      function ensureTrackGraph(index) {
+        const context = ensureAudioEngine();
+        const track = tracks[index];
+        if (!context || !track?.audio) return null;
+        if (track.audioGraph) return track.audioGraph;
+        try {
+          const source = context.createMediaElementSource(track.audio);
+          const gain = context.createGain();
+          const panner = context.createStereoPanner();
+          const analyser = context.createAnalyser();
+          analyser.fftSize = 512;
+          analyser.smoothingTimeConstant = 0.72;
+          source.connect(gain).connect(panner).connect(analyser).connect(masterGain);
+          track.audio.volume = 1;
+          track.audio.muted = false;
+          track.audioGraph = {
+            source,
+            gain,
+            panner,
+            analyser,
+            samples: new Uint8Array(analyser.fftSize),
+          };
+          return track.audioGraph;
+        } catch (error) {
+          console.warn("QAMUZ audio graph fallback", error);
+          return null;
+        }
+      }
+      function startRealMeters() {
+        cancelAnimationFrame(meterFrame);
+        const paint = () => {
+          tracks.forEach((track, index) => {
+            const graph = track.audioGraph;
+            let level = 0;
+            if (graph && !track.audio?.paused) {
+              graph.analyser.getByteTimeDomainData(graph.samples);
+              let sum = 0;
+              let peak = 0;
+              for (const sample of graph.samples) {
+                const value = (sample - 128) / 128;
+                sum += value * value;
+                peak = Math.max(peak, Math.abs(value));
+              }
+              const rms = Math.sqrt(sum / graph.samples.length);
+              const db = rms > 0 ? 20 * Math.log10(rms) : -60;
+              level = Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+              document.querySelector(`.channel[data-channel="${index}"]`)?.classList.toggle("clipping", peak >= 0.98);
+            }
+            document.querySelectorAll(`.channel[data-channel="${index}"] .meter i`).forEach((meter) => meter.style.setProperty("--level", `${level.toFixed(1)}%`));
+          });
+          meterFrame = requestAnimationFrame(paint);
+        };
+        paint();
+      }
+      const escapeHtml = (value) =>
+        String(value).replace(
+          /[&<>'"]/g,
+          (char) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              "'": "&#39;",
+              '"': "&quot;",
+            })[char],
+        );
+      function cleanStemName(filename) {
+        return filename
+          .replace(/\.(wav|wave|mp3|flac|aif|aiff|m4a|mid|midi)$/i, "")
+          .replace(/[_-]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      function inferInstrument(filename) {
+        const raw = cleanStemName(filename),
+          name = raw
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+        const rules = [
+          [/\b(voz|vocal|lead vox|acapella|coro|choir)\b/, "Voz"],
+          [/\b(requinto|lead guitar|guitar lead|solo guitar)\b/, "Requinto"],
+          [/\b(segunda|rhythm guitar|guitar rhythm|guitarra)\b/, "Guitarra"],
+          [/\b(bajo|bass)\b/, "Bajo"],
+          [/\b(guira)\b/, "Güira"],
+          [/\b(bongo|conga|percussion|percusion)\b/, "Percusión"],
+          [/\b(piano|keys|keyboard)\b/, "Piano / Teclado"],
+          [/\b(violin|viola|cello|chelo|strings|cuerdas)\b/, "Cuerdas"],
+          [/\b(drum|drums|bateria|kick|snare)\b/, "Batería"],
+          [/\b(sax|saxophone|trompeta|trumpet|brass)\b/, "Metales"],
+          [/\b(synth|pad)\b/, "Sintetizador"],
+        ];
+        return (
+          rules.find(([pattern]) => pattern.test(name))?.[1] || raw || "Audio"
+        );
+      }
+      function uniqueTrackName(base) {
+        const names = new Set(tracks.map((track) => track.name));
+        if (!names.has(base)) return base;
+        let number = 2;
+        while (names.has(`${base} ${number}`)) number++;
+        return `${base} ${number}`;
+      }
+      function addTrack({
+        name,
+        kind,
+        duration = 0,
+        channels = 0,
+        sampleRate = 0,
+        file = null,
+        audioUrl = null,
+        generated = false,
+      }) {
+        const playableUrl = audioUrl || (file?.type?.startsWith("audio/") ? URL.createObjectURL(file) : null);
+        const audio = playableUrl ? new Audio(playableUrl) : null;
+        if (audio) audio.preload = "metadata";
+        tracks.push({
+          name: uniqueTrackName(name),
+          color: trackColors[tracks.length % trackColors.length],
+          level: 42 + ((tracks.length * 13) % 38),
+          kind,
+          duration,
+          channels,
+          sampleRate,
+          file,
+          audioUrl: playableUrl,
+          audio,
+          generated,
+        });
+        channelState.push({
+          volume: 0,
+          pan: 0,
+          mute: false,
+          solo: false,
+          fx: [],
+          automation: [],
+          automationArmed: false,
+        });
+      }
+      function draw() {
+        $("mixerSummary").textContent =
+          `Ventana independiente · ${tracks.length} canal${tracks.length === 1 ? "" : "es"}`;
+        $("ruler").innerHTML = Array.from(
+          { length: 10 },
+          (_, i) => `<span class="bar">${i + 1}</span>`,
+        ).join("");
+        $("emptySession").classList.toggle("hidden", tracks.length > 0);
+        $("heads").innerHTML = tracks
+          .map(
+            (t, i) =>
+              `<div class="head"><i class="color" style="--c:${t.color}"></i><div><div class="name">${escapeHtml(t.name)}</div><div class="meta">${escapeHtml(t.kind)}${t.duration ? ` · ${t.duration.toFixed(1)} s` : ""}</div></div><div><button class="mini editor-fx" data-track-fx="${i}">FX</button></div></div>`,
+          )
+          .join("");
+        $("lanes").innerHTML =
+          '<div class="playhead"></div>' +
+          tracks
+            .map(
+              (t, i) =>
+                `<div class="lane"><div class="clip" style="--x:14px;--w:${Math.max(110, Math.min(780, (t.duration || 45) * 2.4))}px;--c:${t.color}">${escapeHtml(t.name)} · ${escapeHtml(t.kind)}</div></div>`,
+            )
+            .join("");
+        $("mixer").innerHTML = tracks
+          .map(
+            (t, i) => `<div class="channel" data-channel="${i}">
+              <div class="channel-top"><b>${escapeHtml(t.name)}</b><div class="ms"><button class="${channelState[i].automationArmed ? "on" : ""}" data-action="automation" title="Grabar automatización de volumen">A</button><button class="${channelState[i].mute ? "on" : ""}" data-action="mute">M</button><button class="${channelState[i].solo ? "on" : ""}" data-action="solo">S</button></div></div>
+              <button class="insert" data-action="insert">+ INSERT / PRESET</button>
+              <div class="strip"><div class="db-scale"><span>+6</span><span>0</span><span>-12</span><span>-∞</span></div><div class="meter"><i style="--level:${t.level}%"></i></div><div class="fader-wrap"><input class="fader" data-action="volume" type="range" min="-60" max="6" value="${channelState[i].volume}"></div></div>
+              <div class="pan-row"><span class="db-read">${channelState[i].volume <= -60 ? "-∞" : channelState[i].volume.toFixed(1)} dB</span><input class="pan" data-action="pan" type="range" min="-100" max="100" value="${channelState[i].pan}"><span class="pan-value">${channelState[i].pan === 0 ? "C" : channelState[i].pan < 0 ? `L${Math.abs(channelState[i].pan)}` : `R${channelState[i].pan}`}</span></div>
+            </div>`,
+          )
+          .join("");
+        bindMixer();
+        startRealMeters();
+        tracks.forEach((_, index) => updateInsertLabel(index));
+        document
+          .querySelectorAll("[data-track-fx]")
+          .forEach(
+            (button) =>
+              (button.onclick = () => openRack(Number(button.dataset.trackFx))),
+          );
+      }
+      function applyTrackAudioState(index) {
+        const track = tracks[index],
+          state = channelState[index];
+        if (!track?.audio || !state) return;
+        const anySolo = channelState.some((channel) => channel.solo);
+        const audible = !state.mute && (!anySolo || state.solo);
+        const graph = ensureTrackGraph(index);
+        const targetGain = audible ? dbToGain(state.volume) : 0;
+        if (graph && audioContext) {
+          graph.gain.gain.setTargetAtTime(targetGain, audioContext.currentTime, 0.012);
+          graph.panner.pan.setTargetAtTime(state.pan / 100, audioContext.currentTime, 0.012);
+          track.audio.volume = 1;
+          track.audio.muted = false;
+        } else {
+          track.audio.muted = !audible;
+          track.audio.volume = Math.max(0, Math.min(1, targetGain));
+        }
+      }
+      function bindMixer() {
+        document.querySelectorAll(".channel").forEach((channel) => {
+          const i = Number(channel.dataset.channel),
+            state = channelState[i];
+          channel.querySelector('[data-action="insert"]').onclick = () =>
+            openRack(i);
+          channel
+            .querySelectorAll('[data-action="mute"],[data-action="solo"],[data-action="automation"]')
+            .forEach(
+              (button) =>
+                (button.onclick = () => {
+                  const key = button.dataset.action;
+                  if (key === "automation") {
+                    state.automationArmed = !state.automationArmed;
+                    button.classList.toggle("on", state.automationArmed);
+                    return;
+                  }
+                  state[key] = !state[key];
+                  button.classList.toggle("on", state[key]);
+                  tracks.forEach((_, trackIndex) => applyTrackAudioState(trackIndex));
+                }),
+            );
+          const volume = channel.querySelector('[data-action="volume"]'),
+            read = channel.querySelector(".db-read");
+          volume.oninput = () => {
+            state.volume = Number(volume.value);
+            read.textContent =
+              state.volume <= -60 ? "-∞ dB" : `${state.volume.toFixed(1)} dB`;
+            if (playing && state.automationArmed) {
+              const current = tracks.find((track) => track.audio)?.audio?.currentTime || 0;
+              const previous = state.automation[state.automation.length - 1];
+              if (!previous || current - previous.time >= 0.04)
+                state.automation.push({ time: current, value: state.volume });
+            }
+            applyTrackAudioState(i);
+          };
+          const pan = channel.querySelector('[data-action="pan"]'),
+            panRead = channel.querySelector(".pan-value");
+          pan.oninput = () => {
+            state.pan = Number(pan.value);
+            panRead.textContent =
+              state.pan === 0
+                ? "C"
+                : state.pan < 0
+                  ? `L${Math.abs(state.pan)}`
+                  : `R${state.pan}`;
+            applyTrackAudioState(i);
+          };
+        });
+      }
+      function openRack(channelIndex) {
+        activeChannel = channelIndex;
+        activeFx = channelState[channelIndex].fx[0] || "";
+        $("mixWindow").classList.add("open");
+        $("rackTitle").textContent = `Plugin · ${tracks[channelIndex].name}`;
+        $("rackModal").classList.add("open");
+        renderFx();
+      }
+      function renderFx() {
+        const state = channelState[activeChannel];
+        const enabled = state.fx.includes(activeFx);
+        $("fxGrid").innerHTML =
+          `<select class="fx-select" id="fxSelector" aria-label="Plugin visible"><option value="" ${activeFx ? "" : "selected"}>Seleccionar plugin…</option>${Object.entries(
+            fxCatalog,
+          )
+            .map(
+              ([id, fx]) =>
+                `<option value="${id}" ${id === activeFx ? "selected" : ""}>${fx.name} — ${fx.help}</option>`,
+            )
+            .join(
+              "",
+            )}</select><button class="fx-toggle ${enabled ? "enabled" : ""}" id="fxToggle" ${activeFx ? "" : "disabled"}>${enabled ? "Activo" : "Activar"}</button>`;
+        $("fxSelector").onchange = () => {
+          activeFx = $("fxSelector").value;
+          if (activeFx && !state.fx.includes(activeFx)) state.fx.push(activeFx);
+          renderFx();
+          updateInsertLabel(activeChannel);
+        };
+        $("fxToggle").onclick = () => {
+          if (!activeFx) return;
+          const list = state.fx,
+            at = list.indexOf(activeFx);
+          at < 0 ? list.push(activeFx) : list.splice(at, 1);
+          renderFx();
+          updateInsertLabel(activeChannel);
+        };
+        renderModule();
+      }
+      function renderModule() {
+        const fx = fxCatalog[activeFx],
+          enabled = channelState[activeChannel].fx.includes(activeFx);
+        $("pluginRack").classList.toggle(
+          "eq-mode",
+          activeFx === "eq" && enabled,
+        );
+        $("pluginRack").classList.toggle(
+          "compressor-mode",
+          activeFx === "compressor" && enabled,
+        );
+        $("pluginRack").classList.toggle(
+          "reverb-mode",
+          activeFx === "reverb" && enabled,
+        );
+        $("pluginRack").classList.toggle(
+          "delay-mode",
+          activeFx === "delay" && enabled,
+        );
+        $("pluginRack").classList.toggle(
+          "limiter-mode",
+          activeFx === "limiter" && enabled,
+        );
+        $("fxModule").classList.toggle("show", enabled);
+        if (enabled && activeFx === "eq") {
+          $("knobs").innerHTML =
+            `<div class="eq-shell" style="grid-column:1/-1">
+            <div class="eq-toolbar"><button>PRESET</button><button>‹</button><button>›</button><span class="eq-brand">QAMUZ <em>EQ</em></span><select><option>Init</option><option>Voz clara</option><option>Requinto presente</option><option>Bajo definido</option></select><button>A/B</button><button>BYP</button></div>
+            <div class="eq-display"><svg viewBox="0 0 860 310" preserveAspectRatio="none" aria-label="Curva del ecualizador">
+              <defs><linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#408cff" stop-opacity=".30"/><stop offset="1" stop-color="#6d49d9" stop-opacity=".03"/></linearGradient></defs>
+              <path d="M0 258 C90 238 120 110 205 118 S310 230 380 198 S455 235 530 180 S650 196 720 125 S820 105 860 112 L860 310 L0 310Z" fill="url(#eqFill)" opacity=".7"/>
+              <path d="M0 255 C95 235 120 108 205 118 S310 225 380 196 S455 230 530 179 S650 194 720 124 S820 104 860 111" fill="none" stroke="#377bd1" stroke-width="2" opacity=".65"/>
+              <path id="eqCurve" d="M0 158 C90 158 120 158 170 125 S255 158 345 158 S430 195 500 178 S620 150 690 158 S780 125 860 133" fill="none" stroke="#6275ff" stroke-width="4"/>
+              <g fill="#66b5ff" stroke="#121a35" stroke-width="4"><circle class="eq-node" cx="170" cy="125" r="8"/><circle class="eq-node" cx="500" cy="178" r="8"/><circle class="eq-node" cx="690" cy="158" r="8"/><circle class="eq-node" cx="810" cy="133" r="8"/></g>
+            </svg><div class="eq-scale"><span>+18</span><span>+9</span><span>0</span><span>-9</span><span>-18</span></div><div class="eq-freqs"><span>20</span><span>100</span><span>500</span><span>1k</span><span>5k</span><span>10k</span><span>20k</span></div><i class="eq-meter"></i></div>
+            <div class="eq-controls">${fx.params.map((p) => `<div class="eq-control"><label>${p[0]}<output>${p[3]} ${p[4]}</output></label><input type="range" min="${p[1]}" max="${p[2]}" value="${p[3]}" data-unit="${p[4]}"></div>`).join("")}</div>
+          </div>`;
+          document
+            .querySelectorAll(".eq-control input")
+            .forEach(
+              (input) =>
+                (input.oninput = () =>
+                  (input.previousElementSibling.querySelector(
+                    "output",
+                  ).textContent = `${input.value} ${input.dataset.unit}`)),
+            );
+          return;
+        }
+        if (enabled && activeFx === "compressor") {
+          $("knobs").innerHTML =
+            `<div class="comp-shell" style="grid-column:1/-1">
+            <div class="comp-toolbar"><button>PRESET</button><button>‹</button><button>›</button><span class="comp-brand">QAMUZ <em>COMP</em></span><select><option>Init</option><option>Voz natural</option><option>Bajo firme</option><option>Percusión controlada</option></select><button>A/B</button><button>BYP</button></div>
+            <div class="comp-graph comp-live"><svg viewBox="0 0 720 210" preserveAspectRatio="none" aria-label="Curva de compresión activa"><defs><linearGradient id="grFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#696f8d" stop-opacity=".65"/><stop offset="1" stop-color="#333752" stop-opacity=".05"/></linearGradient></defs><path class="comp-gr-area" d="M0 210 L0 126 L28 119 L46 137 L70 111 L92 128 L120 101 L145 132 L166 112 L190 145 L218 122 L240 139 L268 118 L295 146 L320 129 L346 94 L368 115 L392 91 L416 120 L440 99 L466 134 L492 110 L516 128 L542 96 L568 119 L594 91 L620 112 L646 86 L675 108 L700 80 L720 92 L720 210Z"/><path class="comp-input-trace" d="M0 126 L28 119 L46 137 L70 111 L92 128 L120 101 L145 132 L166 112 L190 145 L218 122 L240 139 L268 118 L295 146 L320 129 L346 94 L368 115 L392 91 L416 120 L440 99 L466 134 L492 110 L516 128 L542 96 L568 119 L594 91 L620 112 L646 86 L675 108 L700 80 L720 92"/><path class="comp-output-trace" d="M0 42 L25 34 L48 48 L72 29 L96 39 L120 25 L145 53 L168 44 L192 31 L218 50 L242 33 L268 42 L294 28 L320 39 L345 24 L370 45 L395 36 L420 22 L446 39 L472 30 L498 46 L524 31 L550 41 L578 27 L606 37 L634 22 L662 33 L690 24 L720 39"/><path d="M0 210 L360 105 L720 0" stroke="#25355f" stroke-width="2" fill="none"/><path d="M0 210 L355 107 Q375 101 393 90 L610 37" stroke="#706cff" stroke-width="4" fill="none"/><path d="M360 0 V210 M0 105 H720" stroke="#34b5aa" stroke-width="1" stroke-dasharray="4 4" opacity=".55"/><circle cx="360" cy="105" r="7" fill="#55b7ff" stroke="#181a31" stroke-width="4"/></svg><div class="comp-graph-labels"><span>0</span><span>-6</span><span>-12</span><span>-24</span><span>-36</span></div></div>
+            <div class="comp-panel"><div><div class="comp-meter"><i></i></div><div class="comp-meter-label">IN</div></div>${fx.params.map((p, i) => `<div class="comp-param"><div class="comp-knob" style="--turn:${38 + i * 10}%"></div><label>${p[0]}</label><input type="range" min="${p[1]}" max="${p[2]}" value="${p[3]}" data-unit="${p[4]}"><output>${p[3]} ${p[4]}</output></div>`).join("")}<div><div class="comp-meter"><i style="height:56%"></i></div><div class="comp-meter-label">OUT</div></div></div>
+            <div class="comp-options"><button class="on">AUTO GAIN</button><button>SOFT KNEE</button><button>RMS</button><button>STEREO LINK</button><button>PARALLEL</button></div>
+          </div>`;
+          document
+            .querySelectorAll(".comp-param input")
+            .forEach(
+              (input) =>
+                (input.oninput = () =>
+                  (input.nextElementSibling.textContent = `${input.value} ${input.dataset.unit}`)),
+            );
+          return;
+        }
+        if (enabled && activeFx === "reverb") {
+          const verbParams = [
+            ["Pre-delay", 0, 200, 25, "ms"],
+            ["Time", 4, 80, 24, "s ×10"],
+            ["Size", 0, 100, 62, "%"],
+            ["Diffusion", 0, 100, 72, "%"],
+            ["Damping", 0, 100, 48, "%"],
+            ["Early refl.", 0, 100, 26, "%"],
+            ["Wet", 0, 100, 18, "%"],
+            ["Dry", 0, 100, 100, "%"],
+          ];
+          $("knobs").innerHTML =
+            `<div class="verb-shell" style="grid-column:1/-1">
+            <div class="verb-toolbar"><button>PRESET</button><button>‹</button><button>›</button><span class="verb-brand">QAMUZ <em>SPACE</em></span><select id="verbType"><option>Studio Room</option><option>Warm Hall</option><option>Plate</option><option>Chamber</option><option>Ambience</option></select><button class="maestro-verb" id="maestroVerb">✦ Maestro: diseñar ambiente</button><button>BYP</button></div>
+            <div class="verb-design"><div class="verb-viz"><h4>DAMPING</h4><svg viewBox="0 0 240 110" preserveAspectRatio="none"><defs><linearGradient id="dampFill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#496eff" stop-opacity=".5"/><stop offset="1" stop-color="#432f8b" stop-opacity=".05"/></linearGradient></defs><path d="M0 30 C55 32 90 42 130 52 S195 72 240 88 L240 110 L0 110Z" fill="url(#dampFill)"/><path d="M0 30 C55 32 90 42 130 52 S195 72 240 88" fill="none" stroke="#6c78ff" stroke-width="3"/><circle cx="76" cy="38" r="5" fill="#64bcff"/><circle cx="170" cy="65" r="5" fill="#8175ff"/></svg></div><div class="verb-viz verb-time"><h4>TIME RESPONSE</h4><svg viewBox="0 0 300 110" preserveAspectRatio="none"><defs><linearGradient id="timeFill" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#715cff" stop-opacity=".75"/><stop offset="1" stop-color="#258fd0" stop-opacity=".08"/></linearGradient></defs><path d="M0 100 L0 24 C55 37 102 48 148 62 S242 84 300 98 L300 110 L0 110Z" fill="url(#timeFill)"/><path d="M18 100V52 M52 100V61 M88 100V69 M126 100V76 M169 100V83 M218 100V91" stroke="#65b5ff" stroke-width="2" opacity=".8"/></svg></div><div class="verb-viz"><h4>REVERB EQ</h4><svg viewBox="0 0 240 110" preserveAspectRatio="none"><path d="M0 76 C40 70 60 35 100 38 S158 56 182 61 S215 88 240 91" fill="none" stroke="#6f73ff" stroke-width="3"/><circle cx="100" cy="38" r="5" fill="#64bcff"/><circle cx="182" cy="61" r="5" fill="#8175ff"/></svg></div></div>
+            <div class="verb-room">${verbParams.map((p, i) => `<div class="verb-param"><label>${p[0]}</label><input data-verb="${i}" type="range" min="${p[1]}" max="${p[2]}" value="${p[3]}" data-unit="${p[4]}"><output>${p[3]} ${p[4]}</output></div>`).join("")}</div>
+            <div class="verb-footer"><span>Diseño acústico editable</span><span>Maestro utiliza género, BPM y función del canal</span><span class="verb-space" id="verbSpace">STUDIO ROOM</span></div>
+          </div>`;
+          document
+            .querySelectorAll(".verb-param input")
+            .forEach(
+              (input) =>
+                (input.oninput = () =>
+                  (input.nextElementSibling.textContent = `${input.value} ${input.dataset.unit}`)),
+            );
+          $("maestroVerb").onclick = () => {
+            const genreId = $("genre").value,
+              bpm = Number($("bpm").value) || 120,
+              vocal = tracks[activeChannel].name.toLowerCase().includes("voz");
+            const bolero = genreId.includes("bolero"),
+              values = bolero
+                ? [32, 38, 78, 82, 58, 34, 22, 100]
+                : genreId === "bachata"
+                  ? [
+                      Math.round(60000 / bpm / 8),
+                      24,
+                      58,
+                      68,
+                      52,
+                      24,
+                      vocal ? 16 : 12,
+                      100,
+                    ]
+                  : [20, 20, 55, 64, 48, 20, 14, 100];
+            document.querySelectorAll("[data-verb]").forEach((input, i) => {
+              input.value = values[i];
+              input.nextElementSibling.textContent = `${values[i]} ${input.dataset.unit}`;
+            });
+            $("verbType").value = bolero ? "Warm Hall" : "Studio Room";
+            $("verbSpace").textContent = bolero ? "WARM HALL" : "STUDIO ROOM";
+            message(
+              `Diseñé un ${bolero ? "hall cálido" : "studio room"} para ${tracks[activeChannel].name} a ${bpm} BPM. Puedes modificar cada control.`,
+            );
+          };
+          return;
+        }
+        if (enabled && activeFx === "delay") {
+          const bpm = Number($("bpm").value) || 120,
+            beatMs = Math.round(60000 / bpm),
+            synced = Math.round(beatMs * 0.75);
+          $("knobs").innerHTML =
+            `<div class="delay-shell" style="grid-column:1/-1"><div class="plugin-toolbar"><button>PRESET</button><button>‹</button><button>›</button><span class="plugin-brand">QAMUZ <em>DELAY</em></span><select><option>Tempo Sync 1/8D</option><option>Slapback</option><option>Ping Pong</option><option>Tape Echo</option><option>Digital Clean</option></select><button>A/B</button><button>BYP</button></div><div class="delay-display"><svg viewBox="0 0 760 230" preserveAspectRatio="none"><defs><linearGradient id="delayFill" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#716cff" stop-opacity=".5"/><stop offset="1" stop-color="#2c83cf" stop-opacity=".03"/></linearGradient></defs><path d="M0 115 C90 110 125 48 178 52 S250 152 310 137 S380 82 430 91 S515 142 575 132 S650 103 760 115 L760 230 L0 230Z" fill="url(#delayFill)"/><path d="M0 115 C90 110 125 48 178 52 S250 152 310 137 S380 82 430 91 S515 142 575 132 S650 103 760 115" fill="none" stroke="#696cff" stroke-width="3"/><g fill="#61b9ff">${[120, 260, 400, 540, 680].map((x, i) => `<circle class="delay-tap" cx="${x}" cy="${70 + i * 19}" r="${8 - i}"/>`).join("")}</g><g stroke="#438fd5" opacity=".6">${[120, 260, 400, 540, 680].map((x) => `<path d="M${x} 35 V200"/>`).join("")}</g></svg></div><div class="delay-controls">${fx.params.map((p, i) => `<div class="modern-param"><label>${p[0]}</label><input type="range" min="${p[1]}" max="${p[2]}" value="${i === 0 ? synced : p[3]}" data-unit="${p[4]}"><output>${i === 0 ? synced : p[3]} ${p[4]}</output></div>`).join("")}</div><div class="plugin-switches"><button class="on">SYNC ${bpm} BPM</button><button>1/8 D</button><button>PING PONG</button><button>DUCKING</button><button>FILTER</button></div></div>`;
+          document
+            .querySelectorAll(".modern-param input")
+            .forEach(
+              (input) =>
+                (input.oninput = () =>
+                  (input.nextElementSibling.textContent = `${input.value} ${input.dataset.unit}`)),
+            );
+          return;
+        }
+        if (enabled && activeFx === "limiter") {
+          $("knobs").innerHTML =
+            `<div class="limiter-shell" style="grid-column:1/-1"><div class="plugin-toolbar"><button>PRESET</button><button>‹</button><button>›</button><span class="plugin-brand">QAMUZ <em>LIMIT</em></span><select><option>Transparent</option><option>Vocal Safety</option><option>Drum Control</option><option>Master Preview</option></select><button>A/B</button><button>BYP</button></div><div class="limiter-main"><div class="limiter-display"><svg viewBox="0 0 680 240" preserveAspectRatio="none"><defs><linearGradient id="limitFill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#685fff" stop-opacity=".42"/><stop offset="1" stop-color="#2d4c9d" stop-opacity=".04"/></linearGradient></defs><path d="M0 222 L180 170 L330 108 Q380 82 420 60 L680 60 L680 240 L0 240Z" fill="url(#limitFill)"/><path d="M0 222 L180 170 L330 108 Q380 82 420 60 L680 60" fill="none" stroke="#6e6aff" stroke-width="4"/><path d="M0 60 H680" stroke="#ef667d" stroke-width="2" stroke-dasharray="6 5"/><path d="M0 190 C90 170 130 205 210 160 S340 184 420 136 S550 158 680 115" fill="none" stroke="#4daaff" stroke-width="2" opacity=".65"/><circle cx="420" cy="60" r="7" fill="#64baff" stroke="#171a31" stroke-width="4"/></svg></div><div class="limit-meters"><div class="limit-meter">IN<div class="limit-bar"><i style="--level:78%"></i></div></div><div class="limit-meter">GR<div class="limit-bar gr"><i style="--level:32%"></i></div></div><div class="limit-meter">OUT<div class="limit-bar"><i style="--level:68%"></i></div></div></div></div><div class="limiter-controls">${fx.params.map((p) => `<div class="modern-param"><label>${p[0]}</label><input type="range" min="${p[1]}" max="${p[2]}" value="${p[3]}" data-unit="${p[4]}"><output>${p[3]} ${p[4]}</output></div>`).join("")}</div><div class="plugin-switches"><button class="on">TRUE PEAK</button><button>4× OVERSAMPLING</button><button>STEREO LINK</button><button>SOFT CLIP</button><button>AUTO RELEASE</button></div></div>`;
+          document
+            .querySelectorAll(".modern-param input")
+            .forEach(
+              (input) =>
+                (input.oninput = () =>
+                  (input.nextElementSibling.textContent = `${input.value} ${input.dataset.unit}`)),
+            );
+          return;
+        }
+        $("knobs").innerHTML = enabled
+          ? fx.params
+              .map(
+                (p) =>
+                  `<div class="knob"><label>${p[0]}</label><input type="range" min="${p[1]}" max="${p[2]}" value="${p[3]}" data-unit="${p[4]}"><output>${p[3]} ${p[4]}</output></div>`,
+              )
+              .join("")
+          : "";
+        document
+          .querySelectorAll(".knob input")
+          .forEach(
+            (input) =>
+              (input.oninput = () =>
+                (input.nextElementSibling.textContent = `${input.value} ${input.dataset.unit}`)),
+          );
+      }
+      function updateInsertLabel(i) {
+        const button = document.querySelector(
+            `.channel[data-channel="${i}"] .insert`,
+          ),
+          list = channelState[i].fx;
+        button.textContent = list.length
+          ? list.map((id) => fxCatalog[id].name).join(" · ")
+          : "+ INSERT / PRESET";
+        button.classList.toggle("has-fx", list.length > 0);
+      }
+      $("closeRack").onclick = () => $("rackModal").classList.remove("open");
+      $("rackModal").onclick = (event) => {
+        if (event.target === $("rackModal"))
+          $("rackModal").classList.remove("open");
+      };
+      $("openMixer").onclick = () => $("mixWindow").classList.add("open");
+      $("closeMixer").onclick = () => $("mixWindow").classList.remove("open");
+      function genre() {
+        return catalog.genres.find((g) => g.id === $("genre").value);
+      }
+      function styles() {
+        const s = $("style"),
+          g = genre();
+        s.innerHTML = "";
+        for (const x of g?.styles || []) s.add(new Option(x.label, x.id));
+      }
+      async function loadCatalog() {
+        try {
+          const r = await fetch("/api/music-catalog"),
+            d = await r.json();
+          if (!r.ok) throw Error();
+          catalog = d;
+        } catch {
+          catalog = {
+            genres: [
+              {
+                id: "bachata",
+                label: "Bachata",
+                styles: [
+                  { id: "bachata romantica", label: "Bachata romántica" },
+                ],
+              },
+            ],
+          };
+        }
+        const g = $("genre");
+        g.innerHTML = "";
+        for (const x of catalog.genres) g.add(new Option(x.label, x.id));
+        g.value = catalog.genres.some((x) => x.id === "bachata")
+          ? "bachata"
+          : catalog.genres[0]?.id;
+        styles();
+      }
+      $("genre").onchange = styles;
+      function payload() {
+        const instrumental = $("instrumental").checked;
+        return {
+          title: $("title").value.trim() || null,
+          songDescription: $("chat").value.trim(),
+          genre: $("genre").value,
+          style: $("style").value,
+          lyrics: instrumental ? null : $("lyrics").value.trim() || null,
+          instrumental,
+          duration: Number($("duration").value),
+          bpm: Number($("bpm").value) || null,
+          vocalType: $("voice").value,
+          vocalLanguage: "es",
+          audioFormat: "wav",
+        };
+      }
+      const activeSessionKey = new URLSearchParams(location.search).get("session") || "default";
+      const maestroStorageKey = `qamuz.maestro.session.v2.${activeSessionKey}`;
+      const studioRegistryKey = "qamuz.studio.sessions.v1";
+      function studioSessions() {
+        try { return JSON.parse(localStorage.getItem(studioRegistryKey) || "[]"); }
+        catch { return []; }
+      }
+      function updateStudioRecord(changes) {
+        const records = studioSessions(), key = activeSessionKey.toLocaleLowerCase("es"),
+          index = records.findIndex((item) => String(item.name || "").toLocaleLowerCase("es") === key);
+        const current = index >= 0 ? records[index] : { name: activeSessionKey, idea: "", createdAt: new Date().toISOString() };
+        const updated = { ...current, ...changes, updatedAt: new Date().toISOString() };
+        if (index >= 0) records.splice(index, 1);
+        records.unshift(updated);
+        localStorage.setItem(studioRegistryKey, JSON.stringify(records));
+        return updated;
+      }
+      const planLimits = { basic: 2500, pro: 25000, studio: 100000 };
+      const tokenState = (() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(maestroStorageKey) || "{}");
+          return {
+            plan: saved.plan || "basic",
+            used: Number(saved.used) || 0,
+            history: Array.isArray(saved.history) ? saved.history : [],
+          };
+        } catch {
+          return { plan: "basic", used: 0, history: [] };
+        }
+      })();
+      const estimateTokens = (text) =>
+        Math.max(1, Math.ceil(String(text || "").trim().length / 4));
+      function saveMaestroState() {
+        localStorage.setItem(maestroStorageKey, JSON.stringify(tokenState));
+      }
+      function updateUsage() {
+        const limit = planLimits[tokenState.plan] || planLimits.basic;
+        const used = Math.min(tokenState.used, limit);
+        const remaining = Math.max(0, limit - used);
+        const ratio = used / limit;
+        $("usagePlan").textContent = tokenState.plan.toUpperCase();
+        $("usageText").textContent = `${remaining.toLocaleString("es")} tokens`;
+        $("usageFill").style.width = `${Math.min(100, ratio * 100)}%`;
+        $("usageBar").classList.toggle("warning", ratio >= 0.8);
+        $("usageUpgrade").hidden = ratio < 0.8;
+        $("send").disabled = remaining === 0;
+        $("create").disabled = remaining === 0;
+      }
+      function message(text, user = false, chips = [], options = {}) {
+        const d = document.createElement("div");
+        d.className = "msg " + (user ? "user" : "");
+        d.textContent = text;
+        if (chips.length)
+          d.insertAdjacentHTML(
+            "beforeend",
+            `<div class="chips">${chips.map((x) => `<span class="chip">${x}</span>`).join("")}</div>`,
+          );
+        $("messages").appendChild(d);
+        $("messages").scrollTop = $("messages").scrollHeight;
+        if (options.persist !== false) {
+          tokenState.history.push({ text, user, chips, at: new Date().toISOString() });
+          tokenState.history = tokenState.history.slice(-100);
+        }
+        if (options.consume !== false)
+          tokenState.used += estimateTokens(text) + chips.reduce((n, x) => n + estimateTokens(x), 0);
+        if (options.persist !== false || options.consume !== false) saveMaestroState();
+        updateUsage();
+        return d;
+      }
+      function workingMessage(text) {
+        const node = message(text, false, [], { persist: false, consume: false });
+        node.classList.add("working");
+        return {
+          update(next) {
+            node.textContent = next;
+            $("messages").scrollTop = $("messages").scrollHeight;
+          },
+          finish(next) {
+            node.textContent = next;
+            node.classList.remove("working");
+          },
+          remove() { node.remove(); },
+        };
+      }
+      function confirmReplacement() {
+        return new Promise((resolve) => {
+          const node = message("Ya existe una creación estéreo en esta sesión. ¿Quieres reemplazarla con una nueva? La canción actual se conservará hasta que el nuevo render termine correctamente.", false, [], { consume: false });
+          node.classList.add("decision");
+          const actions = document.createElement("div");
+          actions.className = "decision-actions";
+          actions.innerHTML = '<button type="button">Conservar actual</button><button type="button" class="primary">Sí, reemplazar</button>';
+          node.appendChild(actions);
+          const finish = (accepted) => {
+            actions.remove();
+            node.insertAdjacentText("beforeend", accepted ? "\nReemplazo autorizado." : "\nCreación cancelada; la canción actual permanece intacta.");
+            resolve(accepted);
+          };
+          actions.children[0].onclick = () => finish(false);
+          actions.children[1].onclick = () => finish(true);
+        });
+      }
+      function removeGeneratedMixes(except = null) {
+        for (let index = tracks.length - 1; index >= 0; index--) {
+          if (!tracks[index].generated || tracks[index] === except) continue;
+          const track = tracks[index];
+          track.audio?.pause();
+          if (track.audioUrl?.startsWith("blob:")) URL.revokeObjectURL(track.audioUrl);
+          tracks.splice(index, 1);
+          channelState.splice(index, 1);
+        }
+      }
+      function musicalReport(plan, info) {
+        const brief = plan.musicBrief || {};
+        const instruments = String(plan.instruments || brief.instruments || "No especificados")
+          .split(",").map((item) => item.trim()).filter(Boolean).join(" · ");
+        const uses = (brief.recommendedUses || []).join(" · ") || "Por definir después de escuchar el render";
+        const tags = brief.externalTags?.length
+          ? `Etiquetas externas disponibles: ${brief.externalTags.join(", ")}.`
+          : "Tendencias externas: sin datos activos de Spotify/Last.fm; no se inventaron métricas.";
+        return [
+          "✦ FICHA MUSICAL DE LA TOMA",
+          `Identidad: ${plan.style} · ${plan.genre} · ${brief.character || plan.mood}.`,
+          `Medición creativa: energía ${brief.energyLabel || "media"} (${brief.energyScore ?? "—"}/100) · ${brief.danceable ? "bailable" : "escucha contemplativa"} · emoción ${brief.emotion || plan.mood}.`,
+          `Tempo y tonalidad: ${plan.bpm} BPM · ${plan.keyScale}. Duración renderizada: ${Number(info.duration || 0).toFixed(1)} s · ${info.channels === 1 ? "mono" : "estéreo"}.`,
+          `Instrumentos previstos: ${instruments}.`,
+          `Arreglo: ${brief.arrangementNarrative || plan.structure}.`,
+          `Enganche: ${brief.hook || "coro y motivo principal reconocible"}.`,
+          `Proyección de uso: ${uses}.`,
+          tags,
+          `Validación: ${brief.disclaimer || "Esta lectura parte del plan y debe confirmarse escuchando el audio."}`,
+        ].join("\n\n");
+      }
+      if (tokenState.history.length) {
+        $("messages").innerHTML = "";
+        tokenState.history = tokenState.history.filter((entry, index, history) =>
+          index === 0 || entry.text !== history[index - 1].text || entry.user !== history[index - 1].user,
+        );
+        saveMaestroState();
+        tokenState.history.forEach((entry) =>
+          message(entry.text, entry.user, entry.chips || [], { persist: false, consume: false }),
+        );
+      }
+      updateUsage();
+      $("usageUpgrade").onclick = () =>
+        alert("Abre Suscripción para recargar saldo o cambiar a QAMUZ Pro. La compra se conectará al backend de facturación del SaaS.");
+      async function inspectAudioFile(file) {
+        const AudioEngine = window.AudioContext || window.webkitAudioContext,
+          context = new AudioEngine();
+        try {
+          const buffer = await context.decodeAudioData(
+            await file.arrayBuffer(),
+          );
+          return {
+            duration: buffer.duration,
+            channels: buffer.numberOfChannels,
+            sampleRate: buffer.sampleRate,
+          };
+        } finally {
+          await context.close();
+        }
+      }
+      async function importAudioFiles(files) {
+        if (!files.length) return;
+        $("jobStatus").textContent = "Analizando audios…";
+        let imported = 0;
+        for (const file of files) {
+          try {
+            const info = await inspectAudioFile(file),
+              layout =
+                info.channels === 1
+                  ? "Audio mono"
+                  : info.channels === 2
+                    ? "Audio estéreo"
+                    : `Audio ${info.channels} canales`;
+            addTrack({
+              name: inferInstrument(file.name),
+              kind: layout,
+              file,
+              ...info,
+            });
+            imported++;
+          } catch (error) {
+            message(
+              `No pude leer ${file.name}: formato no compatible o archivo dañado.`,
+            );
+          }
+        }
+        draw();
+        $("jobStatus").textContent = imported
+          ? `${imported} pistas importadas`
+          : "Sin cambios";
+        if (imported)
+          message(
+            `Importé ${imported} pista${imported === 1 ? "" : "s"}. Detecté canales y duración, propuse nombres por instrumento y conservé el inicio original de cada archivo para mantener la alineación de los stems.`,
+            false,
+            ["Read-only", "Alineación desde 0:00", "Sin entrenamiento"],
+          );
+      }
+      async function importGeneratedMix(audioUrl, title, expectedDuration) {
+        const response = await fetch(audioUrl);
+        if (!response.ok) throw new Error("La mezcla se generó, pero no pude importarla al DAW");
+        const blob = await response.blob();
+        const filename = `${(title || "qamuz_toma").replace(/[^a-z0-9_-]+/gi, "_")}.wav`;
+        const file = new File([blob], filename, { type: blob.type || "audio/wav" });
+        let info = {
+          duration: Number(expectedDuration) || 0,
+          channels: 2,
+          sampleRate: 44100,
+        };
+        try {
+          info = await inspectAudioFile(file);
+        } catch {
+          // El archivo sigue siendo importable aunque el navegador no pueda inspeccionar su codec.
+        }
+        addTrack({
+          name: title || "QAMUZ Mix",
+          kind: "Mezcla estéreo generada · Qamuz_v1",
+          duration: info.duration,
+          channels: info.channels,
+          sampleRate: info.sampleRate,
+          file,
+          generated: true,
+        });
+        draw();
+        return info;
+      }
+      async function recoverLatestMix() {
+        if (location.protocol === "file:" || new URLSearchParams(location.search).has("session")) return;
+        try {
+          const response = await fetch("/api/generate/recent");
+          if (!response.ok || tracks.length) return;
+          const latest = await response.json();
+          const info = await importGeneratedMix(
+            latest.audioUrl,
+            `Última toma QAMUZ`,
+            latest.duration,
+          );
+          message(
+            `Recuperé la última mezcla real (${info.duration.toFixed(1)} s). Pulsa Play para escucharla.`,
+            false,
+            [],
+            { persist: false, consume: false },
+          );
+          $("jobStatus").textContent = "Última toma recuperada";
+        } catch {
+          // Una sesión sin renders previos permanece vacía.
+        }
+      }
+      function importMidiFiles(files) {
+        for (const file of files)
+          addTrack({
+            name: inferInstrument(file.name),
+            kind: "MIDI",
+            file,
+          });
+        draw();
+        if (files.length)
+          message(
+            `Importé ${files.length} archivo${files.length === 1 ? "" : "s"} MIDI. La pista queda identificada como MIDI; la asignación de instrumento virtual se hará sin convertirla en audio.`,
+          );
+      }
+      $("importAudio").onclick = () => $("audioFiles").click();
+      $("importMidi").onclick = () => $("midiFiles").click();
+      $("emptyImportFiles").onclick = () => $("audioFiles").click();
+      $("emptyImportFolder").onclick = () => $("audioFolder").click();
+      $("emptyCreateMusic").onclick = () => switchDepartment("create");
+      $("audioFiles").onchange = async (event) => {
+        await importAudioFiles([...event.target.files]);
+        event.target.value = "";
+      };
+      $("midiFiles").onchange = (event) => {
+        importMidiFiles([...event.target.files]);
+        event.target.value = "";
+      };
+      $("audioFolder").onchange = async (event) => {
+        const audioExtensions = /\.(wav|wave|mp3|flac|aif|aiff|m4a)$/i,
+          files = [...event.target.files].filter((file) =>
+            audioExtensions.test(file.name),
+          );
+        if (files.length && $("sessionName").value === "Sesión sin título") {
+          const folder = files[0].webkitRelativePath?.split("/")[0];
+          if (folder) $("sessionName").value = folder;
+        }
+        await importAudioFiles(files);
+        event.target.value = "";
+      };
+      $("addVirtual").onclick = () => {
+        addTrack({
+          name: "Instrumento virtual",
+          kind: "Instrumento virtual / MIDI",
+        });
+        draw();
+        message(
+          "Añadí una pista de instrumento virtual. Elige después el motor o preset que la reproducirá.",
+        );
+      };
+      function requestExport() {
+        if (!tracks.length) {
+          message(
+            "La sesión está vacía. Importa o crea música antes de exportar.",
+          );
+          return;
+        }
+        const rendered = [...tracks].reverse().find((track) => track.generated && track.audioUrl);
+        const node = message(
+          rendered
+            ? "La mezcla estéreo real está lista para descargar. Elige el formato."
+            : "La sesión contiene pistas, pero todavía no existe un bounce estéreo real. Primero debemos mezclar y renderizar para habilitar la descarga.",
+          false,
+          rendered ? ["WAV original", "MP3 320 kbps según plan"] : ["Bounce pendiente"],
+        );
+        if (!rendered) return;
+        node.classList.add("decision");
+        const actions = document.createElement("div");
+        actions.className = "decision-actions";
+        actions.innerHTML = '<button class="primary">Descargar WAV</button><button>Preparar MP3</button>';
+        node.appendChild(actions);
+        actions.children[0].onclick = () => {
+          const link = document.createElement("a");
+          link.href = rendered.audioUrl;
+          link.download = `${activeSessionKey.replace(/[^a-z0-9_-]+/gi, "_")}.wav`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          message("Descarga WAV iniciada desde el render real de esta sesión.", false, ["WAV", "Audio real"], { consume: false });
+        };
+        actions.children[1].onclick = () => message(
+          "El MP3 requiere codificación real a 320 kbps y validación del plan. No convertiré ni renombraré falsamente el WAV; esta opción quedará activa al conectar el codificador de QAMUZ.",
+          false,
+          ["MP3 pendiente", "Sin archivo ficticio"],
+          { consume: false },
+        );
+      }
+      $("exportMix").onclick = requestExport;
+      const departmentIds = {
+        studio: "studioDepartment",
+        master: "masterDepartment",
+        midi: "midiDepartment",
+        create: "createDepartment",
+      };
+      function switchDepartment(name) {
+        Object.entries(departmentIds).forEach(([key, id]) => {
+          $(id).hidden = key !== name;
+        });
+        document
+          .querySelectorAll("[data-department]")
+          .forEach((button) =>
+            button.classList.toggle(
+              "active",
+              button.dataset.department === name,
+            ),
+          );
+      }
+      document.querySelectorAll("[data-department]").forEach((button) => {
+        button.addEventListener("click", () =>
+          switchDepartment(button.dataset.department),
+        );
+      });
+      document.documentElement.dataset.qamuzDepartments = "ready";
+      $("sessionName").oninput = () => {
+        document.querySelector(".brand small").textContent =
+          `Gen Audius · ${$("sessionName").value.trim() || "sesión sin título"}`;
+      };
+      $("midiDepartmentImport").onclick = () => $("midiFiles").click();
+      $("midiAsk").onclick = () => {
+        switchDepartment("studio");
+        $("chat").value =
+          "Analiza las pistas MIDI y propón un arreglo musical coherente, indicando instrumentos, armonía y variaciones.";
+        $("chat").focus();
+      };
+      $("masterImport").onclick = () => $("masterFile").click();
+      $("masterFile").onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        try {
+          const info = await inspectAudioFile(file);
+          $("masterFileInfo").innerHTML =
+            `<span class="capability ready">${escapeHtml(file.name)}</span><span class="capability">${info.channels === 1 ? "Mono" : "Estéreo"}</span><span class="capability">${info.duration.toFixed(1)} s</span><span class="capability">${info.sampleRate} Hz</span>`;
+          $("masterAnalyze").disabled = false;
+          $("masterRender").disabled = true;
+        } catch {
+          $("masterFileInfo").innerHTML =
+            '<span class="capability">Archivo ilegible o no compatible</span>';
+        }
+      };
+      $("masterAnalyze").onclick = () => {
+        $("masterFileInfo").insertAdjacentHTML(
+          "beforeend",
+          '<span class="capability ready">Fuente validada</span>',
+        );
+        alert(
+          "El archivo y sus metadatos fueron validados. La medición LUFS, el análisis espectral y el render permanecerán bloqueados hasta conectar el DSP real de QAMUZ MASTER 1.0.",
+        );
+      };
+      $("masterRender").onclick = () =>
+        alert(
+          "QAMUZ MASTER 1.0 todavía no genera el archivo final: falta conectar EQ, dinámica, true-peak, medición LUFS y codificación. No se creó un master ficticio.",
+        );
+      $("sendAdvanced").onclick = () => {
+        const idea = $("advancedIdea").value.trim();
+        if (!idea) return $("advancedIdea").focus();
+        const extras = [
+            ...document.querySelectorAll(".extraInstrument:checked"),
+          ].map((input) => input.value),
+          lyricMode = $("lyricMode").value,
+          lyricInstruction =
+            lyricMode === "auto"
+              ? "construye también una letra completa y cantable"
+              : lyricMode === "instrumental"
+                ? "hazla instrumental, sin voz ni letra"
+                : "usaré mi propia letra desde el panel de dirección musical";
+        switchDepartment("studio");
+        $("instrumental").checked = lyricMode === "instrumental";
+        $("chat").value =
+          `${idea}. ${lyricInstruction}. Arreglo: ${$("mainArrangement").value}.${extras.length ? ` Añade ${extras.join(", ")}.` : ""} Organiza el resultado como pistas separadas dentro de QAMUZ Studio.`;
+        message(
+          "Preparé la solicitud avanzada. Revísala y pulsa Interpretar para que Maestro construya el plan musical.",
+        );
+        $("chat").focus();
+      };
+      const maestroPrompts = {
+        mix: "Analiza todas las pistas importadas y propón una mezcla equilibrada por ganancia, paneo, EQ, compresión y espacio.",
+        rename:
+          "Organiza y renombra las pistas según el instrumento y su formato mono, estéreo, MIDI o virtual.",
+        phrase:
+          "Quiero reemplazar una frase vocal conservando exactamente su melodía, ritmo y expresión. Indícame qué región y texto original debo seleccionar.",
+        instrument:
+          "Quiero cambiar una frase de un instrumento conservando el tempo, tonalidad y contexto de la interpretación.",
+        export: "Prepara la exportación final de esta sesión.",
+      };
+      document.querySelectorAll("[data-maestro-action]").forEach((button) => {
+        button.onclick = () => {
+          const action = button.dataset.maestroAction;
+          if (action === "export") return requestExport();
+          $("chat").value = maestroPrompts[action];
+          if (action === "phrase" || action === "instrument")
+            message(
+              action === "phrase"
+                ? "Para regrabar una frase con la misma melodía necesitaremos seleccionar la región, alinear fonemas/notas y ejecutar SVC/inpainting. El panel ya prepara esa orden, pero el motor de reemplazo aún no está conectado."
+                : "Para sustituir una frase instrumental necesitaremos seleccionar la región y ejecutar generación condicionada por el stem. El modelo entrenado ayuda con el timbre, pero por sí solo no garantiza una edición exacta.",
+            );
+          $("chat").focus();
+        };
+      });
+      async function interpret() {
+        const idea = $("chat").value.trim();
+        if (!idea) {
+          $("chat").focus();
+          return null;
+        }
+        const limit = planLimits[tokenState.plan] || planLimits.basic;
+        if (tokenState.used >= limit) {
+          message(
+            "Tu saldo de Maestro se agotó. Recarga tokens o cambia a QAMUZ Pro para continuar.",
+            false,
+            [],
+            { consume: false },
+          );
+          return null;
+        }
+        const requestPayload = { ...payload(), songDescription: idea };
+        message(idea, true);
+        $("chat").value = "";
+        $("jobStatus").textContent = "Maestro analiza la idea…";
+        const activity = workingMessage("Maestro está leyendo la intención, emoción y género central…");
+        await pause(350);
+        activity.update("Maestro está diseñando estructura, tempo, tonalidad e instrumentación…");
+        const r = await fetch("/api/prompt/preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestPayload),
+          }),
+          d = await r.json();
+        if (!r.ok) {
+          activity.remove();
+          throw Error(d.detail || "No pude interpretar la idea");
+        }
+        const p = d.plan;
+        $("bpm").value = p.bpm || $("bpm").value;
+        message(`${p.structure}. Instrumentación: ${p.instruments}.`, false, [
+          p.genre,
+          p.style,
+          p.mood,
+          `${p.bpm} BPM`,
+          p.keyScale,
+        ]);
+        activity.finish("Plan musical construido y listo para revisión.");
+        $("jobStatus").textContent = "Dirección lista";
+        return { ...d, requestPayload };
+      }
+      const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+      $("send").onclick = async () => {
+        try {
+          await interpret();
+        } catch (e) {
+          message(e.message);
+        }
+      };
+      $("create").onclick = async () => {
+        let renderActivity;
+        try {
+          const hasGeneratedMix = tracks.some((track) => track.generated);
+          if (hasGeneratedMix && !(await confirmReplacement())) return;
+          const preview = await interpret();
+          if (!preview) return;
+          $("create").disabled = true;
+          $("jobStatus").textContent = "Renderizando…";
+          renderActivity = workingMessage("Qamuz_v1 está preparando el modelo y la dirección musical…");
+          const r = await fetch("/api/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(preview.requestPayload),
+            }),
+            d = await r.json();
+          if (!r.ok) throw Error(d.detail || "No se pudo iniciar");
+          renderActivity.update("Qamuz_v1 está componiendo y renderizando la mezcla estéreo…");
+          for (;;) {
+            await pause(2500);
+            const j = await (
+              await fetch(`/api/generate/status/${d.jobId}`)
+            ).json();
+            if (j.status === "success") {
+              const audioUrl = j.result.audioUrls?.[0];
+              if (!audioUrl) throw Error("El motor terminó sin entregar un archivo de audio");
+              const info = await importGeneratedMix(
+                audioUrl,
+                preview.requestPayload.title || "QAMUZ Mix",
+                j.result.duration,
+              );
+              const newGeneratedMix = tracks[tracks.length - 1];
+              removeGeneratedMixes(newGeneratedMix);
+              draw();
+              updateStudioRecord({
+                idea: preview.requestPayload.songDescription,
+                stage: "rendered",
+                audioUrl,
+                duration: info.duration,
+                channels: info.channels,
+                title: preview.requestPayload.title || activeSessionKey,
+              });
+              renderActivity.finish("Render terminado: audio real importado y colocado en la línea de tiempo.");
+              const reportNode = message(musicalReport(preview.plan, info), false, [
+                preview.plan.style,
+                preview.plan.musicBrief?.danceable ? "Bailable" : "Contemplativa",
+                `Energía ${preview.plan.musicBrief?.energyScore ?? "—"}/100`,
+                "Análisis del plan",
+              ]);
+              reportNode.classList.add("report");
+              message("La toma actual es una mezcla estéreo real. La separación o generación de stems individuales continúa pendiente del motor multistem.", false, ["Audio real", "Stems pendientes"]);
+              $("jobStatus").textContent = "Render terminado";
+              
+              const workspace = document.querySelector('.workspace');
+              if (workspace) {
+                workspace.dataset.tab = 'all';
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                  b.classList.remove('active');
+                  if(b.dataset.tab === 'all') b.classList.add('active');
+                });
+              }
+              break;
+            }
+            if (j.status === "failed")
+              throw Error(j.error || "Falló la generación");
+          }
+        } catch (e) {
+          renderActivity?.remove();
+          message(`No pude completar la toma: ${e.message}`);
+          $("jobStatus").textContent = "Error";
+        } finally {
+          updateUsage();
+        }
+      };
+      async function health() {
+        try {
+          const d = await (await fetch("/health")).json(),
+            ok = d.status === "ok";
+          $("health").textContent = ok
+            ? "Modelo disponible"
+            : "Modelo cargando…";
+          $("dot").className = "dot " + (ok ? "ok" : "");
+        } catch {
+          $("health").textContent = "Modelo desconectado";
+          $("dot").className = "dot bad";
+        }
+      }
+      function updateTransportDisplay(seconds) {
+        const bpm = Number($("bpm").value) || 120,
+          beats = seconds / (60 / bpm),
+          bar = Math.floor(beats / 4) + 1,
+          beatInBar = Math.floor(beats % 4) + 1,
+          ticks = Math.floor((beats % 1) * 960);
+        $("counter").textContent =
+          `${String(bar).padStart(3, "0")}|${String(beatInBar).padStart(2, "0")}|${String(ticks).padStart(3, "0")}`;
+        document
+          .querySelectorAll(".playhead")
+          .forEach((head) => (head.style.transform = `translateX(${seconds * 2.4}px)`));
+      }
+      function pauseTransport(reset = false) {
+        playing = false;
+        cancelAnimationFrame(timer);
+        tracks.forEach((track) => track.audio?.pause());
+        if (reset) {
+          playOffset = 0;
+          tracks.forEach((track) => {
+            if (track.audio) track.audio.currentTime = 0;
+          });
+        } else {
+          const primary = tracks.find((track) => track.audio)?.audio;
+          playOffset = primary?.currentTime || playOffset;
+        }
+        $("play").textContent = "▶";
+        $("engineStatus").textContent = "Motor: detenido";
+        updateTransportDisplay(playOffset);
+      }
+      function animateTransport() {
+        if (!playing) return;
+        const primary = tracks.find((track) => track.audio)?.audio,
+          seconds = primary?.currentTime ?? playOffset + (performance.now() - playStartedAt) / 1000;
+        channelState.forEach((state, index) => {
+          if (state.automationArmed || !state.automation.length) return;
+          let point = state.automation[0];
+          for (const candidate of state.automation) {
+            if (candidate.time > seconds) break;
+            point = candidate;
+          }
+          if (Math.abs(state.volume - point.value) < 0.01) return;
+          state.volume = point.value;
+          applyTrackAudioState(index);
+          const channel = document.querySelector(`.channel[data-channel="${index}"]`);
+          const fader = channel?.querySelector('[data-action="volume"]');
+          const read = channel?.querySelector(".db-read");
+          if (fader) fader.value = String(point.value);
+          if (read) read.textContent = point.value <= -60 ? "-∞ dB" : `${point.value.toFixed(1)} dB`;
+        });
+        updateTransportDisplay(seconds);
+        const playable = tracks.filter((track) => track.audio);
+        if (playable.length && playable.every((track) => track.audio.ended)) {
+          pauseTransport(true);
+          return;
+        }
+        timer = requestAnimationFrame(animateTransport);
+      }
+      $("play").onclick = async () => {
+        if (playing) return pauseTransport(false);
+        const playable = tracks.filter((track) => track.audio);
+        if (!playable.length) {
+          message("No hay audio reproducible en la línea de tiempo. Importa un WAV o genera una toma real primero.", false, [], { consume: false });
+          return;
+        }
+        playable.forEach((track, index) => {
+          track.audio.currentTime = Math.min(playOffset, Math.max(0, (track.audio.duration || playOffset) - 0.01));
+          applyTrackAudioState(tracks.indexOf(track));
+        });
+        try {
+          await audioContext?.resume();
+          await Promise.all(playable.map((track) => track.audio.play()));
+        } catch (error) {
+          message(`El navegador no pudo iniciar el audio: ${error.message}`, false, [], { consume: false });
+          return;
+        }
+        playing = true;
+        playStartedAt = performance.now();
+        $("play").textContent = "❚❚";
+        $("engineStatus").textContent = "Motor: reproduciendo";
+        animateTransport();
+      };
+      $("stop").onclick = () => pauseTransport(true);
+      const setDirectionOpen = (open) => {
+        if (open)
+          document.querySelector(".app").classList.remove("maestro-closed");
+        $("drawer").classList.toggle("open", open);
+        $("drawer").setAttribute("aria-hidden", String(!open));
+        document.querySelector(".app").classList.toggle("direction-open", open);
+      };
+      const toggle = () =>
+        setDirectionOpen(!$("drawer").classList.contains("open"));
+      $("settings").onclick = toggle;
+      $("openSettings").onclick = toggle;
+      const setMaestroOpen = (open) => {
+        if (!open) setDirectionOpen(false);
+        document
+          .querySelector(".app")
+          .classList.toggle("maestro-closed", !open);
+        $("toggleMaestro").classList.toggle("active", open);
+      };
+      $("toggleMaestro").onclick = () =>
+        setMaestroOpen(
+          document.querySelector(".app").classList.contains("maestro-closed"),
+        );
+      $("closeMaestro").onclick = () => setMaestroOpen(false);
+      $("closeSettings").onclick = () => setMaestroOpen(false);
+      $("directionBackChat").onclick = () => setDirectionOpen(false);
+      const setDirectionMode = (mode) => {
+        ["directionAuto", "directionInstrumental", "directionCustom"].forEach(
+          (id) => $(id).classList.toggle("active", id === mode),
+        );
+      };
+      $("directionAuto").onclick = () => {
+        setDirectionMode("directionAuto");
+        $("instrumental").checked = false;
+        $("directionSummary").textContent =
+          "Modo automático: Maestro completará la dirección usando la conversación.";
+      };
+      $("directionInstrumental").onclick = () => {
+        setDirectionMode("directionInstrumental");
+        $("instrumental").checked = true;
+        $("directionSummary").textContent =
+          "Modo instrumental: composición sin voz, conservando género, estilo y duración.";
+      };
+      $("directionCustom").onclick = () => {
+        setDirectionMode("directionCustom");
+        $("instrumental").checked = false;
+        $("directionSummary").textContent =
+          "Modo personalizado: define manualmente los campos que quieras controlar.";
+        $("title").focus();
+      };
+      $("applyDirection").onclick = () => {
+        const voice =
+          $("voice").selectedOptions[0]?.textContent || "voz automática";
+        const duration =
+          $("duration").selectedOptions[0]?.textContent ||
+          "duración automática";
+        const summary = `${$("genre").value || "género automático"} · ${$("style").value || "estilo automático"} · ${$("instrumental").checked ? "instrumental" : voice} · ${duration}`;
+        $("directionSummary").textContent = summary;
+        message(`Dirección musical aplicada: ${summary}.`);
+        setDirectionOpen(false);
+      };
+      async function applyLaunchContext() {
+        // Show new Stitch layout wrapper
+        $("app-layout").classList.remove("hidden");
+        $("app-layout").classList.add("flex");
+        
+        const params = new URLSearchParams(location.search),
+          session = params.get("session"),
+          idea = params.get("idea");
+        if (session) {
+          $("sessionName").value = session;
+          $("sessionName").dispatchEvent(new Event("input"));
+        }
+        const existing = params.get("existing") === "1";
+        if (existing) {
+          setMaestroOpen(true);
+          const record = studioSessions().find((item) => String(item.name || "").toLocaleLowerCase("es") === String(session || "").toLocaleLowerCase("es"));
+          if (record?.audioUrl) {
+            try { await importGeneratedMix(record.audioUrl, record.title || record.name, record.duration); }
+            catch { message("Encontré la sesión, pero su audio no está disponible en este equipo. El historial y el plan siguen intactos.", false, ["Audio no localizado"], { consume: false }); }
+          }
+          const node = message(`Abrí la sesión “${session || "QAMUZ"}”. ¿Con qué continuamos: seguimos editando, hacemos la mezcla, masterizamos o preparamos publicación y descarga?`, false, [], { consume: false, persist: false });
+          node.classList.add("decision");
+          const actions = document.createElement("div");
+          actions.className = "decision-actions";
+          actions.innerHTML = '<button>Seguir editando</button><button>Mezclar</button><button>Masterizar</button><button class="primary">Publicar / descargar</button>';
+          node.appendChild(actions);
+          const choices = [
+            "Continuemos editando el arreglo y la canción.",
+            "Analiza la sesión y prepara una mezcla profesional.",
+            "Prepara esta canción para QAMUZ MASTER 1.0.",
+            "Revisa si está lista para publicar y prepara descarga WAV o MP3.",
+          ];
+          [...actions.children].forEach((button, index) => button.onclick = () => {
+            $("chat").value = choices[index];
+            actions.remove();
+            message(`Opción seleccionada: ${button.textContent}. Dime cualquier detalle adicional y continuamos.`, false, [], { consume: false });
+            $("chat").focus();
+          });
+        } else if (idea) {
+          setMaestroOpen(true);
+          $("chat").value = idea;
+          message(`Sesión “${session || "QAMUZ"}” creada. Estoy preparando el proyecto a partir de tu idea.`, false, ["Nueva sesión", "Maestro activo"], { consume: false });
+          if (params.get("autoPlan") === "1") {
+            try {
+              await interpret();
+              updateStudioRecord({ idea, stage: "planned" });
+            }
+            catch (error) { message(`No pude preparar el plan inicial: ${error.message}`); }
+          }
+        }
+      }
+      draw();
+      loadCatalog().then(applyLaunchContext);
+      health();
+      recoverLatestMix();
+      setInterval(health, 15000);
+
+      // -- DRAG AND DROP LOGIC --
+      // -- DOCKED LAYOUT INIT --
+      function initDockedLayout() {
+        const workspace = document.querySelector('.workspace');
+        if(!workspace) return;
+        
+        const mixer = document.querySelector('.mix-window');
+        
+        // Add Tabs to the workspace directly so they don't hide when .daw hides
+        if (!document.querySelector('.layout-tabs')) {
+          const tabsHTML = `
+            <div class="layout-tabs">
+              <button class="tab-btn active" data-tab="all">Todo (Split)</button>
+              <button class="tab-btn" data-tab="arrange">Arreglo</button>
+              <button class="tab-btn" data-tab="mixer">Mezcla</button>
+              <button class="tab-btn" data-tab="maestro">Agente</button>
+            </div>
+          `;
+          workspace.insertAdjacentHTML('beforeend', tabsHTML);
+          
+          document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.onclick = () => {
+              document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              workspace.dataset.tab = btn.dataset.tab;
+            };
+          });
+        }
+        
+        const params = new URLSearchParams(location.search);
+        const isNew = params.get("newSession") === "1" || (!params.get("existing") && params.get("idea"));
+        const defaultTab = isNew ? "maestro" : "all";
+        
+        workspace.dataset.tab = defaultTab;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.tab === defaultTab);
+        });
+
+        // Open mixer if it wasn't open
+        if(mixer) mixer.classList.add('open');
+        
+        // Remove draggable handlers from titles to prevent conflicts
+        const arrangeTitle = document.getElementById('arrangeTitlebar');
+        const maestroTitle = document.getElementById('maestroTitlebar');
+        const mixTitle = document.getElementById('mixTitlebar');
+        if(arrangeTitle) arrangeTitle.style.cursor = 'default';
+        if(maestroTitle) maestroTitle.style.cursor = 'default';
+        if(mixTitle) mixTitle.style.cursor = 'default';
+      }
+      
+      initDockedLayout();
+
+      // DEBUG: Display errors on screen
+      window.addEventListener('error', function(e) {
+        const errDiv = document.createElement('div');
+        errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;z-index:999999;padding:10px;font-size:12px;';
+        errDiv.textContent = 'JS Error: ' + e.message + ' at ' + e.filename + ':' + e.lineno;
+        document.body.appendChild(errDiv);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        const errDiv = document.createElement('div');
+        errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:darkred;color:white;z-index:999999;padding:10px;font-size:12px;';
+        errDiv.textContent = 'Unhandled Promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+        document.body.appendChild(errDiv);
+      });
+
+    </script>
+  </body>
+</html>

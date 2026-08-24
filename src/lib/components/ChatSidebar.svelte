@@ -32,6 +32,7 @@
   } from "$lib/icons/index.js";
   import GitBranch from "@lucide/svelte/icons/git-branch";
   import LibraryIcon from "@lucide/svelte/icons/library";
+  import PanelsTopLeftIcon from "@lucide/svelte/icons/panels-top-left";
 
   import { getContext } from "svelte";
   import type { ChatState } from "./chat-state.svelte.js";
@@ -335,6 +336,28 @@
           class="w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover/library:scale-110 group-hover/library:rotate-4"
         />
         <span class="group-data-[collapsible=icon]:hidden">Library</span>
+      </div>
+
+      <!-- QAMUZ Studio -->
+      <div
+        class="group/studio flex items-center p-2 mr-2 gap-2 text-md font-semibold cursor-pointer transition-colors rounded-md group-data-[collapsible=icon]:mr-0 group-data-[collapsible=icon]:justify-center {page.url.pathname === '/studio' ? 'bg-primary/15 text-primary' : 'hover:text-primary hover:bg-accent/100'}"
+        onclick={() => goto("/studio")}
+        onmouseenter={() => warmRoute("/studio")}
+        ontouchstart={() => warmRoute("/studio")}
+        role="button"
+        tabindex="0"
+        aria-current={page.url.pathname === "/studio" ? "page" : undefined}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            goto("/studio");
+          }
+        }}
+      >
+        <PanelsTopLeftIcon
+          class="w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover/studio:scale-110"
+        />
+        <span class="group-data-[collapsible=icon]:hidden">QAMUZ Studio</span>
       </div>
 
       <hr class="my-2 mr-2 border-border" />

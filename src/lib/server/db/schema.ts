@@ -700,3 +700,28 @@ export const playlistItems = pgTable("playlist_item", {
   index("playlist_item_playlist_idx").on(table.playlistId),
   index("playlist_item_music_idx").on(table.musicId),
 ]);
+
+export const masterJobs = pgTable("master_job", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	title: text("title").notNull(),
+	sourceName: text("sourceName"),
+	sourceKind: text("sourceKind").notNull().default("upload"),
+	sourceMusicId: text("sourceMusicId"),
+	style: text("style"),
+	recipe: json("recipe"),
+	peakDb: real("peakDb"),
+	lufs: real("lufs"),
+	durationSec: real("durationSec"),
+	mimeType: text("mimeType").notNull().default("audio/wav"),
+	fileSize: integer("fileSize").notNull().default(0),
+	storageLocation: text("storageLocation").notNull().default("local"),
+	cloudPath: text("cloudPath"),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	index("master_job_user_created_idx").on(table.userId, table.createdAt),
+]);
