@@ -31,7 +31,23 @@
   // Demo credentials state
   let copiedField = $state("");
 
+  const AUTH_TIMEOUT_MS = 15000;
+
+  function withAuthTimeout<T>(request: Promise<T>): Promise<T> {
+    return Promise.race([
+      request,
+      new Promise<never>((_, reject) => {
+        window.setTimeout(
+          () => reject(new Error("AUTH_REQUEST_TIMEOUT")),
+          AUTH_TIMEOUT_MS
+        );
+      }),
+    ]);
+  }
+
   async function handleSignIn() {
+    if (loading) return;
+
     // Sanitize inputs for security
     const sanitizedEmail = authSanitizers.email(email);
     const passwordValidation = validatePasswordSafety(password);
@@ -49,7 +65,7 @@
     );
 
     try {
-      await authClient.signIn.email(
+      await withAuthTimeout(authClient.signIn.email(
         {
           email: sanitizedEmail,
           password: passwordValidation.sanitized,
@@ -79,7 +95,7 @@
             }
           },
         }
-      );
+      ));
 
       // callbackURL-based sign-in redirects after successful auth.
       // Keep the loading state until navigation completes.
@@ -89,7 +105,10 @@
     } catch (err) {
       // Catch any other errors (network issues, etc.) - don't expose internal error details
       console.error("Login error:", err);
-      error = "An error occurred. Please try again.";
+      error =
+        err instanceof Error && err.message === "AUTH_REQUEST_TIMEOUT"
+          ? "The login service took too long to respond. The form is active again; please try once more."
+          : "An error occurred. Please try again.";
     } finally {
       if (!redirectingAfterSuccess) {
         loading = false;
@@ -98,6 +117,7 @@
   }
 
   async function handleGoogleSignIn() {
+    if (loading) return;
     if (!data.oauthProviders?.google) {
       error = "Google sign-in is not available.";
       return;
@@ -114,7 +134,7 @@
         : `/login?oauthError=1&callbackUrl=${encodeURIComponent(redirectTo)}`;
 
     try {
-      await authClient.signIn.social(
+      await withAuthTimeout(authClient.signIn.social(
         {
           provider: "google",
           callbackURL: redirectTo,
@@ -127,7 +147,7 @@
             loading = false;
           },
         }
-      );
+      ));
     } catch (err) {
       console.error("OAuth provider error:", err);
       error = "Authentication with external provider failed. Please try again.";
@@ -136,6 +156,7 @@
   }
 
   async function handleAppleSignIn() {
+    if (loading) return;
     if (!data.oauthProviders?.apple) {
       error = "Apple sign-in is not available.";
       return;
@@ -152,7 +173,7 @@
         : `/login?oauthError=1&callbackUrl=${encodeURIComponent(redirectTo)}`;
 
     try {
-      await authClient.signIn.social(
+      await withAuthTimeout(authClient.signIn.social(
         {
           provider: "apple",
           callbackURL: redirectTo,
@@ -165,7 +186,7 @@
             loading = false;
           },
         }
-      );
+      ));
     } catch (err) {
       console.error("OAuth provider error:", err);
       error = "Authentication with external provider failed. Please try again.";
@@ -174,6 +195,7 @@
   }
 
   async function handleTwitterSignIn() {
+    if (loading) return;
     if (!data.oauthProviders?.twitter) {
       error = "X sign-in is not available.";
       return;
@@ -190,7 +212,7 @@
         : `/login?oauthError=1&callbackUrl=${encodeURIComponent(redirectTo)}`;
 
     try {
-      await authClient.signIn.social(
+      await withAuthTimeout(authClient.signIn.social(
         {
           provider: "twitter",
           callbackURL: redirectTo,
@@ -203,7 +225,7 @@
             loading = false;
           },
         }
-      );
+      ));
     } catch (err) {
       console.error("OAuth provider error:", err);
       error = "Authentication with external provider failed. Please try again.";
@@ -212,6 +234,7 @@
   }
 
   async function handleFacebookSignIn() {
+    if (loading) return;
     if (!data.oauthProviders?.facebook) {
       error = "Facebook sign-in is not available.";
       return;
@@ -228,7 +251,7 @@
         : `/login?oauthError=1&callbackUrl=${encodeURIComponent(redirectTo)}`;
 
     try {
-      await authClient.signIn.social(
+      await withAuthTimeout(authClient.signIn.social(
         {
           provider: "facebook",
           callbackURL: redirectTo,
@@ -241,7 +264,7 @@
             loading = false;
           },
         }
-      );
+      ));
     } catch (err) {
       console.error("OAuth provider error:", err);
       error = "Authentication with external provider failed. Please try again.";

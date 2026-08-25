@@ -43,6 +43,58 @@ function getThrottleBackoffMs(attempts: number): number {
 	return Math.min(45000, base);
 }
 
+function extractPromptField(prompt: string, label: string): string | undefined {
+	const match = prompt.match(new RegExp(`(?:^|\\n)${label}\\s*:\\s*([^\\n]+)`, 'i'));
+	return match?.[1]?.trim() || undefined;
+}
+
+function buildMusicCoverPrompt(result: any, payload: JobPayload): string {
+	const sourcePrompt = String(result.prompt || payload.prompt || '').trim();
+	const genre = extractPromptField(sourcePrompt, 'Genre');
+	const style = extractPromptField(sourcePrompt, 'Style');
+	const title = extractPromptField(sourcePrompt, 'Title');
+	const lyrics = String(result.lyrics || extractPromptField(sourcePrompt, 'Lyrics') || '')
+		.replace(/\[[^\]]+\]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.slice(0, 500);
+	const vocalMood = payload.forceInstrumental
+		? 'instrumental atmosphere'
+		: payload.vocalGender === 'duet'
+			? 'the emotional connection between two contrasting performers'
+			: `${payload.vocalGender || 'female'} vocal energy`;
+
+	return [
+		'Professional square album cover artwork, cinematic and emotionally expressive',
+		genre ? `${genre} music visual language` : 'contemporary music visual language',
+		style || sourcePrompt,
+		title ? `visual concept inspired by the title ${title}` : '',
+		lyrics ? `narrative imagery inspired by these lyrical themes: ${lyrics}` : '',
+		vocalMood,
+		'strong central composition, memorable silhouette, premium record artwork, dramatic lighting, rich color harmony',
+		'no typography, no letters, no words, no logos, no watermark'
+	].filter(Boolean).join(', ');
+}
+
+async function generateMusicCover(result: any, job: any): Promise<string | undefined> {
+	if (result.imageUrl) return result.imageUrl;
+	try {
+		const { getLocalImageConfig, generateLocalImage } = await import('$lib/ai/providers/local-forge.js');
+		if (!(await getLocalImageConfig()).enabled) return undefined;
+		const generated = await generateLocalImage({
+			prompt: buildMusicCoverPrompt(result, job.payload || {}),
+			size: '512x512',
+			quality: 'medium',
+			style: 'album cover, editorial music photography, highly detailed',
+			numberOfImages: 1,
+			userId: job.userId
+		});
+		return `/api/images/${generated.imageId}`;
+	} catch (error) {
+		console.warn(`[QUEUE] Music completed but automatic cover generation failed:`, error);
+		return undefined;
+	}
+}
+
 export class PriorityQueueService {
 	private static isWorkerActive = false;
 	private static isProcessScheduled = false;
@@ -139,10 +191,11 @@ export class PriorityQueueService {
 
 			// Dynamically route job based on type
 			try {
-				let result = {};
+				let result: any = {};
 				
 				if (lockedJob.type === 'music-generation') {
 					result = await PriorityQueueService.executeMusicGeneration(lockedJob);
+					result.imageUrl = await generateMusicCover(result, lockedJob);
 					const musicId = await saveMusicAndGetId(
 						result.audioData,
 						result.mimeType,
@@ -237,6 +290,7 @@ export class PriorityQueueService {
 				modelId: 'qamuz-local-music',
 				musicLengthMs: payload.musicLengthMs ?? undefined,
 				forceInstrumental: payload.forceInstrumental,
+				vocalGender: payload.vocalGender || 'female',
 				referenceAudioUrl: payload.referenceAudioUrl
 			});
 		}
@@ -250,6 +304,7 @@ export class PriorityQueueService {
 						modelId,
 						musicLengthMs: payload.musicLengthMs ?? undefined,
 						forceInstrumental: payload.forceInstrumental,
+						vocalGender: payload.vocalGender,
 						referenceAudioUrl: payload.referenceAudioUrl
 					});
 				} catch (error) {
@@ -273,6 +328,7 @@ export class PriorityQueueService {
 					modelId: requestedModel,
 					musicLengthMs: payload.musicLengthMs ?? undefined,
 					forceInstrumental: payload.forceInstrumental,
+					vocalGender: payload.vocalGender,
 					referenceAudioUrl: payload.referenceAudioUrl
 				});
 			}

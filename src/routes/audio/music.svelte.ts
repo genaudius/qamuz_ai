@@ -64,8 +64,9 @@ export class MusicState {
 
   // Input Settings
   inputPrompt = $state<string>("");
-  durationSeconds = $state<number | null>(null); // null = Auto mode, UI shows seconds, API expects milliseconds
+  durationSeconds = $state<number | null>(210); // Default full song: 3:30
   forceInstrumental = $state<boolean>(false);
+  vocalGender = $state<'male' | 'female' | 'duet'>('female');
   agreedTerms = $state<boolean>(false);
   
   // Reference Audio Settings
@@ -148,6 +149,7 @@ export class MusicState {
           prompt: currentPrompt,
           modelId: this.selectedModel,
           forceInstrumental: this.forceInstrumental,
+          vocalGender: this.vocalGender,
           outputFormat: "mp3_44100_128",
           musicLengthMs: this.durationMilliseconds,
           referenceAudioUrl: this.referenceAudioUrl,

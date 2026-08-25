@@ -243,36 +243,33 @@
     const prompt = page.url.searchParams.get("prompt");
     const tab = page.url.searchParams.get("tab") as "tts" | "music" | null;
 
-    if (prompt) {
-      urlParamsProcessed = true;
-      const decodedPrompt = decodeURIComponent(prompt);
+    if (!prompt && !tab) return;
 
-      // Use untrack to prevent creating reactive dependencies on state changes
-      untrack(() => {
-        // Set the tab if specified
-        if (tab === "tts" || tab === "music") {
-          activeMode = tab;
-        }
+    urlParamsProcessed = true;
+    const decodedPrompt = prompt ? decodeURIComponent(prompt) : "";
 
-        // Set the prompt on the appropriate state
-        if (tab === "music") {
-          music.inputPrompt = decodedPrompt;
-          musicSubMode = "easy";
-          globalMusic.musicSubMode = "easy";
-        } else {
-          tts.inputText = decodedPrompt;
-        }
-      });
+    untrack(() => {
+      if (tab === "tts" || tab === "music") {
+        activeMode = tab;
+        globalMusic.activeAudioMode = tab;
+      }
+      if (tab === "music") {
+        if (decodedPrompt) music.inputPrompt = decodedPrompt;
+        musicSubMode = "easy";
+        globalMusic.musicSubMode = "easy";
+      } else if (decodedPrompt) {
+        tts.inputText = decodedPrompt;
+      }
+    });
 
-      // Clear URL params to keep URL clean (use replaceState to avoid history entry)
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete("prompt");
-      newUrl.searchParams.delete("tab");
-      window.history.replaceState({}, "", newUrl.toString());
-    }
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete("prompt");
+    newUrl.searchParams.delete("tab");
+    window.history.replaceState({}, "", newUrl.toString());
   });
   
   import LibraryPanel from "$lib/components/LibraryPanel.svelte";
+  import { openSongStemsInStudio } from "$lib/studio-stems";
   import MakeABeatModal from "$lib/components/MakeABeatModal.svelte";
   import ReferenceModal from "$lib/components/ReferenceModal.svelte";
   import VocalModal from "$lib/components/VocalModal.svelte";
@@ -281,7 +278,6 @@
   let isMakeABeatModalOpen = $state(false);
   let isReferenceModalOpen = $state(false);
   let isVocalModalOpen = $state(false);
-  let isInstrumental = $state(false);
   let selectedVoice = $state<ElevenLabsVoice | null>(null);
 
   // Custom mode form state
@@ -289,7 +285,7 @@
   let customStyle = $state("");
   let customTitle = $state("");
   let customSelectedGenre = $state<string | null>(null);
-  let customVocalGender = $state<"female" | "male">("female");
+  let customVocalGender = $state<"female" | "male" | "duet">("female");
   let isRefreshingGenres = $state(false);
   let customGenres = $state<string[]>(["Deep House", "Sad", "Tender", "Viola"]);
 
@@ -332,6 +328,7 @@
     if (!finalPrompt.trim()) return;
 
     music.inputPrompt = finalPrompt;
+    music.vocalGender = customVocalGender;
     await music.handleGenerate();
   }
 </script>
@@ -344,7 +341,7 @@
   />
 </svelte:head>
 
-<main class="h-full p-6 pb-2 flex flex-col overflow-hidden">
+<main class="min-h-full p-6 pb-2 flex flex-col">
   <div class="flex gap-6 w-full h-full {globalMusic.showLibrary && activeMode === 'music' ? 'max-w-full' : 'max-w-3xl mx-auto'}">
     <!-- Generator Panel -->
     <div class="flex flex-col min-w-0 {globalMusic.showLibrary && activeMode === 'music' ? 'w-[400px] shrink-0' : 'w-full flex-1'} transition-all duration-300">
@@ -921,7 +918,7 @@
               </p>
               
               <div class="flex flex-col gap-3 items-start w-full">
-                <button 
+                <button
                   class="text-sm border border-border/40 hover:bg-muted/50 px-5 py-3 rounded-[1.25rem] transition-colors flex items-center justify-between w-[400px] max-w-full group text-muted-foreground hover:text-foreground"
                   onclick={() => { music.inputPrompt = 'A love song for someone special'; music.handleGenerate(); }}
                 >
@@ -1015,7 +1012,11 @@
                               {#if item.track.videoUrl}
                                 <DropdownMenu.Item>Video</DropdownMenu.Item>
                               {/if}
-                              <DropdownMenu.Item>Stems</DropdownMenu.Item>
+                              <DropdownMenu.Item onclick={() => item.track && openSongStemsInStudio({
+                                id: item.track.id,
+                                title: item.track.title,
+                                prompt: item.track.title
+                              })}>Extraer stems</DropdownMenu.Item>
                               <DropdownMenu.Item>Remix</DropdownMenu.Item>
                               <DropdownMenu.Separator />
                               <DropdownMenu.Item class="text-destructive focus:bg-destructive/10">Delete</DropdownMenu.Item>
@@ -1232,8 +1233,8 @@
       {/if}
     </div>
 
-    <!-- Spacer to push input to bottom -->
-    {#if !(activeMode === "music" && musicSubMode === "custom")}
+    <!-- Spacer to push TTS/STT input to the bottom. Music already uses the feed as flex-1. -->
+    {#if activeMode !== "music"}
       <div class="flex-1"></div>
     {/if}
 
@@ -2021,6 +2022,32 @@
               }
             }}
           ></textarea>
+
+          <div class="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+            <span class="text-[11px] text-muted-foreground">Length</span>
+            {#each [180, 210, 240] as seconds}
+              <button
+                type="button"
+                class="rounded-full border px-2.5 py-1 text-[11px] {music.durationSeconds === seconds ? 'border-teal-500 bg-teal-500/15 text-teal-300' : 'border-border/60 text-muted-foreground hover:bg-muted/50'}"
+                onclick={() => (music.durationSeconds = seconds)}
+              >{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</button>
+            {/each}
+
+            {#if !music.forceInstrumental}
+              <span class="ml-2 text-[11px] text-muted-foreground">Vocals</span>
+              {#each [
+                { value: 'female', label: 'Female' },
+                { value: 'male', label: 'Male' },
+                { value: 'duet', label: 'Duet' }
+              ] as option}
+                <button
+                  type="button"
+                  class="rounded-full border px-2.5 py-1 text-[11px] {music.vocalGender === option.value ? 'border-teal-500 bg-teal-500/15 text-teal-300' : 'border-border/60 text-muted-foreground hover:bg-muted/50'}"
+                  onclick={() => (music.vocalGender = option.value as 'female' | 'male' | 'duet')}
+                >{option.label}</button>
+              {/each}
+            {/if}
+          </div>
           
           <div class="flex items-center justify-between mt-1">
             <div class="flex items-center gap-3">
@@ -2040,12 +2067,12 @@
                     <ChevronRightIcon class="ml-auto w-4 h-4 text-muted-foreground opacity-50" />
                   </DropdownMenu.Item>
                   <div class="h-px bg-white/10 my-1 mx-2"></div>
-                  <DropdownMenu.Item class="py-2.5 px-3 flex items-center justify-between hover:bg-transparent rounded-lg" onclick={(e) => { e.preventDefault(); isInstrumental = !isInstrumental; }}>
+                  <DropdownMenu.Item class="py-2.5 px-3 flex items-center justify-between hover:bg-transparent rounded-lg" onclick={(e) => { e.preventDefault(); music.forceInstrumental = !music.forceInstrumental; }}>
                     <div class="flex items-center">
                       <AudioLinesIcon class="mr-3 w-4 h-4 text-muted-foreground" />
                       <span class="font-medium text-sm">{m["audio.dropdown_instrumental"]()}</span>
                     </div>
-                    <Switch bind:checked={isInstrumental} class="scale-75" />
+                    <Switch bind:checked={music.forceInstrumental} class="scale-75" />
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
@@ -2227,6 +2254,15 @@
                 >
                   Male
                 </button>
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs rounded-md transition-colors {customVocalGender === 'duet'
+                    ? 'bg-background text-foreground border border-border'
+                    : 'text-muted-foreground hover:text-foreground'}"
+                  onclick={() => (customVocalGender = "duet")}
+                >
+                  Duet
+                </button>
               </div>
             </div>
 
@@ -2339,13 +2375,13 @@
                     </div>
                     <input
                       type="range"
-                      value={music.durationSeconds ?? 3}
+                      value={music.durationSeconds ?? 210}
                       oninput={(e) => {
                         const val = parseInt(e.currentTarget.value);
                         music.durationSeconds = val;
                       }}
-                      min="3"
-                      max="300"
+                      min="180"
+                      max="240"
                       step="1"
                       class="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                     />
@@ -2361,6 +2397,25 @@
                       {/if}
                     </div>
                   </div>
+
+                  {#if !music.forceInstrumental}
+                    <div class="space-y-2">
+                      <Label class="text-xs">Singing voices</Label>
+                      <div class="grid grid-cols-3 gap-2">
+                        {#each [
+                          { value: 'female', label: 'Female' },
+                          { value: 'male', label: 'Male' },
+                          { value: 'duet', label: 'Duet' }
+                        ] as option}
+                          <button
+                            type="button"
+                            class="rounded-md border px-2 py-1.5 text-xs transition-colors {music.vocalGender === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted'}"
+                            onclick={() => (music.vocalGender = option.value as 'female' | 'male' | 'duet')}
+                          >{option.label}</button>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
 
                   <!-- Instrumental Only -->
                   <div class="flex items-center justify-between">

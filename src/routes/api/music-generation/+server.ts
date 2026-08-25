@@ -70,9 +70,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const body = await request.json();
 		const {
 			prompt,
-			musicLengthMs, // Optional - if not provided, model chooses duration based on prompt
+			musicLengthMs, // Optional - local generation defaults to a full 3:30 song
 			modelId = 'suno-v5.5',
 			forceInstrumental = false,
+			vocalGender = 'female',
 			outputFormat = 'mp3_44100_128',
 			referenceAudioUrl
 		} = body;
@@ -111,6 +112,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			if (isNaN(durationMs) || durationMs < 3000 || durationMs > 300000) {
 				return json({ error: 'Music duration must be between 3 seconds (3000ms) and 5 minutes (300000ms)' }, { status: 400 });
 			}
+		}
+
+		if (!['male', 'female', 'duet'].includes(vocalGender)) {
+			return json({ error: 'Vocal type must be male, female, or duet' }, { status: 400 });
 		}
 
 		// Validate model ID
@@ -155,6 +160,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					modelId,
 					musicLengthMs: musicLengthMs ?? null,
 					forceInstrumental: Boolean(forceInstrumental),
+					vocalGender,
 					referenceAudioUrl
 				},
 				transactionId

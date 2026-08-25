@@ -319,7 +319,7 @@ export interface MusicGenerationParams {
 	modelId?: string; // Model ID (default: 'music_v1')
 	forceInstrumental?: boolean; // Guarantee instrumental output (default: false)
 	outputFormat?: string; // Output format (default: 'mp3_44100_128')
-	vocalGender?: string; // e.g., 'male' or 'female'
+	vocalGender?: 'male' | 'female' | 'duet';
 	customMode?: boolean; // Suno custom mode
 	style?: string; // Suno style tags
 	title?: string; // Suno track title

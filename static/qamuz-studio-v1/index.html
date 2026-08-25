@@ -2,11 +2,11 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script id="tailwind-config">
+    <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -2183,11 +2183,17 @@
         </div>
 
         <div class="flex items-center gap-4">
-          <!-- Editing Tools -->
-          <div class="flex bg-surface-container-high rounded p-1 mr-4 border border-outline-variant">
-            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant"><span class="material-symbols-outlined text-[18px]">arrow_selector_tool</span></button>
-            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant"><span class="material-symbols-outlined text-[18px]">content_cut</span></button>
-            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant"><span class="material-symbols-outlined text-[18px]">format_paint</span></button>
+          <!-- Essential DAW Tools moved from old header -->
+          <div class="flex items-center gap-1 bg-surface-container-high rounded p-1 border border-outline-variant">
+            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant text-label-xs font-bold" id="toggleMaestro" title="Maestro" aria-label="Abrir Maestro">✦ Maestro</button>
+            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant text-label-xs font-bold" id="settings" title="Dirección musical" aria-label="Dirección musical">Config</button>
+            <button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant text-label-xs font-bold" id="openMixer" title="Consola de mezcla" aria-label="Consola de mezcla">Consola</button>
+            <div class="w-px h-4 bg-outline-variant mx-1"></div>
+            <button class="p-1 rounded text-primary hover:text-primary-fixed hover:bg-surface-variant text-label-xs font-bold" id="importAudio" title="Importar audio" aria-label="Importar audio">＋ Audio</button>
+            <button class="p-1 rounded text-tertiary hover:text-tertiary-fixed hover:bg-surface-variant text-label-xs font-bold" id="importMidi">＋ MIDI</button>
+            <button class="p-1 rounded text-secondary hover:text-secondary-fixed hover:bg-surface-variant text-label-xs font-bold" id="addVirtual">＋ Inst</button>
+            <div class="w-px h-4 bg-outline-variant mx-1"></div>
+            <button class="p-1 rounded text-error hover:text-error-container hover:bg-surface-variant text-label-xs font-bold" id="exportMix" title="Publicar o exportar" aria-label="Publicar o exportar">Exportar</button>
           </div>
           <span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">settings</span>
           <span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer">account_circle</span>
@@ -2215,7 +2221,7 @@
 
         <!-- WORKSPACE (Contiene Arrange, Mixer, Maestro) -->
         <div id="workspace" class="workspace flex-1 relative flex flex-col min-w-0" data-tab="maestro">
-          <nav class="departments" aria-label="Departamentos QAMUZ">
+          <nav class="departments hidden" aria-label="Departamentos QAMUZ" style="display: none !important;">
             <button class="department active" data-department="studio">
               QAMUZ STUDIO <em>mezcla</em>
             </button>
@@ -2237,18 +2243,7 @@
           </nav>
           <div class="workspace" id="studioDepartment">
             <section class="daw">
-              <div class="tools">
-                <button class="tool active">Selector</button
-                ><button class="tool">Cortar</button
-                ><button class="tool">Automatizar</button
-                ><button class="tool" id="toggleMaestro" title="Maestro" aria-label="Abrir Maestro">✦ Maestro</button
-                ><button class="tool" id="settings" title="Dirección musical" aria-label="Dirección musical">Dirección musical</button
-                ><button class="tool" id="openMixer" title="Consola de mezcla" aria-label="Consola de mezcla">Consola</button
-                ><button class="tool import" id="importAudio" title="Importar audio" aria-label="Importar audio">＋ Audio</button
-                ><button class="tool import" id="importMidi">＋ MIDI</button
-                ><button class="tool" id="addVirtual">＋ Instrumento virtual</button
-                ><button class="tool export" id="exportMix" title="Publicar o exportar" aria-label="Publicar o exportar">Exportar</button
-                ><span>− &nbsp; Zoom &nbsp; +</span>
+              <div class="tools hidden" style="display: none !important;">
               </div>
               <input
                 id="audioFiles"
@@ -3269,6 +3264,24 @@
       const activeSessionKey = new URLSearchParams(location.search).get("session") || "default";
       const maestroStorageKey = `qamuz.maestro.session.v2.${activeSessionKey}`;
       const studioRegistryKey = "qamuz.studio.sessions.v1";
+      let authToken = localStorage.getItem("trovamuz_token") || "";
+      async function ensureAuth() {
+        try {
+          const response = await fetch("/api/auth/auto");
+          const body = await response.json();
+          if (body.token) {
+            authToken = body.token;
+            localStorage.setItem("trovamuz_token", body.token);
+          }
+        } catch {
+          // Local runtime without auth stays usable.
+        }
+      }
+      function apiHeaders(extra) {
+        const headers = Object.assign({}, extra || {});
+        if (authToken) headers.Authorization = "Bearer " + authToken;
+        return headers;
+      }
       function studioSessions() {
         try { return JSON.parse(localStorage.getItem(studioRegistryKey) || "[]"); }
         catch { return []; }
@@ -3626,8 +3639,10 @@
       });
       document.documentElement.dataset.qamuzDepartments = "ready";
       $("sessionName").oninput = () => {
-        document.querySelector(".brand small").textContent =
-          `Gen Audius · ${$("sessionName").value.trim() || "sesión sin título"}`;
+        const brandSmall = document.querySelector(".brand small");
+        if (brandSmall) {
+          brandSmall.textContent = `Gen Audius · ${$("sessionName").value.trim() || "sesión sin título"}`;
+        }
       };
       $("midiDepartmentImport").onclick = () => $("midiFiles").click();
       $("midiAsk").onclick = () => {
@@ -3733,9 +3748,9 @@
         const activity = workingMessage("Maestro está leyendo la intención, emoción y género central…");
         await pause(350);
         activity.update("Maestro está diseñando estructura, tempo, tonalidad e instrumentación…");
-        const r = await fetch("/api/prompt/preview", {
+          const r = await fetch("/api/prompt/preview", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: apiHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(requestPayload),
           }),
           d = await r.json();
@@ -3776,7 +3791,7 @@
           renderActivity = workingMessage("Qamuz_v1 está preparando el modelo y la dirección musical…");
           const r = await fetch("/api/generate", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: apiHeaders({ "Content-Type": "application/json" }),
               body: JSON.stringify(preview.requestPayload),
             }),
             d = await r.json();
@@ -3785,7 +3800,7 @@
           for (;;) {
             await pause(2500);
             const j = await (
-              await fetch(`/api/generate/status/${d.jobId}`)
+              await fetch(`/api/generate/status/${d.jobId}`, { headers: apiHeaders() })
             ).json();
             if (j.status === "success") {
               const audioUrl = j.result.audioUrls?.[0];
@@ -4059,16 +4074,8 @@
         const mixer = document.querySelector('.mix-window');
         
         // Add Tabs to the workspace directly so they don't hide when .daw hides
-        if (!document.querySelector('.layout-tabs')) {
-          const tabsHTML = `
-            <div class="layout-tabs">
-              <button class="tab-btn active" data-tab="all">Todo (Split)</button>
-              <button class="tab-btn" data-tab="arrange">Arreglo</button>
-              <button class="tab-btn" data-tab="mixer">Mezcla</button>
-              <button class="tab-btn" data-tab="maestro">Agente</button>
-            </div>
-          `;
-          workspace.insertAdjacentHTML('beforeend', tabsHTML);
+        // IN STITCH DESIGN WE NO LONGER NEED THESE TABS
+        if (!document.querySelector('.layout-tabs') && false) {
           
           document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.onclick = () => {
@@ -4101,6 +4108,7 @@
       }
       
       initDockedLayout();
+      void ensureAuth();
 
       // DEBUG: Display errors on screen
       window.addEventListener('error', function(e) {

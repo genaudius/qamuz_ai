@@ -60,13 +60,22 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
 		Authorization: `Bearer ${auth.token}`,
 		'Content-Type': 'application/json'
 	};
-	const durationSeconds = Math.max(10, Math.min(480, Math.round((params.musicLengthMs ?? 30_000) / 1000)));
+	const durationSeconds = Math.max(180, Math.min(240, Math.round((params.musicLengthMs ?? 210_000) / 1000)));
+	const vocalDirection = params.vocalGender === 'duet'
+		? 'male and female duet vocals, alternating verses and a harmonized chorus'
+		: params.vocalGender === 'male'
+			? 'expressive male lead vocals'
+			: 'expressive female lead vocals';
+	const songDescription = params.forceInstrumental
+		? `${params.prompt}\nFull-length instrumental arrangement with intro, development, bridge and outro.`
+		: `${params.prompt}\nFull-length song with ${vocalDirection}. Include complete sung lyrics, verses, choruses, a bridge and an outro.`;
 	const submitted = await requestJson<{ jobId?: string }>(`${config.baseUrl}/api/generate`, {
 		method: 'POST',
 		headers,
 		body: JSON.stringify({
 			customMode: false,
-			songDescription: params.prompt,
+			songDescription,
+			prompt: songDescription,
 			instrumental: params.forceInstrumental ?? false,
 			duration: durationSeconds,
 			batchSize: 1,
@@ -85,7 +94,7 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
 			result?: Record<string, unknown>;
 		}>(`${config.baseUrl}/api/generate/status/${encodeURIComponent(submitted.jobId)}`, { headers });
 
-		if (status.status === 'completed' || status.status === 'succeeded') {
+		if (status.status === 'completed' || status.status === 'succeeded' || status.status === 'success') {
 			result = status.result;
 			break;
 		}

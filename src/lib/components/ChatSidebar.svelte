@@ -295,9 +295,13 @@
 
       <!-- Audio Button -->
       <div
-        class="group/audio flex items-center p-2 mr-2 gap-2 text-md font-semibold cursor-pointer hover:text-primary transition-colors hover:bg-accent/100 rounded-md group-data-[collapsible=icon]:mr-0 group-data-[collapsible=icon]:justify-center"
+        class="group/audio flex items-center p-2 mr-2 gap-2 text-md font-semibold cursor-pointer transition-colors rounded-md group-data-[collapsible=icon]:mr-0 group-data-[collapsible=icon]:justify-center {page.url.pathname === '/audio' ? 'bg-primary/15 text-primary' : 'hover:text-primary hover:bg-accent/100'}"
         onclick={() => { 
-          if (musicState) musicState.showLibrary = false;
+          if (musicState) {
+            musicState.activeAudioMode = "music";
+            musicState.musicSubMode = "easy";
+            musicState.showLibrary = false;
+          }
           goto("/audio");
         }}
         onmouseenter={() => warmRoute("/audio")}
@@ -307,7 +311,11 @@
         onkeydown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            if (musicState) musicState.showLibrary = false;
+            if (musicState) {
+              musicState.activeAudioMode = "music";
+              musicState.musicSubMode = "easy";
+              musicState.showLibrary = false;
+            }
             goto("/audio");
           }
         }}

@@ -19,8 +19,14 @@ Thumbs.db
 !.env.test
 
 # Vite
+.vite-cache/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local runtime
+*.log
+/pinokio_agent/
+/static/generated-audio/
 
 # User uploads
 /static/uploads/

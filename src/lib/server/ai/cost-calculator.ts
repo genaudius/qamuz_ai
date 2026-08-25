@@ -1,4 +1,5 @@
 export type ResourceType = 'text' | 'image' | 'video' | 'audio' | 'credit';
+export type MaestroStudioAction = 'mix' | 'stems' | 'plan' | 'render' | 'edit';
 
 export interface CostCalculationResult {
 	credits: number;
@@ -71,5 +72,24 @@ export class CreditCostCalculator {
 			credits: 5,
 			resourceType: 'audio'
 		};
+	}
+
+	/**
+	 * QAMUZ Studio Maestro actions (mix, stems, plan) billed from the same wallet.
+	 */
+	static getMaestroStudioCost(action: MaestroStudioAction): CostCalculationResult {
+		switch (action) {
+			case 'render':
+				return { credits: 5, resourceType: 'audio' };
+			case 'stems':
+				return { credits: 2, resourceType: 'audio' };
+			case 'edit':
+				return { credits: 2, resourceType: 'audio' };
+			case 'plan':
+				return { credits: 1, resourceType: 'text' };
+			case 'mix':
+			default:
+				return { credits: 1, resourceType: 'audio' };
+		}
 	}
 }

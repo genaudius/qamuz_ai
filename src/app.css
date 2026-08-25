@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto:wdth@75..100&display=swap');
 @import "tailwindcss";
+@source not "../node_modules/svelte-streamdown";
+@source not "../node_modules/bits-ui";
 
 @import "tw-animate-css";
 

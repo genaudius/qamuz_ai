@@ -5,6 +5,7 @@
   import MusicIcon from "@lucide/svelte/icons/music";
   import PanelRightClose from "@lucide/svelte/icons/panel-right-close";
   import * as Table from "$lib/components/ui/table/index.js";
+  import { openSongStemsInStudio } from "$lib/studio-stems";
   
   let { songs = [] } = $props<{ songs: any[] }>();
   
@@ -124,7 +125,23 @@
                       {#if isPending}
                         <span class="text-sm text-amber-500">Working...</span>
                       {:else}
-                        <span class="text-sm text-muted-foreground">{formatDate(song.createdAt)}</span>
+                        <div class="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            class="text-xs font-medium px-2 py-1 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                            onclick={(event) => {
+                              event.stopPropagation();
+                              openSongStemsInStudio({
+                                id: song.id,
+                                title: song.title,
+                                prompt: song.prompt,
+                                genre: song.genre,
+                                isInstrumental: song.isInstrumental
+                              });
+                            }}
+                          >Extraer stems</button>
+                          <span class="text-sm text-muted-foreground">{formatDate(song.createdAt)}</span>
+                        </div>
                       {/if}
                     </Table.Cell>
                   </Table.Row>

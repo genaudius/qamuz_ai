@@ -3,6 +3,7 @@
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
   import X from "@lucide/svelte/icons/x";
   import * as Button from "$lib/components/ui/button/index.js";
+  import { openSongStemsInStudio } from "$lib/studio-stems";
 
   const musicState = getContext<GlobalMusicState>("musicState");
 
@@ -47,6 +48,19 @@
         <h2 class="text-xl font-bold truncate">{musicState.currentTrack?.title || "Unknown Title"}</h2>
         {#if musicState.currentTrack?.artist}
           <p class="text-sm text-muted-foreground truncate">{musicState.currentTrack?.artist}</p>
+        {/if}
+        {#if musicState.currentTrack?.id}
+          <Button.Root
+            variant="outline"
+            size="sm"
+            class="mt-3 cursor-pointer"
+            onclick={() => openSongStemsInStudio({
+              id: musicState.currentTrack?.id,
+              title: musicState.currentTrack?.title
+            })}
+          >
+            Extraer stems en Studio
+          </Button.Root>
         {/if}
       </div>
     </div>

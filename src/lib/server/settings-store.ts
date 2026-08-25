@@ -172,10 +172,10 @@ const DEFAULT_SETTINGS: Omit<CachedSettings, 'lastUpdated'> = {
   r2BrandingPublicUrl: "",
   turnstileSiteKey: "",
   turnstileSecretKey: "",
-  logoUrlDark: "/branding/logos/default-dark-logo.png", // Default fallback for dark mode
-  logoUrlLight: "/branding/logos/default-light-logo.png", // Default fallback for light mode
-  sidebarIconUrlDark: null,
-  sidebarIconUrlLight: null,
+  logoUrlDark: "/branding/qamuz/logo-dark.png", // QAMUZ sobre fondos oscuros
+  logoUrlLight: "/branding/qamuz/logo-light.png", // QAMUZ sobre fondos claros
+  sidebarIconUrlDark: "/branding/qamuz/icon-dark.png",
+  sidebarIconUrlLight: "/branding/qamuz/icon-light.png",
   logoWidth: "170", // Default logo width in pixels
   logoHeight: "27", // Default logo height in pixels
   currentFavicon: null // Default no custom favicon

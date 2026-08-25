@@ -725,3 +725,24 @@ export const masterJobs = pgTable("master_job", {
 }, (table) => [
 	index("master_job_user_created_idx").on(table.userId, table.createdAt),
 ]);
+
+export const dawSessions = pgTable("daw_session", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	name: text("name").notNull(),
+	idea: text("idea"),
+	stage: text("stage"),
+	title: text("title"),
+	audioUrl: text("audioUrl"),
+	mixNotes: text("mixNotes"),
+	snapshot: json("snapshot"),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	unique("daw_session_user_name_unique").on(table.userId, table.name),
+	index("daw_session_user_updated_idx").on(table.userId, table.updatedAt),
+]);

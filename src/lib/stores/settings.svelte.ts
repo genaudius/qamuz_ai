@@ -53,11 +53,11 @@ export class SettingsState {
   }
 
   get logoUrlDark(): string {
-    return this._settings?.logoUrlDark ?? "/branding/logos/default-dark-logo.png";
+    return this._settings?.logoUrlDark ?? "/branding/qamuz/logo-dark.png";
   }
 
   get logoUrlLight(): string {
-    return this._settings?.logoUrlLight ?? "/branding/logos/default-light-logo.png";
+    return this._settings?.logoUrlLight ?? "/branding/qamuz/logo-light.png";
   }
 
   get logoWidth(): string {
