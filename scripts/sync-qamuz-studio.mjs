@@ -1,55 +1,58 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, rm, stat } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const defaultSource =
-  "C:/Users/genau/antigravity/GenAudius_Project/GenAudius_V1/genaudius/runtime/static/playground.html";
-const source = resolve(process.env.GENAUDIUS_STUDIO_SOURCE || defaultSource);
-const destination = resolve("static/qamuz-studio-v1/index.html");
-const channelAlignmentCss = `
-  <style id="qamuz-channel-alignment">
-    .mixer {
-      grid-template-columns: none !important;
-      grid-template-rows: minmax(0, 1fr) !important;
-      grid-auto-flow: column !important;
-      grid-auto-columns: minmax(126px, 1fr) !important;
-      align-items: stretch !important;
-      overflow-x: auto !important;
-      overflow-y: hidden !important;
-    }
-    .mixer .channel {
-      min-width: 126px !important;
-      height: 100% !important;
-      min-height: 0 !important;
-    }
-  </style>`;
-const sharedShellRedirect = `
-  <script id="qamuz-shared-shell-redirect">
-    (() => {
-      const params = new URLSearchParams(location.search);
-      if (window.top === window.self && params.get("embedded") === "1" && params.get("inner") !== "1") {
-        location.replace("/qamuz-studio-shell/" + location.search);
-      }
-    })();
-  </script>`;
+const root = dirname(fileURLToPath(import.meta.url));
+const saasRoot = resolve(root, "..");
+const studioRoot = resolve(saasRoot, "../Qamuz_Daw_Studio/qamuz_studio_2.0");
+const studioDist = resolve(studioRoot, "dist");
+const destination = resolve(saasRoot, "static/qamuz-studio");
+const build = process.argv.includes("--build");
+const devMode = process.argv.includes("--dev");
 
-try {
-  const sourceInfo = await stat(source);
-  if (!sourceInfo.isFile()) {
-    throw new Error(`La fuente no es un archivo: ${source}`);
+async function pathExists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
   }
-
-  await mkdir(dirname(destination), { recursive: true });
-  let html = await readFile(source, "utf8");
-  html = html.replace(/\s*<style id="qamuz-channel-alignment">[\s\S]*?<\/style>/, "");
-  html = html.replace(/\s*<script id="qamuz-shared-shell-redirect">[\s\S]*?<\/script>/, "");
-  html = html.replace("</head>", `${channelAlignmentCss}\n</head>`);
-  html = html.replace("</head>", `${sharedShellRedirect}\n</head>`);
-  await writeFile(destination, html, "utf8");
-  console.log(`[QAMUZ Studio] Sincronizado desde ${source}`);
-} catch (error) {
-  console.error(
-    "[QAMUZ Studio] No se pudo sincronizar el playground. Define GENAUDIUS_STUDIO_SOURCE si cambió de ubicación.",
-  );
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
 }
+
+if (devMode && !build) {
+  console.log("[QAMUZ Studio] Dev: el iframe usa http://localhost:1420 (Studio 2.0).");
+  process.exit(0);
+}
+
+if (build) {
+  const result = spawnSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "build"],
+    {
+      cwd: studioRoot,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        QAMUZ_STUDIO_BASE: "/qamuz-studio/",
+      },
+      shell: process.platform === "win32",
+    },
+  );
+  if (result.status !== 0) {
+    console.error("[QAMUZ Studio] Falló el build de Studio 2.0.");
+    process.exit(result.status ?? 1);
+  }
+}
+
+if (!(await pathExists(studioDist))) {
+  console.error(
+    "[QAMUZ Studio] No hay dist de Studio 2.0. Corre `npm run studio:build` desde Qamuz_Ai.",
+  );
+  process.exit(1);
+}
+
+await rm(destination, { recursive: true, force: true });
+await mkdir(destination, { recursive: true });
+await cp(studioDist, destination, { recursive: true });
+console.log(`[QAMUZ Studio] Copiado Studio 2.0 a ${destination}`);

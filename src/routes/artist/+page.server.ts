@@ -1,8 +1,9 @@
-import { redirect } from '@sveltejs/kit';
+import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db/index.js';
 import { artistProfiles, artists } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
+import { ensureArtistTables } from '$lib/server/artists.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.auth();
@@ -10,6 +11,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!session?.user?.id) {
 		throw redirect(302, '/login?callbackUrl=/artist');
 	}
+
+	await ensureArtistTables();
 
 	try {
 		const [artist] = await db
@@ -22,6 +25,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, `/artist/${artist.id}`);
 		}
 	} catch (queryError) {
+		if (isRedirect(queryError)) throw queryError;
 		console.warn('Primary artist redirect lookup failed, falling back to artist_profile:', queryError);
 	}
 

@@ -312,6 +312,24 @@ export const music = pgTable("music", {
 	index('music_storage_location_idx').on(table.storageLocation),
 ])
 
+export const musicLikes = pgTable("music_like", {
+	id: text("id")
+		.primaryKey()
+		.notNull()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	musicId: text("musicId")
+		.notNull()
+		.references(() => music.id, { onDelete: "cascade" }),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	unique("music_like_user_track_unique").on(table.userId, table.musicId),
+	index("music_likes_user_idx").on(table.userId),
+	index("music_likes_music_idx").on(table.musicId),
+]);
+
 export const soundEffects = pgTable("sound_effects", {
 	id: text("id")
 		.primaryKey().notNull()
@@ -699,6 +717,7 @@ export const playlistItems = pgTable("playlist_item", {
 }, (table) => [
   index("playlist_item_playlist_idx").on(table.playlistId),
   index("playlist_item_music_idx").on(table.musicId),
+  unique("playlist_item_music_unique").on(table.playlistId, table.musicId),
 ]);
 
 export const masterJobs = pgTable("master_job", {

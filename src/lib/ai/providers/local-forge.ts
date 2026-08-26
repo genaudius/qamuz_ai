@@ -5,17 +5,45 @@ import { saveImageAndGetId } from '../utils.js';
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:7860';
 
+function isEnabledFlag(value: unknown): boolean {
+	return value === true || value === 'true' || value === '1';
+}
+
 export async function getLocalImageConfig() {
 	const [enabledSetting, baseUrlSetting] = await Promise.all([
 		adminSettingsService.getSetting('local_image_enabled').catch(() => null),
 		adminSettingsService.getSetting('local_image_base_url').catch(() => null)
 	]);
-	const url = new URL(baseUrlSetting ?? env.LOCAL_IMAGE_BASE_URL ?? DEFAULT_BASE_URL);
+	const url = new URL(baseUrlSetting || env.LOCAL_IMAGE_BASE_URL || DEFAULT_BASE_URL);
 	if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Local image URL must use HTTP or HTTPS');
 	return {
-		enabled: (enabledSetting ?? env.LOCAL_IMAGE_ENABLED ?? 'false') === 'true',
+		enabled: isEnabledFlag(enabledSetting ?? env.LOCAL_IMAGE_ENABLED ?? 'false'),
 		baseUrl: url.toString().replace(/\/$/, '')
 	};
+}
+
+export async function isLocalImageReady(): Promise<{
+	ready: boolean;
+	enabled: boolean;
+	baseUrl: string;
+	reason?: string;
+}> {
+	const config = await getLocalImageConfig();
+	try {
+		const response = await fetch(`${config.baseUrl}/sdapi/v1/sd-models`, {
+			signal: AbortSignal.timeout(4000)
+		});
+		if (!response.ok) {
+			return { ...config, ready: false, reason: `Forge HTTP ${response.status}` };
+		}
+		return { ...config, ready: true };
+	} catch (error) {
+		return {
+			...config,
+			ready: false,
+			reason: error instanceof Error ? error.message : String(error)
+		};
+	}
 }
 
 function dimensions(size?: string): { width: number; height: number } {
@@ -33,13 +61,18 @@ function dimensions(size?: string): { width: number; height: number } {
 	return { width: 512, height: 512 };
 }
 
-export async function generateLocalImage(params: ImageGenerationParams): Promise<AIImageResponse> {
+export async function generateLocalImage(
+	params: ImageGenerationParams,
+	options: { requireEnabled?: boolean } = {}
+): Promise<AIImageResponse> {
 	if (!params.userId) throw new Error('User ID is required for image generation');
 	if (params.imageUrl || params.imageUrls?.length) {
 		throw new Error('Local reference-image generation is not available yet');
 	}
 	const config = await getLocalImageConfig();
-	if (!config.enabled) throw new Error('Local image provider is not enabled');
+	if (options.requireEnabled !== false && !config.enabled) {
+		throw new Error('Local image provider is not enabled');
+	}
 	const { width, height } = dimensions(params.size);
 	const steps = params.quality === 'high' ? 24 : params.quality === 'medium' ? 20 : 16;
 	const response = await fetch(`${config.baseUrl}/sdapi/v1/txt2img`, {
@@ -61,7 +94,10 @@ export async function generateLocalImage(params: ImageGenerationParams): Promise
 		}),
 		signal: AbortSignal.timeout(10 * 60_000)
 	});
-	if (!response.ok) throw new Error(`Local image service request failed (${response.status})`);
+	if (!response.ok) {
+		const details = await response.text().catch(() => '');
+		throw new Error(`Local image service request failed (${response.status}): ${details.slice(0, 400)}`);
+	}
 	const result = await response.json() as { images?: string[] };
 	if (!result.images?.length) throw new Error('Local image service returned no image');
 

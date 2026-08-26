@@ -1,11 +1,14 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { enhance } from '$app/forms';
-  import { onMount } from 'svelte';
+  import { getContext, onMount } from 'svelte';
   import type { ActionData, PageData } from './$types';
+  import type { GlobalMusicState } from '$lib/stores/music.svelte.js';
   import { DEMO_ARTIST_PROFILES } from '$lib/constants/demo-artists.js';
+  import TrackOptionsMenu from '$lib/components/TrackOptionsMenu.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
+  const musicState = getContext<GlobalMusicState>('musicState');
 
   let isFollowing = $state(false);
   let followerCount = $state(data.artist.followersCount || 0);
@@ -86,6 +89,30 @@
     DEMO_ARTIST_PROFILES.filter((artist) => artist.id !== data.artist.id).slice(0, 5)
   );
 
+  function playArtistTrack(track: PageData['tracks'][number]) {
+    if (!musicState || data.artist.isDemoProfile) return;
+    musicState.queue = data.tracks.map((item) => ({
+      id: item.id,
+      url: `/api/music/${item.id}`,
+      title: item.title || item.prompt || 'Untitled track',
+      artist: data.artist.userName || 'QAMUZ',
+      imageUrl: item.imageUrl || data.artist.userImage || undefined,
+      videoUrl: item.videoUrl || undefined,
+      lyrics: item.lyrics || undefined,
+      durationMs: item.durationMs || 0,
+    }));
+    musicState.playTrack({
+      id: track.id,
+      url: `/api/music/${track.id}`,
+      title: track.title || track.prompt || 'Untitled track',
+      artist: data.artist.userName || 'QAMUZ',
+      imageUrl: track.imageUrl || data.artist.userImage || undefined,
+      videoUrl: track.videoUrl || undefined,
+      lyrics: track.lyrics || undefined,
+      durationMs: track.durationMs || 0,
+    });
+  }
+
   const spotlightRelease = $derived(releaseCards[0] || null);
 
   $effect(() => {
@@ -155,7 +182,14 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          {#if data.artist.isDemoProfile}
+          {#if data.artist.isOwnProfile}
+            <a
+              href="/settings/profile"
+              class="inline-flex min-w-32 items-center justify-center rounded-full bg-qamuz-btn px-6 py-3 text-sm font-extrabold text-black transition-all hover:scale-105"
+            >
+              Edit profile
+            </a>
+          {:else if data.artist.isDemoProfile}
             <button
               type="button"
               class={`inline-flex min-w-32 items-center justify-center rounded-full px-6 py-3 text-sm font-extrabold transition-all ${isFollowing ? 'bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/16' : 'bg-qamuz-btn text-black hover:scale-105'}`}
@@ -222,7 +256,19 @@
           {:else}
             <div class="overflow-hidden rounded-2xl border border-white/8 bg-black/16">
               {#each topTracks as track, index}
-                <div class="grid grid-cols-[32px_minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-white/6 sm:grid-cols-[40px_64px_minmax(0,1fr)_auto_auto] sm:px-5">
+                {@const isPlayingThis = musicState?.currentTrack?.id === track.id}
+                <div
+                  class="group grid cursor-pointer grid-cols-[32px_minmax(0,1fr)_auto_32px] items-center gap-3 px-4 py-3 transition-colors hover:bg-white/6 sm:grid-cols-[40px_64px_minmax(0,1fr)_auto_auto_32px] sm:px-5"
+                  role="button"
+                  tabindex="0"
+                  onclick={() => playArtistTrack(track)}
+                  onkeydown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      playArtistTrack(track);
+                    }
+                  }}
+                >
                   <div class="text-center text-sm font-bold text-white/65">{index + 1}</div>
                   <div class="hidden h-14 w-14 overflow-hidden rounded-lg bg-white/8 sm:block">
                       {#if track.imageUrl || data.artist.userImage}
@@ -230,11 +276,22 @@
                     {/if}
                   </div>
                   <div class="min-w-0">
-                      <div class="truncate text-sm font-bold text-white">{track.title || track.prompt || 'Untitled track'}</div>
+                      <div class="truncate text-sm font-bold {isPlayingThis ? 'text-[#3ae0d5]' : 'text-white'}">{track.title || track.prompt || 'Untitled track'}</div>
                       <div class="truncate text-xs text-white/55">{track.isInstrumental ? 'Instrumental release' : 'Generated release'}</div>
                   </div>
                   <div class="text-xs text-white/55">{formatCompactNumber(track.playsCount || 0)}</div>
-                  <div class="text-xs text-white/40">{formatCompactNumber(track.likesCount || 0)} likes</div>
+                  <div class="hidden text-xs text-white/40 sm:block">{formatCompactNumber(track.likesCount || 0)} likes</div>
+                  <div onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()}>
+                    <TrackOptionsMenu
+                      song={{
+                        id: track.id,
+                        title: track.title,
+                        prompt: track.prompt,
+                        isInstrumental: track.isInstrumental
+                      }}
+                      buttonClass="opacity-100"
+                    />
+                  </div>
                 </div>
               {/each}
             </div>

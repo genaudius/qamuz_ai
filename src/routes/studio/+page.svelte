@@ -6,13 +6,30 @@
   import { authClient } from "$lib/auth-client";
 
   const studioDevOrigin = "http://localhost:1420";
-  let studioSource = $state("");
   let studioFrame = $state<HTMLIFrameElement | null>(null);
+  let studioMissing = $state(false);
+  let reloadNonce = $state(0);
 
   function studioUrl(params: URLSearchParams) {
     if (dev) return `${studioDevOrigin}/?${params}`;
     return `/qamuz-studio/?${params}`;
   }
+
+  function studioParams() {
+    const params = new URLSearchParams({
+      embedded: "1",
+      home: `${page.url.origin}/`,
+      plan: String(page.data.session?.user?.planTier ?? "free")
+    });
+    for (const key of ["session", "idea", "extractStems", "musicId", "genre", "instrumental", "autoPlan", "bpm"]) {
+      const value = page.url.searchParams.get(key);
+      if (value) params.set(key, value);
+    }
+    if (reloadNonce) params.set("_t", String(reloadNonce));
+    return params;
+  }
+
+  const studioSource = $derived(studioUrl(studioParams()));
 
   function isStudioOrigin(origin: string) {
     try {
@@ -101,19 +118,20 @@
     }
   }
 
-  onMount(() => {
-    const params = new URLSearchParams({
-      embedded: "1",
-      home: window.location.origin + "/",
-      plan: String(page.data.session?.user?.planTier ?? "free"),
-      _t: Date.now().toString()
+  function pingStudio() {
+    if (!dev) return;
+    studioMissing = false;
+    void fetch(studioDevOrigin, { method: "GET", mode: "cors", signal: AbortSignal.timeout(2500) }).catch(() => {
+      studioMissing = true;
     });
-    for (const key of ["session", "idea", "extractStems", "musicId", "genre", "instrumental", "autoPlan", "bpm"]) {
-      const value = page.url.searchParams.get(key);
-      if (value) params.set(key, value);
-    }
-    studioSource = studioUrl(params);
+  }
 
+  function retryStudio() {
+    reloadNonce = Date.now();
+    pingStudio();
+  }
+
+  onMount(() => {
     const onMessage = (event: MessageEvent) => {
       if (!isStudioOrigin(event.origin)) return;
       if (event.data?.type === "qamuz-studio:api") {
@@ -153,7 +171,11 @@
       void goto("/");
     };
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    pingStudio();
+
+    return () => {
+      window.removeEventListener("message", onMessage);
+    };
   });
 </script>
 
@@ -162,19 +184,39 @@
   <meta name="description" content="Estudio musical multipista de QAMUZ AI con Maestro y GenAudius." />
 </svelte:head>
 
-<section class="h-screen w-full overflow-hidden bg-[#131313]">
-  {#if studioSource}
-    <iframe
-      bind:this={studioFrame}
-      title="QAMUZ Studio"
-      src={studioSource}
-      class="h-full w-full border-0 bg-[#131313]"
-      allow="clipboard-read; clipboard-write; autoplay; midi; microphone"
-      onload={() => {
-        if (studioFrame?.contentWindow) {
-          sendSessionsToStudio(studioFrame.contentWindow, new URL(studioSource, window.location.href).origin);
-        }
-      }}
-    ></iframe>
+<section class="relative h-screen w-full overflow-hidden bg-[#131313]">
+  <iframe
+    bind:this={studioFrame}
+    title="QAMUZ Studio"
+    src={studioSource}
+    class="h-full w-full border-0 bg-[#131313]"
+    allow="clipboard-read; clipboard-write; autoplay; midi; microphone; fullscreen"
+    onload={() => {
+      studioMissing = false;
+      if (studioFrame?.contentWindow) {
+        sendSessionsToStudio(studioFrame.contentWindow, new URL(studioSource, page.url.origin).origin);
+      }
+    }}
+  ></iframe>
+
+  {#if studioMissing}
+    <div class="absolute inset-0 z-10 flex items-center justify-center bg-[#131313]/90 px-6">
+      <div class="max-w-md rounded-2xl border border-white/10 bg-[#1b1b1b] p-8 text-center text-white">
+        <p class="text-xs font-semibold tracking-[0.2em] text-violet-300">QAMUZ STUDIO 2.0</p>
+        <h1 class="mt-3 text-2xl font-semibold">El DAW no está en marcha</h1>
+        <p class="mt-3 text-sm leading-relaxed text-white/70">
+          En local, el SaaS abre Studio 2.0 en <code class="text-violet-200">http://localhost:1420</code>.
+          Arráncalo con <code class="text-violet-200">npm run dev</code> en
+          <code class="text-violet-200">Qamuz_Daw_Studio/qamuz_studio_2.0</code> y vuelve a intentar.
+        </p>
+        <button
+          type="button"
+          class="mt-6 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-2.5 text-sm font-semibold"
+          onclick={() => retryStudio()}
+        >
+          Reintentar
+        </button>
+      </div>
+    </div>
   {/if}
 </section>

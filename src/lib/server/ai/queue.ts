@@ -1,5 +1,5 @@
 import { db } from '../db/index.js';
-import { aiJobs, users } from '../db/schema.js';
+import { aiJobs, music, users } from '../db/schema.js';
 import { eq, and, asc, isNull, lte, or, sql } from 'drizzle-orm';
 import { UsageTrackingService } from '../usage-tracking.js';
 import { saveMusicAndGetId } from '$lib/ai/utils.js';
@@ -77,22 +77,40 @@ function buildMusicCoverPrompt(result: any, payload: JobPayload): string {
 
 async function generateMusicCover(result: any, job: any): Promise<string | undefined> {
 	if (result.imageUrl) return result.imageUrl;
-	try {
-		const { getLocalImageConfig, generateLocalImage } = await import('$lib/ai/providers/local-forge.js');
-		if (!(await getLocalImageConfig()).enabled) return undefined;
-		const generated = await generateLocalImage({
-			prompt: buildMusicCoverPrompt(result, job.payload || {}),
-			size: '512x512',
-			quality: 'medium',
-			style: 'album cover, editorial music photography, highly detailed',
-			numberOfImages: 1,
-			userId: job.userId
-		});
-		return `/api/images/${generated.imageId}`;
-	} catch (error) {
-		console.warn(`[QUEUE] Music completed but automatic cover generation failed:`, error);
+
+	const { generateLocalImage, isLocalImageReady } = await import('$lib/ai/providers/local-forge.js');
+	const status = await isLocalImageReady();
+	if (!status.ready) {
+		console.warn(
+			`[QUEUE] Skipping automatic cover: Forge not reachable at ${status.baseUrl}` +
+			`${status.reason ? ` (${status.reason})` : ''}`
+		);
 		return undefined;
 	}
+
+	const coverParams = {
+		prompt: buildMusicCoverPrompt(result, job.payload || {}),
+		size: '512x512',
+		quality: 'medium',
+		style: 'album cover, editorial music photography, highly detailed',
+		numberOfImages: 1,
+		userId: job.userId
+	};
+	const maxAttempts = 3;
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		try {
+			const generated = await generateLocalImage(coverParams, { requireEnabled: false });
+			const imageUrl = `/api/images/${generated.imageId}`;
+			console.log(`[QUEUE] Cover generated for job ${job.id}: ${imageUrl}`);
+			return imageUrl;
+		} catch (error) {
+			console.warn(`[QUEUE] Cover attempt ${attempt}/${maxAttempts} failed:`, error);
+			if (attempt < maxAttempts) {
+				await delay(3000 * attempt);
+			}
+		}
+	}
+	return undefined;
 }
 
 export class PriorityQueueService {
@@ -195,7 +213,6 @@ export class PriorityQueueService {
 				
 				if (lockedJob.type === 'music-generation') {
 					result = await PriorityQueueService.executeMusicGeneration(lockedJob);
-					result.imageUrl = await generateMusicCover(result, lockedJob);
 					const musicId = await saveMusicAndGetId(
 						result.audioData,
 						result.mimeType,
@@ -209,6 +226,13 @@ export class PriorityQueueService {
 						result.videoUrl,
 						result.lyrics
 					);
+
+					result.imageUrl = await generateMusicCover(result, lockedJob);
+					if (result.imageUrl) {
+						await db.update(music)
+							.set({ imageUrl: result.imageUrl })
+							.where(eq(music.id, musicId));
+					}
 
 					await UsageTrackingService.trackUsage(lockedJob.userId, 'audio').catch(console.error);
 

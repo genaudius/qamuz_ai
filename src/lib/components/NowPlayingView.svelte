@@ -3,7 +3,7 @@
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
   import X from "@lucide/svelte/icons/x";
   import * as Button from "$lib/components/ui/button/index.js";
-  import { openSongStemsInStudio } from "$lib/studio-stems";
+  import { openSongInStudio, openSongStemsInStudio } from "$lib/studio-stems";
 
   const musicState = getContext<GlobalMusicState>("musicState");
 
@@ -50,17 +50,30 @@
           <p class="text-sm text-muted-foreground truncate">{musicState.currentTrack?.artist}</p>
         {/if}
         {#if musicState.currentTrack?.id}
-          <Button.Root
-            variant="outline"
-            size="sm"
-            class="mt-3 cursor-pointer"
-            onclick={() => openSongStemsInStudio({
-              id: musicState.currentTrack?.id,
-              title: musicState.currentTrack?.title
-            })}
-          >
-            Extraer stems en Studio
-          </Button.Root>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <Button.Root
+              variant="default"
+              size="sm"
+              class="cursor-pointer"
+              onclick={() => openSongInStudio({
+                id: musicState.currentTrack?.id,
+                title: musicState.currentTrack?.title
+              })}
+            >
+              Abrir en Studio
+            </Button.Root>
+            <Button.Root
+              variant="outline"
+              size="sm"
+              class="cursor-pointer"
+              onclick={() => openSongStemsInStudio({
+                id: musicState.currentTrack?.id,
+                title: musicState.currentTrack?.title
+              })}
+            >
+              Extraer stems
+            </Button.Root>
+          </div>
         {/if}
       </div>
     </div>

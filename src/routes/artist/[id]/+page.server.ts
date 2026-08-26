@@ -4,8 +4,12 @@ import { db } from '$lib/server/db/index.js';
 import { artistProfiles, artists, follows, music, playlists, users } from '$lib/server/db/schema.js';
 import { and, count, desc, eq, or } from 'drizzle-orm';
 import { DEMO_ARTIST_PROFILES_BY_ID } from '$lib/constants/demo-artists.js';
+import { ensureArtistTables } from '$lib/server/artists.js';
+import { ensurePlaylistTables } from '$lib/server/playlists.js';
 
 async function findArtistRecord(artistId: string) {
+  await ensureArtistTables();
+
   try {
     const [artist] = await db
       .select({
@@ -31,7 +35,6 @@ async function findArtistRecord(artistId: string) {
     .select({
       id: artistProfiles.id,
       bio: artistProfiles.bio,
-      verifiedAt: artistProfiles.updatedAt,
       userId: artistProfiles.userId,
       userName: users.name,
       userImage: users.image,
@@ -47,7 +50,7 @@ async function findArtistRecord(artistId: string) {
   return {
     id: artistProfile.id,
     bio: artistProfile.bio,
-    verifiedAt: artistProfile.verifiedAt,
+    verifiedAt: null as Date | null,
     userId: artistProfile.userId,
     userName: artistProfile.userName,
     userImage: artistProfile.userImage,
@@ -71,12 +74,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         followersCount: demoArtist.followersCount,
         isFollowing: false,
         isDemoProfile: true,
+        isOwnProfile: false,
       },
       tracks: demoArtist.tracks.map((track) => ({
         ...track,
         tags: [],
         imageUrl: demoArtist.avatarUrl,
         createdAt: demoArtist.verifiedAt,
+        prompt: track.title,
+        videoUrl: null as string | null,
+        lyrics: null as string | null,
+        durationMs: null as number | null,
+        isInstrumental: false,
       })),
       publicPlaylists: demoArtist.publicPlaylists.map((playlist) => ({
         ...playlist,
@@ -115,23 +124,43 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     console.warn('Follow state lookup failed, continuing without follows:', queryError);
   }
 
-  const [tracks, publicPlaylists] = await Promise.all([
-    db
-      .select({
-        id: music.id,
-        title: music.title,
-        prompt: music.prompt,
-        imageUrl: music.imageUrl,
-        createdAt: music.createdAt,
-        playsCount: music.playsCount,
-        likesCount: music.likesCount,
-        isInstrumental: music.isInstrumental,
-      })
-      .from(music)
-      .where(and(eq(music.userId, artist.userId), eq(music.isPublic, true)))
-      .orderBy(desc(music.createdAt))
-      .limit(60),
-    db
+  await ensurePlaylistTables();
+
+  const isOwnProfile = session?.user?.id === artist.userId;
+  const trackFilter = isOwnProfile
+    ? eq(music.userId, artist.userId)
+    : and(eq(music.userId, artist.userId), eq(music.isPublic, true));
+  const playlistFilter = isOwnProfile
+    ? eq(playlists.userId, artist.userId)
+    : and(eq(playlists.userId, artist.userId), eq(playlists.isPublic, true));
+
+  const tracks = await db
+    .select({
+      id: music.id,
+      title: music.title,
+      prompt: music.prompt,
+      imageUrl: music.imageUrl,
+      videoUrl: music.videoUrl,
+      lyrics: music.lyrics,
+      durationMs: music.durationMs,
+      createdAt: music.createdAt,
+      playsCount: music.playsCount,
+      likesCount: music.likesCount,
+      isInstrumental: music.isInstrumental,
+    })
+    .from(music)
+    .where(trackFilter)
+    .orderBy(desc(music.createdAt))
+    .limit(60);
+
+  let publicPlaylists: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    updatedAt: Date;
+  }> = [];
+  try {
+    publicPlaylists = await db
       .select({
         id: playlists.id,
         name: playlists.name,
@@ -139,10 +168,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         updatedAt: playlists.updatedAt,
       })
       .from(playlists)
-      .where(and(eq(playlists.userId, artist.userId), eq(playlists.isPublic, true)))
+      .where(playlistFilter)
       .orderBy(desc(playlists.updatedAt))
-      .limit(24),
-  ]);
+      .limit(24);
+  } catch (queryError) {
+    console.warn('Public playlist lookup failed, continuing without playlists:', queryError);
+  }
 
   return {
     artist: {
@@ -150,6 +181,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       followersCount,
       isFollowing,
       isDemoProfile: false,
+      isOwnProfile,
     },
     tracks,
     publicPlaylists,

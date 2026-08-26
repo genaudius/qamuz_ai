@@ -5,6 +5,7 @@ import { artistProfiles, users } from '$lib/server/db/schema.js'
 import { storageService } from '$lib/server/storage.js'
 import { DEMO_MODE_MESSAGES, isDemoModeEnabled } from '$lib/constants/demo-mode.js'
 import { eq } from 'drizzle-orm'
+import { ensureArtistTables } from '$lib/server/artists.js'
 
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024
@@ -45,6 +46,7 @@ export const load: PageServerLoad = async ({ parent }) => {
   let artistProfile = null
 
   try {
+    await ensureArtistTables()
     const [profile] = await db
       .select({
         id: artistProfiles.id,
@@ -89,6 +91,7 @@ export const actions: Actions = {
     const bannerFile = formData.get('banner') as File | null
 
     try {
+      await ensureArtistTables()
       const [existingProfile] = await db
         .select()
         .from(artistProfiles)

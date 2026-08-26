@@ -27,6 +27,7 @@ vite.config.ts.timestamp-*
 *.log
 /pinokio_agent/
 /static/generated-audio/
+/static/qamuz-studio/
 
 # User uploads
 /static/uploads/

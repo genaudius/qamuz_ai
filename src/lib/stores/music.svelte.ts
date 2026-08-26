@@ -25,14 +25,22 @@ export class GlobalMusicState {
     
     isExpanded = $state<boolean>(false); // Now Playing view visibility
     isPublishModalOpen = $state<boolean>(false);
+    publishTarget = $state<MusicTrack | null>(null);
     
     audioElement = $state<HTMLAudioElement | null>(null);
     
     async playTrack(track: MusicTrack) {
+        const isSameTrack = this.currentTrack?.id === track.id && this.currentTrack?.url === track.url;
         this.currentTrack = track;
         this.isPlaying = true;
         this.isExpanded = true; // Auto-expand right sidebar when playing starts
-        
+        if (!isSameTrack) {
+            this.currentTime = 0;
+            this.duration = Number.isFinite(track.durationMs) && track.durationMs > 0
+                ? track.durationMs / 1000
+                : 0;
+        }
+
         // Ensure playback starts immediately after Svelte DOM update
         import('svelte').then(({ tick }) => {
             tick().then(() => {
@@ -64,7 +72,15 @@ export class GlobalMusicState {
     }
 
     togglePublishModal() {
+        if (!this.isPublishModalOpen) {
+            this.publishTarget = this.currentTrack;
+        }
         this.isPublishModalOpen = !this.isPublishModalOpen;
+    }
+
+    openPublishModal(track?: MusicTrack | null) {
+        this.publishTarget = track ?? this.currentTrack;
+        this.isPublishModalOpen = true;
     }
     
     closePlayer() {
@@ -84,9 +100,13 @@ export class GlobalMusicState {
     }
     
     seek(time: number) {
-        if (this.audioElement) {
-            this.audioElement.currentTime = time;
-            this.currentTime = time;
+        const duration = Number.isFinite(this.duration) && this.duration > 0
+            ? this.duration
+            : (Number.isFinite(this.audioElement?.duration) ? this.audioElement!.duration : 0);
+        const next = Math.min(Math.max(0, time), duration > 0 ? duration : time);
+        this.currentTime = next;
+        if (this.audioElement && Number.isFinite(next)) {
+            this.audioElement.currentTime = next;
         }
     }
 }

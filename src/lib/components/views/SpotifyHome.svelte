@@ -12,6 +12,7 @@
   } from "$lib/icons/index.js";
   import HeroCarousel from "./HeroCarousel.svelte";
   import { DEMO_ARTIST_PROFILES } from "$lib/constants/demo-artists.js";
+  import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
   
   // Theme state (if you have one, or just assume dark based on global classes)
   // For now, we'll assume dark theme styling based on the design
@@ -377,6 +378,12 @@
             <span class="text-xs truncate text-zinc-400">
               {track.artist}
             </span>
+          </div>
+          <div class="absolute top-2 right-2 z-10" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+            <TrackOptionsMenu
+              song={{ id: track.id, title: track.title }}
+              buttonClass="bg-black/55 text-white opacity-100"
+            />
           </div>
         </div>
       {/each}

@@ -19,10 +19,12 @@
   let submitError = $state("");
   let submitSuccess = $state("");
 
-  // Set initial title from the current track
+  const publishTrack = $derived(musicState.publishTarget || musicState.currentTrack);
+
+  // Set initial title from the selected track
   $effect(() => {
-    if (musicState.isPublishModalOpen && musicState.currentTrack) {
-      title = musicState.currentTrack.title || "";
+    if (musicState.isPublishModalOpen && publishTrack) {
+      title = publishTrack.title || "";
       genre = "";
       tagsInput = "";
       submitError = "";
@@ -35,7 +37,7 @@
   }
 
   async function handlePublish() {
-    if (!musicState.currentTrack?.id) {
+    if (!publishTrack?.id) {
       submitError = "Could not determine the selected track.";
       return;
     }
@@ -57,7 +59,7 @@
     isSubmitting = true;
 
     try {
-      const response = await fetch(`/api/music/${musicState.currentTrack.id}/publish`, {
+      const response = await fetch(`/api/music/${publishTrack.id}/publish`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,8 +80,11 @@
 
       submitSuccess = "Published successfully!";
 
-      if (musicState.currentTrack) {
+      if (musicState.currentTrack?.id === publishTrack.id) {
         musicState.currentTrack.title = trimmedTitle;
+      }
+      if (musicState.publishTarget?.id === publishTrack.id) {
+        musicState.publishTarget.title = trimmedTitle;
       }
 
       setTimeout(() => {
@@ -203,9 +208,9 @@
               <div
                 class="aspect-square rounded-2xl overflow-hidden bg-black relative border border-[#333]"
               >
-                {#if musicState.currentTrack?.imageUrl}
+                {#if publishTrack?.imageUrl}
                   <img
-                    src={musicState.currentTrack.imageUrl}
+                    src={publishTrack.imageUrl}
                     alt="Cover preview"
                     class="w-full h-full object-cover"
                     style="transform: scale({1 + zoomLevel / 100});"

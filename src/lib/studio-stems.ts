@@ -27,18 +27,22 @@ export function songSessionTitle(song: SongForStems): string {
 	return (first || title || 'Canción QAMUZ').slice(0, 80);
 }
 
-/** Open QAMUZ Studio with the song mix; the DAW extracts instrument stems and names the session. */
-export function openSongStemsInStudio(song: SongForStems): void {
+export interface OpenStudioOptions {
+	extractStems?: boolean;
+}
+
+/** Open QAMUZ Studio 2.0 with the song mix. Optional stem split. */
+export function openSongInStudio(song: SongForStems, options: OpenStudioOptions = {}): void {
 	if (!song.id || song.id.startsWith('pending-')) {
 		toast.error('La canción todavía se está generando.');
 		return;
 	}
 
 	const params = new URLSearchParams({
-		extractStems: '1',
 		musicId: song.id,
 		session: songSessionTitle(song)
 	});
+	if (options.extractStems) params.set('extractStems', '1');
 	const idea = (song.prompt ?? song.title ?? '').trim().slice(0, 240);
 	if (idea) params.set('idea', idea);
 	if (song.genre) params.set('genre', song.genre);
@@ -46,6 +50,11 @@ export function openSongStemsInStudio(song: SongForStems): void {
 	const bpm = song.bpm ?? bpmFromPrompt(song.prompt ?? song.title);
 	if (bpm) params.set('bpm', String(bpm));
 
-	toast.message('Abriendo Studio y extrayendo stems…');
+	toast.message(options.extractStems ? 'Abriendo Studio y extrayendo stems…' : 'Abriendo la canción en Studio…');
 	void goto(`/studio?${params.toString()}`);
+}
+
+/** Open QAMUZ Studio with the song mix; the DAW extracts instrument stems and names the session. */
+export function openSongStemsInStudio(song: SongForStems): void {
+	openSongInStudio(song, { extractStems: true });
 }

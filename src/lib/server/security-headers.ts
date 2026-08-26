@@ -57,7 +57,7 @@ function generateCSP(): string {
       "https://*.facebook.com", // Facebook OAuth
       "https://*.twitter.com", // Twitter OAuth
       "https://*.apple.com", // Apple OAuth
-      ...(isDev ? ["ws:", "wss:"] : []) // WebSocket for HMR in development
+      ...(isDev ? ["ws:", "wss:", "http://localhost:1420", "http://127.0.0.1:1420"] : []) // WebSocket for HMR in development
     ],
     'frame-src': [
       "'self'",
@@ -69,7 +69,7 @@ function generateCSP(): string {
     'base-uri': ["'self'"],
     'form-action': ["'self'"],
     'frame-ancestors': ["'self'", "https://preview.codecanyon.net"],
-    'upgrade-insecure-requests': []
+    ...(isDev ? {} : { 'upgrade-insecure-requests': [] as string[] })
   };
 
   // Build CSP string
@@ -89,6 +89,9 @@ function generateCSP(): string {
 export function getSecurityHeaders(): Record<string, string> {
   const isDev = env.NODE_ENV === 'development';
   const isProduction = env.NODE_ENV === 'production';
+  const studioEmbed = isDev
+    ? '(self "http://localhost:1420" "http://127.0.0.1:1420")'
+    : '(self)';
 
   const headers: Record<string, string> = {
     // Content Security Policy
@@ -110,16 +113,17 @@ export function getSecurityHeaders(): Record<string, string> {
     // Permissions Policy (Feature Policy)
     'Permissions-Policy': [
       'camera=()',
-      'microphone=()',
+      `microphone=${studioEmbed}`,
       'geolocation=()',
       'payment=(self)',
       'usb=()',
       'magnetometer=()',
       'accelerometer=()',
       'gyroscope=()',
-      'autoplay=()',
-      'encrypted-media=()',
-      'picture-in-picture=()'
+      `autoplay=${studioEmbed}`,
+      `midi=${studioEmbed}`,
+      'encrypted-media=(self)',
+      'picture-in-picture=(self)'
     ].join(', '),
 
     // Cross-Origin Policies

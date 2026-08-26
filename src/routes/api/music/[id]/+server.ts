@@ -7,7 +7,23 @@ import { storageService } from '$lib/server/storage.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 
 // Get music by ID (secure with authentication and authorization)
-export const GET: RequestHandler = async ({ params, locals }) => {
+function parseByteRange(header: string | null, size: number): { start: number; end: number } | null {
+	if (!header) return null;
+	const match = header.match(/^bytes=(\d*)-(\d*)$/i);
+	if (!match) return null;
+	const hasStart = match[1] !== '';
+	const hasEnd = match[2] !== '';
+	if (!hasStart && !hasEnd) return null;
+	let start = hasStart ? Number(match[1]) : size - Number(match[2]);
+	let end = hasEnd ? Number(match[2]) : size - 1;
+	if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+	start = Math.max(0, start);
+	end = Math.min(size - 1, end);
+	if (start > end) return null;
+	return { start, end };
+}
+
+export const GET: RequestHandler = async ({ params, locals, request }) => {
 	try {
 		// Check authentication
 		const session = await locals.auth();
@@ -64,12 +80,31 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		try {
 			const musicData = await storageService.download(storagePath);
+			const body = new Uint8Array(musicData);
+			const size = body.byteLength;
+			const range = parseByteRange(request.headers.get('range'), size);
+			const contentType = musicRecord.mimeType || 'audio/mpeg';
 
-			return new Response(new Uint8Array(musicData), {
+			if (range) {
+				const sliced = body.subarray(range.start, range.end + 1);
+				return new Response(sliced, {
+					status: 206,
+					headers: {
+						'Content-Type': contentType,
+						'Accept-Ranges': 'bytes',
+						'Content-Range': `bytes ${range.start}-${range.end}/${size}`,
+						'Content-Length': sliced.byteLength.toString(),
+						'Cache-Control': 'private, max-age=3600'
+					}
+				});
+			}
+
+			return new Response(body, {
 				headers: {
-					'Content-Type': musicRecord.mimeType,
-					'Cache-Control': 'private, max-age=3600', // Private cache for 1 hour
-					'Content-Length': musicData.length.toString()
+					'Content-Type': contentType,
+					'Accept-Ranges': 'bytes',
+					'Cache-Control': 'private, max-age=3600',
+					'Content-Length': size.toString()
 				}
 			});
 		} catch (storageError) {

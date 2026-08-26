@@ -5,7 +5,7 @@
   import MusicIcon from "@lucide/svelte/icons/music";
   import PanelRightClose from "@lucide/svelte/icons/panel-right-close";
   import * as Table from "$lib/components/ui/table/index.js";
-  import { openSongStemsInStudio } from "$lib/studio-stems";
+  import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
   
   let { songs = [] } = $props<{ songs: any[] }>();
   
@@ -125,22 +125,19 @@
                       {#if isPending}
                         <span class="text-sm text-amber-500">Working...</span>
                       {:else}
-                        <div class="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            class="text-xs font-medium px-2 py-1 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                            onclick={(event) => {
-                              event.stopPropagation();
-                              openSongStemsInStudio({
-                                id: song.id,
-                                title: song.title,
-                                prompt: song.prompt,
-                                genre: song.genre,
-                                isInstrumental: song.isInstrumental
-                              });
+                        <div class="flex items-center justify-end gap-1">
+                          <TrackOptionsMenu
+                            song={{
+                              id: song.id,
+                              title: song.title,
+                              prompt: song.prompt,
+                              genre: song.genre,
+                              isInstrumental: song.isInstrumental,
+                              videoUrl: song.videoUrl
                             }}
-                          >Extraer stems</button>
-                          <span class="text-sm text-muted-foreground">{formatDate(song.createdAt)}</span>
+                            buttonClass="text-muted-foreground hover:text-foreground opacity-100"
+                          />
+                          <span class="text-sm text-muted-foreground min-w-16">{formatDate(song.createdAt)}</span>
                         </div>
                       {/if}
                     </Table.Cell>

@@ -1,20 +1,28 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
-import { images } from '$lib/server/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { images, music } from '$lib/server/db/schema.js';
+import { and, eq } from 'drizzle-orm';
 import { storageService } from '$lib/server/storage.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+
+async function canViewImage(imageId: string, imageUserId: string, viewerId?: string): Promise<boolean> {
+	if (viewerId && viewerId === imageUserId) return true;
+	const [publicTrack] = await db
+		.select({ id: music.id })
+		.from(music)
+		.where(and(
+			eq(music.imageUrl, `/api/images/${imageId}`),
+			eq(music.isPublic, true)
+		))
+		.limit(1);
+	return Boolean(publicTrack);
+}
 
 // Get image by ID (secure with authentication and authorization)
 export const GET: RequestHandler = async ({ params, locals }) => {
 	try {
-		// Check authentication
 		const session = await locals.auth();
-		if (!session?.user?.id) {
-			throw error(401, 'Authentication required');
-		}
-
 		const imageId = params.id;
 		
 		if (!imageId) {
@@ -36,9 +44,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			throw error(404, 'Image not found');
 		}
 
-		// Check authorization - user can only access their own images
-		if (imageRecord.userId !== session.user.id) {
-			throw error(403, 'Access denied - you can only access your own images');
+		const allowed = await canViewImage(imageId, imageRecord.userId, session?.user?.id);
+		if (!allowed) {
+			throw error(session?.user?.id ? 403 : 401, session?.user?.id
+				? 'Access denied - you can only access your own images'
+				: 'Authentication required');
 		}
 
 		// Handle cloud storage files with presigned URLs

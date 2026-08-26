@@ -269,7 +269,7 @@
   });
   
   import LibraryPanel from "$lib/components/LibraryPanel.svelte";
-  import { openSongStemsInStudio } from "$lib/studio-stems";
+  import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
   import MakeABeatModal from "$lib/components/MakeABeatModal.svelte";
   import ReferenceModal from "$lib/components/ReferenceModal.svelte";
   import VocalModal from "$lib/components/VocalModal.svelte";
@@ -981,8 +981,21 @@
                             
                             <!-- Play Overlay Button -->
                             <button 
+                              type="button"
                               class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                               title="Play"
+                              onclick={() => {
+                                if (!item.track) return;
+                                globalMusic.playTrack({
+                                  id: item.track.id,
+                                  url: item.track.url || `/api/music/${item.track.id}`,
+                                  title: item.track.title,
+                                  imageUrl: item.track.imageUrl,
+                                  videoUrl: item.track.videoUrl,
+                                  lyrics: item.track.lyrics,
+                                  durationMs: item.track.durationMs ?? 0
+                                });
+                              }}
                             >
                               <PlayIcon class="w-6 h-6 text-white" />
                             </button>
@@ -1001,27 +1014,16 @@
                           </div>
                           
                           <!-- 3-Dots Dropdown -->
-                          <DropdownMenu.Root>
-                            <DropdownMenu.Trigger class="p-1.5 rounded-md hover:bg-background/80 transition-colors cursor-pointer">
-                              <SettingsIcon class="w-4 h-4 text-muted-foreground" />
-                            </DropdownMenu.Trigger>
-                            <DropdownMenu.Content align="end">
-                              <DropdownMenu.Item>Publish</DropdownMenu.Item>
-                              <DropdownMenu.Item>Share</DropdownMenu.Item>
-                              <DropdownMenu.Item>Like</DropdownMenu.Item>
-                              {#if item.track.videoUrl}
-                                <DropdownMenu.Item>Video</DropdownMenu.Item>
-                              {/if}
-                              <DropdownMenu.Item onclick={() => item.track && openSongStemsInStudio({
-                                id: item.track.id,
-                                title: item.track.title,
-                                prompt: item.track.title
-                              })}>Extraer stems</DropdownMenu.Item>
-                              <DropdownMenu.Item>Remix</DropdownMenu.Item>
-                              <DropdownMenu.Separator />
-                              <DropdownMenu.Item class="text-destructive focus:bg-destructive/10">Delete</DropdownMenu.Item>
-                            </DropdownMenu.Content>
-                          </DropdownMenu.Root>
+                          <TrackOptionsMenu
+                            song={{
+                              id: item.track.id,
+                              title: item.track.title,
+                              prompt: item.track.title,
+                              videoUrl: item.track.videoUrl
+                            }}
+                            side="top"
+                            buttonClass="text-muted-foreground hover:text-foreground"
+                          />
                         </div>
                       {/if}
                     {/if}

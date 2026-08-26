@@ -9,7 +9,7 @@ import type {
 import { env } from '$env/dynamic/private';
 import { adminSettingsService } from '$lib/server/admin-settings.js';
 
-const DEFAULT_BASE_URL = 'http://localhost:42003';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:42003';
 const POLL_INTERVAL_MS = 2_000;
 const GENERATION_TIMEOUT_MS = 15 * 60_000;
 
@@ -48,19 +48,45 @@ async function requestJson<T>(url: string, init?: RequestInit, timeoutMs = 15_00
 	return response.json() as Promise<T>;
 }
 
+async function ensureAuthToken(baseUrl: string): Promise<string> {
+	try {
+		const auth = await requestJson<{ token?: string }>(`${baseUrl}/api/auth/auto`);
+		if (auth.token) return auth.token;
+	} catch {
+		// First launch has no user yet — create the local QAMUZ account.
+	}
+	const setup = await requestJson<{ token?: string }>(`${baseUrl}/api/auth/setup`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ username: 'qamuz' })
+	});
+	if (!setup.token) throw new Error('ACE-Step did not provide an authentication token');
+	return setup.token;
+}
+
+function isTerminalSuccess(status?: string): boolean {
+	return status === 'completed' || status === 'succeeded' || status === 'success';
+}
+
+function isTerminalFailure(status?: string): boolean {
+	return status === 'failed' || status === 'cancelled';
+}
+
 async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResponse> {
 	const config = await getLocalMusicConfig();
 	if (!config.enabled) throw new Error('Local music provider is not enabled');
 
 	await requestJson(`${config.baseUrl}/health`);
-	const auth = await requestJson<{ token?: string }>(`${config.baseUrl}/api/auth/auto`);
-	if (!auth.token) throw new Error('Local music service did not provide an authentication token');
-
+	const pipeline = await requestJson<{ healthy?: boolean }>(`${config.baseUrl}/api/generate/health`).catch(() => ({ healthy: true }));
+	if (pipeline.healthy === false) {
+		throw new Error('ACE-Step 1.5 is still loading the music model. Try again in a minute.');
+	}
+	const token = await ensureAuthToken(config.baseUrl);
 	const headers = {
-		Authorization: `Bearer ${auth.token}`,
+		Authorization: `Bearer ${token}`,
 		'Content-Type': 'application/json'
 	};
-	const durationSeconds = Math.max(180, Math.min(240, Math.round((params.musicLengthMs ?? 210_000) / 1000)));
+	const durationSeconds = Math.max(15, Math.min(240, Math.round((params.musicLengthMs ?? 210_000) / 1000)));
 	const vocalDirection = params.vocalGender === 'duet'
 		? 'male and female duet vocals, alternating verses and a harmonized chorus'
 		: params.vocalGender === 'male'
@@ -79,7 +105,8 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
 			instrumental: params.forceInstrumental ?? false,
 			duration: durationSeconds,
 			batchSize: 1,
-			audioFormat: 'mp3'
+			audioFormat: 'mp3',
+			pollinations: { enabled: false }
 		})
 	}, 30_000);
 	if (!submitted.jobId) throw new Error('Local music service did not return a job ID');
@@ -94,11 +121,11 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
 			result?: Record<string, unknown>;
 		}>(`${config.baseUrl}/api/generate/status/${encodeURIComponent(submitted.jobId)}`, { headers });
 
-		if (status.status === 'completed' || status.status === 'succeeded' || status.status === 'success') {
+		if (isTerminalSuccess(status.status)) {
 			result = status.result;
 			break;
 		}
-		if (status.status === 'failed' || status.status === 'cancelled') {
+		if (isTerminalFailure(status.status)) {
 			throw new Error(status.error || 'Local music generation failed');
 		}
 		await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
@@ -111,15 +138,21 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
 	const audioResponse = await fetch(audioUrl, { signal: AbortSignal.timeout(120_000) });
 	if (!audioResponse.ok) throw new Error(`Unable to download generated audio (${audioResponse.status})`);
 	const mimeType = audioResponse.headers.get('content-type')?.split(';')[0] || 'audio/mpeg';
+	const coverUrl = typeof result.coverUrl === 'string'
+		? result.coverUrl
+		: typeof result.cover_url === 'string'
+			? result.cover_url
+			: undefined;
 
 	return {
 		audioData: Buffer.from(await audioResponse.arrayBuffer()).toString('base64'),
 		mimeType,
 		prompt: params.prompt,
-		model: 'qamuz-local-music',
+		model: 'ace-step-1.5',
 		durationMs: Math.round(Number(result.duration ?? durationSeconds) * 1000),
 		isInstrumental: params.forceInstrumental ?? false,
-		lyrics: typeof result.lyrics === 'string' ? result.lyrics : undefined
+		lyrics: typeof result.lyrics === 'string' ? result.lyrics : undefined,
+		imageUrl: coverUrl && !coverUrl.startsWith('http://pollinations') ? new URL(coverUrl, `${config.baseUrl}/`).toString() : undefined
 	};
 }
 
