@@ -287,7 +287,9 @@
                         id: track.id,
                         title: track.title,
                         prompt: track.prompt,
-                        isInstrumental: track.isInstrumental
+                        isInstrumental: track.isInstrumental,
+                        videoUrl: track.videoUrl,
+                        imageUrl: track.imageUrl || data.artist.userImage
                       }}
                       buttonClass="opacity-100"
                     />

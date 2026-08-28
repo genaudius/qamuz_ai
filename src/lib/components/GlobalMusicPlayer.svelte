@@ -1,6 +1,8 @@
 <script lang="ts">
   import { getContext } from "svelte";
+  import { page } from "$app/state";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
+  import { toast } from "svelte-sonner";
   import Play from "@lucide/svelte/icons/play";
   import Pause from "@lucide/svelte/icons/pause";
   import SkipBack from "@lucide/svelte/icons/skip-back";
@@ -20,6 +22,43 @@
   let seekBar: HTMLDivElement | undefined;
   let isSeeking = $state(false);
   let playlistOpen = $state(false);
+  let lastHandledPlayId = $state<string | null>(null);
+
+  $effect(() => {
+    const playId = page.url.searchParams.get("play");
+    if (!playId || playId === lastHandledPlayId) return;
+
+    lastHandledPlayId = playId;
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/music/${playId}/info`);
+        const info = await response.json().catch(() => null);
+        if (!response.ok || !info?.url) {
+          toast.error(info?.message || "No se pudo cargar la canción");
+          return;
+        }
+
+        await musicState.playTrack({
+          id: info.id,
+          url: info.url,
+          title: info.title,
+          artist: info.artist,
+          imageUrl: info.imageUrl,
+          videoUrl: info.videoUrl,
+          lyrics: info.lyrics,
+          durationMs: info.durationMs || 0,
+        });
+      } catch {
+        toast.error("No se pudo cargar la canción");
+      } finally {
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete("play");
+        const cleaned = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+        window.history.replaceState({}, "", cleaned);
+      }
+    })();
+  });
 
   function usableDuration(): number {
     const fromAudio = audioElement?.duration;

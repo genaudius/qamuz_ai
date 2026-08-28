@@ -15,6 +15,9 @@ export const GET: RequestHandler = async ({ url }) => {
       genre: music.genre,
       tags: music.tags,
       imageUrl: music.imageUrl,
+      videoUrl: music.videoUrl,
+      lyrics: music.lyrics,
+      durationMs: music.durationMs,
       createdAt: music.createdAt,
       playsCount: music.playsCount,
       likesCount: music.likesCount,
@@ -27,5 +30,10 @@ export const GET: RequestHandler = async ({ url }) => {
     .orderBy(desc(sql`(${music.playsCount} * 2 + ${music.likesCount})`), desc(music.createdAt))
     .limit(limit);
 
-  return json({ tracks });
+  return json({
+    tracks: tracks.map((track) => ({
+      ...track,
+      url: `/api/music/${track.id}`,
+    })),
+  });
 };

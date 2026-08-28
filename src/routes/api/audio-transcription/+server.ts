@@ -5,6 +5,7 @@ import { ELEVENLABS_STT_MODELS } from '$lib/constants/elevenlabs.js';
 import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-tracking.js';
 import { saveTranscriptionAndGetId } from '$lib/ai/utils.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { getGenerationRateLimitPayload } from '$lib/server/file-upload-rate-limiting.js';
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -40,6 +41,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				error: DEMO_MODE_MESSAGES.GENERAL_RESTRICTION,
 				type: 'demo_mode_restricted'
 			}, { status: 403 });
+		}
+
+		const rateLimited = getGenerationRateLimitPayload('audioTranscription', session.user.id);
+		if (rateLimited) {
+			return json(rateLimited, { status: 429 });
 		}
 
 		// Parse multipart form data

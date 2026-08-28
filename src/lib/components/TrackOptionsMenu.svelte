@@ -89,7 +89,7 @@
   }
 
   async function shareTrack() {
-    const shareUrl = `${window.location.origin}/audio?play=${encodeURIComponent(song.id)}`;
+    const shareUrl = `${window.location.origin}/?play=${encodeURIComponent(song.id)}`;
     const shareData = {
       title: displayTitle,
       text: `Escucha “${displayTitle}” en QAMUZ`,
@@ -111,6 +111,12 @@
     const seed = song.prompt || displayTitle;
     const prompt = `Remix of “${displayTitle}”: ${seed}`;
     void goto(`/audio?tab=music&prompt=${encodeURIComponent(prompt)}`);
+  }
+
+  function createVideoFromTrack() {
+    const params = new URLSearchParams();
+    if (isRealTrack) params.set("song", song.id);
+    void goto(`/music-video?${params.toString()}`);
   }
 
   function addToQueue() {
@@ -255,6 +261,15 @@
       }}
     >
       Remix
+    </DropdownMenu.Item>
+    <DropdownMenu.Item
+      class="cursor-pointer"
+      onclick={() => {
+        open = false;
+        createVideoFromTrack();
+      }}
+    >
+      Crear video
     </DropdownMenu.Item>
     {#if song.videoUrl}
       <DropdownMenu.Item

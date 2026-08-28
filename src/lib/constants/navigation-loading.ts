@@ -3,6 +3,7 @@ export const SETTINGS_DEFAULT_PATH = "/settings/profile";
 const EXACT_NAVIGATION_PATHS = new Set([
   "/newchat",
   "/image-video",
+  "/music-video",
   "/audio",
   "/studio",
   "/projects",

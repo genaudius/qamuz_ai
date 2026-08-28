@@ -214,6 +214,10 @@ export class VideoState {
 			if (this.models.length > 0 && !this.models.find(m => m.name === this.selectedModel)) {
 				this.selectedModel = this.models[0].name;
 			}
+
+			if (this.uploadedImageUrl || this.startImagePreview) {
+				this.preferImageCapableModel();
+			}
 		} catch (error) {
 			console.error('Failed to load models:', error);
 			this.errorMessage = 'Failed to load models';
@@ -280,7 +284,7 @@ export class VideoState {
 				body.resolution = this.selectedAspectRatio;
 			}
 
-			if (this.modelSupportsImageInput && imageUrl) {
+			if (imageUrl) {
 				body.imageUrl = imageUrl;
 			}
 
@@ -435,26 +439,34 @@ export class VideoState {
 	}
 
 	/**
+	 * Prefer a loaded model that can take a start image.
+	 */
+	preferImageCapableModel() {
+		if (this.modelSupportsImageInput || this.modelSupportsImageStart) return;
+		const match = this.models.find((model) => {
+			const caps = VIDEO_MODEL_CAPABILITIES[model.name];
+			return caps?.supportsImageInput || caps?.supportsImageStart;
+		});
+		if (!match) return;
+		this.selectedModel = match.name;
+		this.resetOptionalParameters();
+	}
+
+	/**
 	 * Set start image from an existing URL (for "Create Video" flow)
 	 * @param imageUrl - URL of the image to use as start frame
 	 * @param prompt - Optional prompt to carry over from image generation
 	 */
 	setStartImageFromUrl(imageUrl: string, prompt?: string) {
-		// Clear any existing file reference
 		this.startImageFile = null;
-
-		// Set the URL directly (no need to upload, already in storage)
 		this.uploadedImageUrl = imageUrl;
 		this.startImagePreview = imageUrl;
 
-		// Set prompt if provided
 		if (prompt) {
 			this.inputPrompt = prompt;
 		}
 
-		// Select Veo 3.1 Fast model (supports image input)
-		this.selectedModel = 'veo-3.1-fast';
-		this.resetOptionalParameters();
+		this.preferImageCapableModel();
 	}
 
 	// ==================== End Image Methods ====================

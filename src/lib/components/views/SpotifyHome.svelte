@@ -74,7 +74,9 @@
             artist: track.artistName || "Unknown",
             coverUrl: track.imageUrl || "",
             durationMs: track.durationMs || 200000,
-            url: "",
+            url: track.url || `/api/music/${track.id}`,
+            videoUrl: track.videoUrl || undefined,
+            lyrics: track.lyrics || undefined,
           }));
 
           const artistMap = new Map<string, { id: string; name: string; avatarUrl: string }>();
@@ -147,7 +149,10 @@
     void loadHomeData();
   });
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   function playTrack(track: any) {
+    if (!track.url || !UUID_RE.test(track.id)) return;
     if (musicState.currentTrack?.id === track.id) {
       musicState.togglePlay();
     } else {
@@ -156,7 +161,9 @@
         title: track.title,
         artist: track.artist || "Unknown",
         imageUrl: track.coverUrl,
-        url: track.url || "",
+        url: track.url,
+        videoUrl: track.videoUrl,
+        lyrics: track.lyrics,
         durationMs: track.durationMs || 10000
       });
     }
@@ -381,7 +388,13 @@
           </div>
           <div class="absolute top-2 right-2 z-10" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
             <TrackOptionsMenu
-              song={{ id: track.id, title: track.title }}
+              song={{
+                id: track.id,
+                title: track.title,
+                imageUrl: track.coverUrl,
+                videoUrl: track.videoUrl,
+                durationMs: track.durationMs,
+              }}
               buttonClass="bg-black/55 text-white opacity-100"
             />
           </div>

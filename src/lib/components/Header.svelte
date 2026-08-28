@@ -45,6 +45,7 @@
       "/newchat": () => m["nav.new_chat"](),
       "/audio": () => m["nav.audio"](),
       "/image-video": () => m["nav.image_video"](),
+      "/music-video": () => "Music Video",
       "/settings": () => m["settings.title"](),
     };
 

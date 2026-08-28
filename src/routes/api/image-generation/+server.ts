@@ -5,6 +5,7 @@ import type { ImageGenerationParams, AIImageStreamChunk } from '$lib/ai/types.js
 import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-tracking.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 import { generateLocalImage, getLocalImageConfig } from '$lib/ai/providers/local-forge.js';
+import { getGenerationRateLimitPayload } from '$lib/server/file-upload-rate-limiting.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -17,6 +18,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Check demo mode restrictions
 		if (isDemoModeRestricted(!!session?.user?.id)) {
 			return json({ error: DEMO_MODE_MESSAGES.GENERAL_RESTRICTION }, { status: 403 });
+		}
+
+		const rateLimited = getGenerationRateLimitPayload('imageGeneration', session.user.id);
+		if (rateLimited) {
+			return json(rateLimited, { status: 429 });
 		}
 
 		const body = await request.json();

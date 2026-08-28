@@ -213,8 +213,6 @@
           {@render children()}
         {/if}
       </div>
-      
-      <GlobalMusicPlayer />
     </div>
     
     <!-- Right Sidebar Now Playing -->
@@ -225,6 +223,8 @@
     {/if}
   </Sidebar.Provider>
 {/if}
+
+<GlobalMusicPlayer />
 
 <Toaster position="top-center" />
 <OnboardingModal />

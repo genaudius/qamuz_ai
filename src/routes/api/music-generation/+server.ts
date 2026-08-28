@@ -9,6 +9,7 @@ import { aiJobs } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 import { getLocalMusicConfig } from '$lib/ai/providers/local-acestep.js';
+import { getGenerationRateLimitPayload } from '$lib/server/file-upload-rate-limiting.js';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const session = await locals.auth();
@@ -65,6 +66,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				error: DEMO_MODE_MESSAGES.GENERAL_RESTRICTION,
 				type: 'demo_mode_restricted'
 			}, { status: 403 });
+		}
+
+		const rateLimited = getGenerationRateLimitPayload('musicGeneration', session.user.id);
+		if (rateLimited) {
+			return json(rateLimited, { status: 429 });
 		}
 
 		const body = await request.json();

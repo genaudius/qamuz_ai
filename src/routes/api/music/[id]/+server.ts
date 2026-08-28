@@ -1,12 +1,13 @@
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { music } from '$lib/server/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { storageService } from '$lib/server/storage.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { canStreamMusic, isMusicUuid, mediaCacheControl } from '$lib/server/media-access.js';
 
-// Get music by ID (secure with authentication and authorization)
+// Stream a track: owner always, anyone if the track is published.
 function parseByteRange(header: string | null, size: number): { start: number; end: number } | null {
 	if (!header) return null;
 	const match = header.match(/^bytes=(\d*)-(\d*)$/i);
@@ -25,24 +26,17 @@ function parseByteRange(header: string | null, size: number): { start: number; e
 
 export const GET: RequestHandler = async ({ params, locals, request }) => {
 	try {
-		// Check authentication
 		const session = await locals.auth();
-		if (!session?.user?.id) {
-			throw error(401, 'Authentication required');
-		}
-
 		const musicId = params.id;
 
 		if (!musicId) {
 			throw error(400, 'Music ID is required');
 		}
 
-		// Validate music ID format (UUID format for database IDs)
-		if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(musicId)) {
+		if (!isMusicUuid(musicId)) {
 			throw error(400, 'Invalid music ID format');
 		}
 
-		// Query database to get music metadata and verify ownership
 		const [musicRecord] = await db
 			.select()
 			.from(music)
@@ -52,9 +46,18 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 			throw error(404, 'Music not found');
 		}
 
-		// Check authorization - user can only access their own music
-		if (musicRecord.userId !== session.user.id) {
-			throw error(403, 'Access denied - you can only access your own music');
+		if (!canStreamMusic(musicRecord, session?.user?.id)) {
+			throw error(session?.user?.id ? 403 : 401, session?.user?.id
+				? 'Access denied - this track is private'
+				: 'Authentication required');
+		}
+
+		const cacheControl = mediaCacheControl(musicRecord.isPublic);
+		if (musicRecord.isPublic && !request.headers.get('range')) {
+			await db
+				.update(music)
+				.set({ playsCount: sql`${music.playsCount} + 1` })
+				.where(eq(music.id, musicId));
 		}
 
 		// Handle cloud storage files with presigned URLs
@@ -66,7 +69,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 				status: 302,
 				headers: {
 					'Location': presignedUrl,
-					'Cache-Control': 'private, max-age=300' // 5 minutes cache for redirect
+					'Cache-Control': musicRecord.isPublic ? 'public, max-age=300' : 'private, max-age=300'
 				}
 			});
 		}
@@ -94,7 +97,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 						'Accept-Ranges': 'bytes',
 						'Content-Range': `bytes ${range.start}-${range.end}/${size}`,
 						'Content-Length': sliced.byteLength.toString(),
-						'Cache-Control': 'private, max-age=3600'
+						'Cache-Control': cacheControl
 					}
 				});
 			}
@@ -103,7 +106,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 				headers: {
 					'Content-Type': contentType,
 					'Accept-Ranges': 'bytes',
-					'Cache-Control': 'private, max-age=3600',
+					'Cache-Control': cacheControl,
 					'Content-Length': size.toString()
 				}
 			});
@@ -113,7 +116,7 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 		}
 	} catch (err) {
 		console.error('Music retrieval error:', err);
-		if (err instanceof Error && 'status' in err) {
+		if (isHttpError(err)) {
 			throw err;
 		}
 		throw error(500, 'Failed to retrieve music');
@@ -141,7 +144,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		}
 
 		// Validate music ID format (UUID format for database IDs)
-		if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(musicId)) {
+		if (!isMusicUuid(musicId)) {
 			throw error(400, 'Invalid music ID format');
 		}
 
@@ -181,7 +184,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		});
 	} catch (err) {
 		console.error('Music deletion error:', err);
-		if (err instanceof Error && 'status' in err) {
+		if (isHttpError(err)) {
 			throw err;
 		}
 		throw error(500, 'Failed to delete music');

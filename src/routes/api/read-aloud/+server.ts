@@ -9,7 +9,7 @@ import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-trackin
 import { saveAudioAndGetId } from '$lib/ai/utils.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 import { storageService } from '$lib/server/storage.js';
-import { enforceFileUploadRateLimit } from '$lib/server/file-upload-rate-limiting.js';
+import { getGenerationRateLimitPayload } from '$lib/server/file-upload-rate-limiting.js';
 import { READ_ALOUD_DEFAULTS } from '$lib/constants/elevenlabs.js';
 
 // UUID v4 format validation regex
@@ -32,7 +32,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Rate limiting to prevent API abuse
-		enforceFileUploadRateLimit('audioGeneration', session.user.id);
+		const rateLimited = getGenerationRateLimitPayload('audioGeneration', session.user.id);
+		if (rateLimited) {
+			return json(rateLimited, { status: 429 });
+		}
 
 		const body = await request.json();
 		const { chatId, messageIndex, text } = body;

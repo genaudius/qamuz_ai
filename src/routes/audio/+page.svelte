@@ -1019,7 +1019,8 @@
                               id: item.track.id,
                               title: item.track.title,
                               prompt: item.track.title,
-                              videoUrl: item.track.videoUrl
+                              videoUrl: item.track.videoUrl,
+                              imageUrl: item.track.imageUrl
                             }}
                             side="top"
                             buttonClass="text-muted-foreground hover:text-foreground"

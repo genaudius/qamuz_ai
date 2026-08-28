@@ -166,7 +166,8 @@
                     prompt: track.prompt,
                     genre: track.genre,
                     isInstrumental: track.isInstrumental,
-                    videoUrl: track.videoUrl
+                    videoUrl: track.videoUrl,
+                    imageUrl: track.imageUrl
                   }}
                   buttonClass="opacity-100"
                 />

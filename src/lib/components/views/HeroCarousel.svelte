@@ -159,6 +159,10 @@
     if (currentSlide.actionType === 'navigate_ai') {
       goto('/audio');
     } else if (currentSlide.actionType === 'play_track' && currentSlide.trackSample) {
+      if (!currentSlide.trackSample.url) {
+        goto('/library');
+        return;
+      }
       if (musicState.currentTrack?.id === currentSlide.trackSample.id) {
         musicState.togglePlay();
       } else {

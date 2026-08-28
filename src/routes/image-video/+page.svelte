@@ -292,37 +292,41 @@
     });
   });
 
-  // Handle URL parameters for prompt pre-fill (from chat "Generate image/video" actions)
+  // Handle URL parameters for prompt pre-fill (from chat / song "Create video" actions)
   $effect(() => {
     // Only process URL params once to avoid reactive dependency issues
     if (urlParamsProcessed) return;
 
     const prompt = page.url.searchParams.get("prompt");
     const tab = page.url.searchParams.get("tab") as "image" | "video" | null;
+    const image = page.url.searchParams.get("image");
 
-    if (prompt) {
+    if (prompt || image || tab === "image" || tab === "video") {
       urlParamsProcessed = true;
-      const decodedPrompt = decodeURIComponent(prompt);
+      const decodedPrompt = prompt ? decodeURIComponent(prompt) : "";
+      const decodedImage = image ? decodeURIComponent(image) : "";
 
       // Use untrack to prevent creating reactive dependencies on state changes
       untrack(() => {
-        // Set the tab if specified
         if (tab === "image" || tab === "video") {
           activeTab = tab;
         }
 
-        // Set the prompt on the appropriate state
-        if (tab === "video") {
-          videoState.inputPrompt = decodedPrompt;
-        } else {
+        if (tab === "video" || decodedImage) {
+          if (decodedImage) {
+            videoState.setStartImageFromUrl(decodedImage, decodedPrompt || undefined);
+          } else if (decodedPrompt) {
+            videoState.inputPrompt = decodedPrompt;
+          }
+        } else if (decodedPrompt) {
           imageState.inputPrompt = decodedPrompt;
         }
       });
 
-      // Clear URL params to keep URL clean (use replaceState to avoid history entry)
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("prompt");
       newUrl.searchParams.delete("tab");
+      newUrl.searchParams.delete("image");
       window.history.replaceState({}, "", newUrl.toString());
     }
   });

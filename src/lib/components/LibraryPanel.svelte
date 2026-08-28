@@ -133,7 +133,8 @@
                               prompt: song.prompt,
                               genre: song.genre,
                               isInstrumental: song.isInstrumental,
-                              videoUrl: song.videoUrl
+                              videoUrl: song.videoUrl,
+                              imageUrl: song.imageUrl
                             }}
                             buttonClass="text-muted-foreground hover:text-foreground opacity-100"
                           />

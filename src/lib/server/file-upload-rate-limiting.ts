@@ -61,6 +61,13 @@ export const FILE_UPLOAD_RATE_LIMITS: Record<string, RateLimitConfig> = {
 		message: 'Too many sound effects requests. Please wait before generating more.'
 	},
 
+	// Music video studio (local Maestro / Replicate)
+	musicVideoGeneration: {
+		windowMs: 60 * 1000, // 1 minute
+		max: 3, // 3 generations per minute
+		message: 'Too many music video requests. Please wait before generating another video.'
+	},
+
 	// Branding file uploads (admin dashboard - should be rare)
 	brandingUpload: {
 		windowMs: 60 * 60 * 1000, // 1 hour
@@ -83,6 +90,30 @@ export interface FileUploadRateLimitResult {
 	message?: string;
 	resetTime?: number;
 	remainingMs?: number;
+}
+
+export interface GenerationRateLimitPayload {
+	error: string;
+	type: 'rate_limit_exceeded';
+	resetInMs: number;
+}
+
+/**
+ * Returns a 429 payload when the per-user generation rate limit is exceeded.
+ */
+export function getGenerationRateLimitPayload(
+	operation: FileUploadOperation,
+	userId: string
+): GenerationRateLimitPayload | null {
+	const result = checkFileUploadRateLimit(operation, userId);
+	if (!result.allowed) {
+		return {
+			error: result.message || 'Too many requests. Please try again later.',
+			type: 'rate_limit_exceeded',
+			resetInMs: result.remainingMs ?? 0
+		};
+	}
+	return null;
 }
 
 /**

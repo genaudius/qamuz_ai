@@ -5,6 +5,7 @@ import type { AudioGenerationParams } from '$lib/ai/types.js';
 import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-tracking.js';
 import { saveAudioAndGetId } from '$lib/ai/utils.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { getGenerationRateLimitPayload } from '$lib/server/file-upload-rate-limiting.js';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -20,6 +21,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				error: DEMO_MODE_MESSAGES.GENERAL_RESTRICTION,
 				type: 'demo_mode_restricted'
 			}, { status: 403 });
+		}
+
+		const rateLimited = getGenerationRateLimitPayload('audioGeneration', session.user.id);
+		if (rateLimited) {
+			return json(rateLimited, { status: 429 });
 		}
 
 		const body = await request.json();

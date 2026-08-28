@@ -1,32 +1,26 @@
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { videos } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { storageService } from '$lib/server/storage.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { canViewVideo, isMusicUuid, mediaCacheControl } from '$lib/server/media-access.js';
 
-// Get video by ID (secure with authentication and authorization)
+// Stream a video: owner always, anyone if linked from a published track.
 export const GET: RequestHandler = async ({ params, locals }) => {
 	try {
-		// Check authentication
 		const session = await locals.auth();
-		if (!session?.user?.id) {
-			throw error(401, 'Authentication required');
-		}
-
 		const videoId = params.id;
-		
+
 		if (!videoId) {
 			throw error(400, 'Video ID is required');
 		}
 
-		// Validate video ID format (UUID format for database IDs)
-		if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(videoId)) {
+		if (!isMusicUuid(videoId)) {
 			throw error(400, 'Invalid video ID format');
 		}
 
-		// Query database to get video metadata and verify ownership
 		const [videoRecord] = await db
 			.select()
 			.from(videos)
@@ -36,10 +30,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			throw error(404, 'Video not found');
 		}
 
-		// Check authorization - user can only access their own videos
-		if (videoRecord.userId !== session.user.id) {
-			throw error(403, 'Access denied - you can only access your own videos');
+		const allowed = await canViewVideo(videoId, videoRecord.userId, session?.user?.id);
+		if (!allowed) {
+			throw error(session?.user?.id ? 403 : 401, session?.user?.id
+				? 'Access denied - this video is private'
+				: 'Authentication required');
 		}
+
+		const isPublicVideo = videoRecord.userId !== session?.user?.id;
+		const cacheControl = mediaCacheControl(isPublicVideo);
 
 		// Handle cloud storage files with presigned URLs
 		if (videoRecord.storageLocation === 'r2' && videoRecord.cloudPath) {
@@ -50,7 +49,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				status: 302,
 				headers: {
 					'Location': presignedUrl,
-					'Cache-Control': 'private, max-age=300' // 5 minutes cache for redirect
+					'Cache-Control': isPublicVideo ? 'public, max-age=300' : 'private, max-age=300'
 				}
 			});
 		}
@@ -68,9 +67,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			return new Response(new Uint8Array(videoData), {
 				headers: {
 					'Content-Type': videoRecord.mimeType,
-					'Cache-Control': 'private, max-age=3600', // Private cache for 1 hour
+					'Cache-Control': cacheControl,
 					'Content-Length': videoData.length.toString(),
-					'Accept-Ranges': 'bytes' // Enable range requests for video streaming
+					'Accept-Ranges': 'bytes'
 				}
 			});
 		} catch (storageError) {
@@ -79,7 +78,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		}
 	} catch (err) {
 		console.error('Video retrieval error:', err);
-		if (err instanceof Error && 'status' in err) {
+		if (isHttpError(err)) {
 			throw err;
 		}
 		throw error(500, 'Failed to retrieve video');
@@ -147,7 +146,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		});
 	} catch (err) {
 		console.error('Video deletion error:', err);
-		if (err instanceof Error && 'status' in err) {
+		if (isHttpError(err)) {
 			throw err;
 		}
 		throw error(500, 'Failed to delete video');
