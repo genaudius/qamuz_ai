@@ -3,6 +3,7 @@ import { sequence } from "@sveltejs/kit/hooks"
 import { building } from '$app/environment'
 import { settingsStore } from '$lib/server/settings-store'
 import { storageService } from '$lib/server/storage.js'
+import { ensureCanonicalSchema } from '$lib/server/db/ensure-canonical.js'
 import { paraglideMiddleware } from "./paraglide/server"
 import { db, users, betterAuthAccounts } from '$lib/server/db/index.js'
 import { and, eq, ne } from 'drizzle-orm'
@@ -14,6 +15,7 @@ import { sendWelcomeEmail } from '$lib/server/email.js'
 // Settings handle - loads and caches site settings
 const settingsHandle: Handle = async ({ event, resolve }) => {
   try {
+    await ensureCanonicalSchema();
     // Load settings and make them available in locals
     const settings = await settingsStore.getSettings();
     event.locals.settings = settings;

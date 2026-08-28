@@ -3,7 +3,6 @@ import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { music, playlistItems, playlists } from '$lib/server/db/schema.js';
 import { and, eq, max } from 'drizzle-orm';
-import { ensurePlaylistTables } from '$lib/server/playlists.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
@@ -17,7 +16,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	try {
-		await ensurePlaylistTables();
 		const playlistId = params.id;
 		const body = (await request.json()) as { musicId?: string };
 		const musicId = (body.musicId ?? '').trim();

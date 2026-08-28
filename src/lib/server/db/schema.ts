@@ -640,6 +640,7 @@ export const aiJobs = pgTable("ai_jobs", {
 	index('ai_jobs_user_idx').on(table.userId),
 ])
 
+// Public artist page (stage name, bio, avatar, banner). This id is the public URL.
 export const artistProfiles = pgTable("artist_profile", {
 	id: text("id")
 		.primaryKey()
@@ -659,7 +660,7 @@ export const artistProfiles = pgTable("artist_profile", {
 	index('artist_profiles_user_idx').on(table.userId),
 ]);
 
-// Artists table
+// Verification tokens / verifiedAt keyed by userId. Not the public URL id.
 export const artists = pgTable("artist", {
   id: text("id").primaryKey().notNull().$defaultFn(() => randomUUID()),
   userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),

@@ -3,7 +3,6 @@ import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { music, playlistItems, playlists } from '$lib/server/db/schema.js';
 import { desc, eq, sql } from 'drizzle-orm';
-import { ensurePlaylistTables } from '$lib/server/playlists.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -13,7 +12,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	try {
-		await ensurePlaylistTables();
 		const rows = await db
 			.select({
 				id: playlists.id,
@@ -47,7 +45,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		await ensurePlaylistTables();
 		const body = (await request.json()) as { name?: string; musicId?: string };
 		const name = (body.name ?? '').trim();
 		if (!name) {

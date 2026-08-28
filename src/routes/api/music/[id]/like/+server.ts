@@ -3,7 +3,6 @@ import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { music, musicLikes } from '$lib/server/db/schema.js';
 import { and, eq, sql } from 'drizzle-orm';
-import { ensureMusicLikeTable } from '$lib/server/music-likes.js';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -18,7 +17,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	}
 
 	try {
-		await ensureMusicLikeTable();
 		const [track] = await db
 			.select({ id: music.id, likesCount: music.likesCount })
 			.from(music)
@@ -56,7 +54,6 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 	}
 
 	try {
-		await ensureMusicLikeTable();
 		const [track] = await db
 			.select({ id: music.id, isPublic: music.isPublic, userId: music.userId, likesCount: music.likesCount })
 			.from(music)

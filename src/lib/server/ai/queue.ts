@@ -3,6 +3,7 @@ import { aiJobs, music, users } from '../db/schema.js';
 import { eq, and, asc, isNull, lte, or, sql } from 'drizzle-orm';
 import { UsageTrackingService } from '../usage-tracking.js';
 import { saveMusicAndGetId } from '$lib/ai/utils.js';
+import type { ImageGenerationParams } from '$lib/ai/types.js';
 // We'll import provider runners dynamically or define a simple registry
 
 export type JobType = 'music-generation' | 'video-generation' | 'image-generation';
@@ -88,7 +89,8 @@ async function generateMusicCover(result: any, job: any): Promise<string | undef
 		return undefined;
 	}
 
-	const coverParams = {
+	const coverParams: ImageGenerationParams = {
+		model: 'qamuz-local-image',
 		prompt: buildMusicCoverPrompt(result, job.payload || {}),
 		size: '512x512',
 		quality: 'medium',

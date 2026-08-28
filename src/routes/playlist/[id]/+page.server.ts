@@ -3,11 +3,8 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db/index.js';
 import { playlistItems, playlists, music, users } from '$lib/server/db/schema.js';
 import { and, asc, eq, isNotNull } from 'drizzle-orm';
-import { ensurePlaylistTables } from '$lib/server/playlists.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-  await ensurePlaylistTables();
-
   const playlistId = params.id;
   const session = await locals.auth();
 

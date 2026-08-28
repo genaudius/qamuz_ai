@@ -5,7 +5,7 @@ import { masterJobs } from '$lib/server/db/schema.js';
 import { desc, eq } from 'drizzle-orm';
 import { storageService } from '$lib/server/storage.js';
 import { randomUUID } from 'crypto';
-import { ensureMasterJobTable, isPremiumTier, sessionUser } from '$lib/server/master-jobs.js';
+import { isPremiumTier, sessionUser } from '$lib/server/master-jobs.js';
 
 function serializeJob(job: typeof masterJobs.$inferSelect) {
 	return {
@@ -29,7 +29,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 	if (!user) return json({ error: 'Authentication required' }, { status: 401 });
 
 	try {
-		await ensureMasterJobTable();
 		const rows = await db
 			.select()
 			.from(masterJobs)
@@ -51,7 +50,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		await ensureMasterJobTable();
 		const form = await request.formData();
 		const file = form.get('file');
 		if (!(file instanceof File)) {

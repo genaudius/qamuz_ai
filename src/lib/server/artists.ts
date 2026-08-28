@@ -1,78 +1,54 @@
-import { sql } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
+import { artistProfiles, artists, users } from '$lib/server/db/schema.js';
+import { eq, or } from 'drizzle-orm';
 
-let tableReady = false;
+export type PublicArtistRecord = {
+	id: string;
+	bio: string | null;
+	verifiedAt: Date | null;
+	userId: string;
+	userName: string | null;
+	userImage: string | null;
+	stageName: string | null;
+};
 
-/** Create artist / artist_profile / follow if this database never got the migration. */
-export async function ensureArtistTables(): Promise<void> {
-	if (tableReady) return;
+/** Public artist pages always use artist_profile. Verification lives on artist by userId. */
+export async function findPublicArtist(artistId: string): Promise<PublicArtistRecord | null> {
+	const [row] = await db
+		.select({
+			id: artistProfiles.id,
+			bio: artistProfiles.bio,
+			stageName: artistProfiles.stageName,
+			userId: artistProfiles.userId,
+			userName: users.name,
+			userImage: users.image,
+			verifiedAt: artists.verifiedAt,
+		})
+		.from(artistProfiles)
+		.innerJoin(users, eq(users.id, artistProfiles.userId))
+		.leftJoin(artists, eq(artists.userId, artistProfiles.userId))
+		.where(or(eq(artistProfiles.id, artistId), eq(artistProfiles.userId, artistId)))
+		.limit(1);
 
-	await db.execute(sql`
-		CREATE TABLE IF NOT EXISTS "artist_profile" (
-			"id" text PRIMARY KEY NOT NULL,
-			"userId" text NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
-			"stageName" text,
-			"bio" text,
-			"avatarUrl" text,
-			"bannerUrl" text,
-			"createdAt" timestamp DEFAULT now() NOT NULL,
-			"updatedAt" timestamp DEFAULT now() NOT NULL
-		)
-	`);
-	await db.execute(sql`
-		ALTER TABLE "artist_profile" ADD COLUMN IF NOT EXISTS "stageName" text
-	`);
-	await db.execute(sql`
-		ALTER TABLE "artist_profile" ADD COLUMN IF NOT EXISTS "avatarUrl" text
-	`);
-	await db.execute(sql`
-		ALTER TABLE "artist_profile" ADD COLUMN IF NOT EXISTS "bio" text
-	`);
-	await db.execute(sql`
-		ALTER TABLE "artist_profile" ADD COLUMN IF NOT EXISTS "bannerUrl" text
-	`);
-	await db.execute(sql`
-		CREATE INDEX IF NOT EXISTS "artist_profiles_user_idx" ON "artist_profile" ("userId")
-	`);
+	return row ?? null;
+}
 
-	await db.execute(sql`
-		CREATE TABLE IF NOT EXISTS "artist" (
-			"id" text PRIMARY KEY NOT NULL,
-			"userId" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-			"bio" text,
-			"verificationEmail" text,
-			"verificationToken" text,
-			"verificationTokenExpiresAt" timestamp,
-			"verificationRequestedAt" timestamp,
-			"verifiedAt" timestamp,
-			"createdAt" timestamp DEFAULT now() NOT NULL,
-			"updatedAt" timestamp DEFAULT now() NOT NULL
-		)
-	`);
-	await db.execute(sql`
-		CREATE INDEX IF NOT EXISTS "artist_user_idx" ON "artist" ("userId")
-	`);
-	await db.execute(sql`
-		CREATE INDEX IF NOT EXISTS "artist_verification_token_idx" ON "artist" ("verificationToken")
-	`);
+export async function getOrCreateArtistProfile(userId: string): Promise<{ id: string }> {
+	const [existing] = await db
+		.select({ id: artistProfiles.id })
+		.from(artistProfiles)
+		.where(eq(artistProfiles.userId, userId))
+		.limit(1);
 
-	await db.execute(sql`
-		CREATE TABLE IF NOT EXISTS "follow" (
-			"id" text PRIMARY KEY NOT NULL,
-			"followerId" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-			"followingId" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-			"createdAt" timestamp DEFAULT now() NOT NULL
-		)
-	`);
-	await db.execute(sql`
-		CREATE UNIQUE INDEX IF NOT EXISTS "follow_pair_unique" ON "follow" ("followerId", "followingId")
-	`);
-	await db.execute(sql`
-		CREATE INDEX IF NOT EXISTS "follows_follower_idx" ON "follow" ("followerId")
-	`);
-	await db.execute(sql`
-		CREATE INDEX IF NOT EXISTS "follows_following_idx" ON "follow" ("followingId")
-	`);
+	if (existing) return existing;
 
-	tableReady = true;
+	const [created] = await db
+		.insert(artistProfiles)
+		.values({ userId, bio: null, bannerUrl: null })
+		.returning({ id: artistProfiles.id });
+
+	if (!created?.id) {
+		throw new Error('Could not create artist profile');
+	}
+	return created;
 }

@@ -4,13 +4,12 @@ import { db } from '$lib/server/db/index.js';
 import { masterJobs } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { storageService } from '$lib/server/storage.js';
-import { ensureMasterJobTable, sessionUser } from '$lib/server/master-jobs.js';
+import { sessionUser } from '$lib/server/master-jobs.js';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const user = await sessionUser(locals);
 	if (!user) throw error(401, 'Authentication required');
 
-	await ensureMasterJobTable();
 	const [job] = await db.select().from(masterJobs).where(eq(masterJobs.id, params.id));
 	if (!job) throw error(404, 'Master not found');
 	if (job.userId !== user.id) throw error(403, 'Access denied');
