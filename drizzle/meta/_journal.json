@@ -50,6 +50,27 @@
       "when": 1785548968699,
       "tag": "0006_rich_logan",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787950000000,
+      "tag": "0007_social_studio_and_packages",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787951000000,
+      "tag": "0008_usage_tracking_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788540000000,
+      "tag": "0009_daw_session_revisions",
+      "breakpoints": true
     }
   ]
 }

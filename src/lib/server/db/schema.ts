@@ -688,3 +688,16 @@ export const playlistItems = pgTable("playlist_item", {
   index("playlist_item_playlist_idx").on(table.playlistId),
   index("playlist_item_music_idx").on(table.musicId),
 ]);
+
+export const dawSessionRevisions = pgTable("daw_session_revision", {
+	id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+	sessionId: text("sessionId").notNull().references(() => dawSessions.id, { onDelete: "cascade" }),
+	userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+	revision: integer("revision").notNull(),
+	action: text("action").notNull().default("autosave"),
+	snapshot: json("snapshot").notNull(),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	unique("daw_session_revision_unique").on(table.sessionId, table.revision),
+	index("daw_session_revision_user_idx").on(table.userId, table.createdAt),
+]);

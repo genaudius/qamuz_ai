@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { getContext, onMount } from "svelte";
+  import { getContext } from "svelte";
+  import { page } from "$app/state";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
+  import { toast } from "svelte-sonner";
   import Play from "@lucide/svelte/icons/play";
   import Pause from "@lucide/svelte/icons/pause";
   import SkipBack from "@lucide/svelte/icons/skip-back";
@@ -9,62 +11,162 @@
   import Maximize2 from "@lucide/svelte/icons/maximize-2";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import PublishModal from "$lib/components/PublishModal.svelte";
+  import AddToPlaylistDialog from "$lib/components/AddToPlaylistDialog.svelte";
+  import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
   import * as Button from "$lib/components/ui/button/index.js";
+  import X from "@lucide/svelte/icons/x";
+  import { shareTrackLink } from "$lib/utils/share-track.js";
 
   const musicState = getContext<GlobalMusicState>("musicState");
 
   let audioElement: HTMLAudioElement;
-  let isSeeking = false;
+  let seekBar: HTMLDivElement | undefined;
+  let isSeeking = $state(false);
+  let playlistOpen = $state(false);
+  let lastHandledPlayId = $state<string | null>(null);
+
+  $effect(() => {
+    const playId = page.url.searchParams.get("play");
+    if (!playId || playId === lastHandledPlayId) return;
+
+    lastHandledPlayId = playId;
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/music/${playId}/info`);
+        const info = await response.json().catch(() => null);
+        if (!response.ok || !info?.url) {
+          toast.error(info?.message || "No se pudo cargar la canción");
+          return;
+        }
+
+        await musicState.playTrack({
+          id: info.id,
+          url: info.url,
+          title: info.title,
+          artist: info.artist,
+          imageUrl: info.imageUrl,
+          videoUrl: info.videoUrl,
+          lyrics: info.lyrics,
+          durationMs: info.durationMs || 0,
+        });
+      } catch {
+        toast.error("No se pudo cargar la canción");
+      } finally {
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete("play");
+        const cleaned = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+        window.history.replaceState({}, "", cleaned);
+      }
+    })();
+  });
+
+  function usableDuration(): number {
+    const fromAudio = audioElement?.duration;
+    const fromState = musicState.duration;
+    const fromTrack = (musicState.currentTrack?.durationMs ?? 0) / 1000;
+    if (Number.isFinite(fromAudio) && fromAudio > 0) return fromAudio;
+    if (Number.isFinite(fromState) && fromState > 0) return fromState;
+    if (Number.isFinite(fromTrack) && fromTrack > 0) return fromTrack;
+    return 0;
+  }
+
+  let progressPercent = $derived.by(() => {
+    const duration = usableDuration();
+    if (duration <= 0) return 0;
+    return Math.min(100, Math.max(0, (musicState.currentTime / duration) * 100));
+  });
+
+  async function shareCurrentTrack() {
+    const track = musicState.currentTrack;
+    if (!track?.id) {
+      toast.error("No hay canción para compartir");
+      return;
+    }
+    const result = await shareTrackLink({
+      id: track.id,
+      title: track.title || "Untitled track"
+    });
+    if (result === "shared") return;
+    if (result === "copied") {
+      toast.success("Enlace copiado al portapapeles");
+      return;
+    }
+    toast.error("No se pudo compartir la canción");
+  }
+
+  function syncDuration() {
+    if (!audioElement) return;
+    const audioDuration = audioElement.duration;
+    if (Number.isFinite(audioDuration) && audioDuration > 0) {
+      musicState.duration = audioDuration;
+    }
+  }
 
   function handleTimeUpdate() {
     if (audioElement && !isSeeking) {
       musicState.currentTime = audioElement.currentTime;
-    }
-  }
-
-  function handleLoadedMetadata() {
-    if (audioElement) {
-      musicState.duration = audioElement.duration;
+      syncDuration();
     }
   }
 
   function handleEnded() {
     musicState.isPlaying = false;
+    musicState.currentTime = usableDuration() || musicState.currentTime;
   }
 
-  function handleSeekStart() {
+  function seekFromClientX(clientX: number) {
+    if (!seekBar) return;
+    const duration = usableDuration();
+    if (duration <= 0) return;
+    const rect = seekBar.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    musicState.seek(ratio * duration);
+  }
+
+  function handleSeekPointerDown(event: PointerEvent) {
+    if (event.button !== 0) return;
     isSeeking = true;
+    seekBar?.setPointerCapture(event.pointerId);
+    seekFromClientX(event.clientX);
   }
 
-  function handleSeekEnd(value: number[]) {
+  function handleSeekPointerMove(event: PointerEvent) {
+    if (!isSeeking) return;
+    seekFromClientX(event.clientX);
+  }
+
+  function handleSeekPointerUp(event: PointerEvent) {
+    if (!isSeeking) return;
+    seekFromClientX(event.clientX);
     isSeeking = false;
-    musicState.seek(value[0]);
+    try {
+      seekBar?.releasePointerCapture(event.pointerId);
+    } catch {
+      // Capture may already be released.
+    }
   }
 
   function formatTime(seconds: number) {
-    if (isNaN(seconds)) return "0:00";
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   }
 
-  onMount(() => {
-    // Reactivity handled by svelte 5 runes
+  $effect(() => {
+    if (audioElement && musicState.currentTrack) {
+      musicState.audioElement = audioElement;
+      audioElement.volume = musicState.volume;
+    }
   });
 
   $effect(() => {
-    if (audioElement && musicState.currentTrack) {
-      if (musicState.audioElement !== audioElement) {
-        musicState.audioElement = audioElement;
-        audioElement.volume = musicState.volume;
-      }
-
-      // Handle play state sync
-      if (musicState.isPlaying && audioElement.paused) {
-        audioElement.play().catch((e) => console.error("Playback failed:", e));
-      } else if (!musicState.isPlaying && !audioElement.paused) {
-        audioElement.pause();
-      }
+    if (!audioElement || !musicState.currentTrack || isSeeking) return;
+    if (musicState.isPlaying && audioElement.paused) {
+      audioElement.play().catch((e) => console.error("Playback failed:", e));
+    } else if (!musicState.isPlaying && !audioElement.paused) {
+      audioElement.pause();
     }
   });
 </script>
@@ -72,17 +174,20 @@
 <audio
   bind:this={audioElement}
   src={musicState.currentTrack?.url || ""}
+  preload="auto"
   ontimeupdate={handleTimeUpdate}
-  onloadedmetadata={handleLoadedMetadata}
+  onloadedmetadata={syncDuration}
+  ondurationchange={syncDuration}
+  oncanplay={syncDuration}
   onended={handleEnded}
 ></audio>
 {#if musicState.currentTrack}
   <!-- The floating player pill -->
   <div
-    class="absolute bottom-6 left-6 z-50 flex items-center px-4 justify-between h-[88px] bg-[#1c1c1c] text-white rounded-2xl shadow-2xl transition-all duration-300 border border-white/5 right-6"
+    class="fixed bottom-6 left-6 z-50 flex items-center px-4 justify-between h-[88px] bg-[#1c1c1c] text-white rounded-2xl shadow-2xl transition-all duration-300 border border-white/5 {musicState.isExpanded ? 'right-[370px]' : 'right-6'}"
   >
     <!-- Left: Track Info -->
-    <div class="flex items-center gap-4 w-1/4 min-w-0">
+    <div class="flex items-center gap-4 w-[28%] min-w-0 max-w-xs">
       <button
         type="button"
         class="h-14 w-14 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center relative group cursor-pointer border-none p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/50"
@@ -121,7 +226,7 @@
 
     <!-- Center: Controls -->
     <div
-      class="flex flex-col items-center justify-center w-2/4 max-w-2xl px-4 gap-1.5"
+      class="flex flex-col items-center justify-center flex-1 min-w-[180px] px-4 gap-1.5"
     >
       <div class="flex items-center gap-6">
         <Button.Root
@@ -183,49 +288,50 @@
         <span class="w-10 text-right">{formatTime(musicState.currentTime)}</span
         >
         <div
-          class="flex-1 relative flex items-center h-4 group cursor-pointer"
+          bind:this={seekBar}
+          role="slider"
+          tabindex="0"
+          aria-label="Song progress"
+          aria-valuemin={0}
+          aria-valuemax={usableDuration()}
+          aria-valuenow={musicState.currentTime}
+          class="flex-1 relative flex items-center h-4 group cursor-pointer select-none"
+          onpointerdown={handleSeekPointerDown}
+          onpointermove={handleSeekPointerMove}
+          onpointerup={handleSeekPointerUp}
+          onpointercancel={handleSeekPointerUp}
+          onkeydown={(event) => {
+            const duration = usableDuration();
+            if (duration <= 0) return;
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              musicState.seek(musicState.currentTime + 5);
+            } else if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              musicState.seek(musicState.currentTime - 5);
+            }
+          }}
         >
-          <input
-            type="range"
-            min="0"
-            max={musicState.duration || 100}
-            step="1"
-            value={musicState.currentTime}
-            oninput={(e) => {
-              musicState.currentTime = parseFloat(e.currentTarget.value);
-              // handleSeek is not defined, just update current time
-              if (audioElement) {
-                audioElement.currentTime = musicState.currentTime;
-              }
-            }}
-            onpointerdown={() => handleSeekStart()}
-            onpointerup={() => handleSeekEnd([musicState.currentTime])}
-            class="absolute w-full h-full opacity-0 cursor-pointer z-10"
-          />
           <!-- Custom track -->
-          <div class="w-full h-1 bg-[#404040] rounded-full overflow-hidden">
+          <div class="w-full h-1 bg-[#404040] rounded-full overflow-hidden pointer-events-none">
             <!-- Fill -->
             <div
               class="h-full bg-[#3ae0d5]"
-              style="width: {(musicState.currentTime /
-                (musicState.duration || 1)) *
-                100}%"
+              style="width: {progressPercent}%"
             ></div>
           </div>
           <!-- Custom thumb -->
           <div
             class="absolute h-3 w-3 rounded-full bg-[#3ae0d5] shadow-sm transform -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-            style="left: {(musicState.currentTime /
-              (musicState.duration || 1)) *
-              100}%"
+            style="left: {progressPercent}%"
           ></div>
         </div>
-        <span class="w-10 text-left">{formatTime(musicState.duration)}</span>
+        <span class="w-10 text-left">{formatTime(usableDuration())}</span>
       </div>
     </div>
 
     <!-- Right: Extra Controls -->
-    <div class="flex items-center justify-end gap-1 w-1/4 text-[#a0a0a0]">
+    <div class="flex items-center justify-end gap-1 w-auto shrink-0 text-[#a0a0a0]">
       <Tooltip.Root>
         <Tooltip.Trigger>
           <Button.Root
@@ -258,6 +364,9 @@
         variant="ghost"
         size="icon"
         class="h-9 w-9 hover:text-white rounded-full"
+        onclick={() => void shareCurrentTrack()}
+        aria-label="Compartir canción"
+        title="Compartir"
       >
         <!-- Share icon -->
         <svg
@@ -283,12 +392,13 @@
           /></svg
         >
       </Button.Root>
-      <Button.Root
-        variant="ghost"
-        size="icon"
-        class="h-9 w-9 hover:text-white rounded-full"
+      <button
+        type="button"
+        class="h-9 w-9 hover:text-white rounded-full inline-flex items-center justify-center"
+        aria-label="Agregar a playlist"
+        title="Agregar a playlist"
+        onclick={() => (playlistOpen = true)}
       >
-        <!-- Queue/Playlist icon -->
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="18"
@@ -309,7 +419,7 @@
             d="M5 18H1"
           /></svg
         >
-      </Button.Root>
+      </button>
       <Button.Root
         variant="ghost"
         size="icon"
@@ -332,33 +442,34 @@
           /></svg
         >
       </Button.Root>
+      <TrackOptionsMenu
+        song={{
+          id: musicState.currentTrack.id,
+          title: musicState.currentTrack.title,
+          videoUrl: musicState.currentTrack.videoUrl,
+          imageUrl: musicState.currentTrack.imageUrl,
+          durationMs: musicState.currentTrack.durationMs
+        }}
+        side="top"
+        showClosePlayer
+        buttonClass="h-9 w-9 hover:text-white"
+      />
       <Button.Root
         variant="ghost"
         size="icon"
         class="h-9 w-9 hover:text-white rounded-full"
+        aria-label="Cerrar reproductor"
         onclick={() => musicState.closePlayer()}
       >
-        <!-- More Vertical / Close (Mapping close to more for now or keeping close logic) -->
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="h-4.5 w-4.5"
-          ><circle cx="12" cy="12" r="1" /><circle
-            cx="12"
-            cy="5"
-            r="1"
-          /><circle cx="12" cy="19" r="1" /></svg
-        >
+        <X class="h-4.5 w-4.5" />
       </Button.Root>
     </div>
   </div>
 {/if}
 
 <PublishModal />
+<AddToPlaylistDialog
+  bind:open={playlistOpen}
+  musicId={musicState.currentTrack?.id}
+  title={musicState.currentTrack?.title}
+/>

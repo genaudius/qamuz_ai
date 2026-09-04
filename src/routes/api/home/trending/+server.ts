@@ -2,11 +2,27 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db/index.js';
 import { music, users } from '$lib/server/db/schema.js';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, or, sql } from 'drizzle-orm';
 
 export const GET: RequestHandler = async ({ url }) => {
   const limitParam = Number(url.searchParams.get('limit') || '24');
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 50) : 24;
+  const genre = (url.searchParams.get('genre') || '').trim().toLowerCase();
+
+  const filters = [eq(music.isPublic, true), sql`${music.title} IS NOT NULL`];
+  if (genre) {
+    filters.push(
+      or(
+        sql`lower(${music.genre}) = ${genre}`,
+        sql`lower(${music.genre}) LIKE ${`${genre}%`}`,
+        sql`EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements_text(${music.tags}::jsonb) AS tag(value)
+          WHERE lower(tag.value) = ${genre}
+        )`,
+      )!,
+    );
+  }
 
   const tracks = await db
     .select({
@@ -23,7 +39,7 @@ export const GET: RequestHandler = async ({ url }) => {
     })
     .from(music)
     .innerJoin(users, eq(users.id, music.userId))
-    .where(and(eq(music.isPublic, true), sql`${music.title} IS NOT NULL`))
+    .where(and(...filters))
     .orderBy(desc(sql`(${music.playsCount} * 2 + ${music.likesCount})`), desc(music.createdAt))
     .limit(limit);
 

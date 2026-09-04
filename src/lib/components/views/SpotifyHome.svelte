@@ -10,8 +10,7 @@
     FlameIcon,
     CrownIcon
   } from "$lib/icons/index.js";
-  import HeroCarousel from "./HeroCarousel.svelte";
-  import { DEMO_ARTIST_PROFILES } from "$lib/constants/demo-artists.js";
+  import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
   
   // Theme state (if you have one, or just assume dark based on global classes)
   // For now, we'll assume dark theme styling based on the design
@@ -20,38 +19,28 @@
   const session = $derived(getSession?.() || null);
   const musicState = getContext<GlobalMusicState>("musicState");
 
-  const fallbackRecentTracks = [
-    { id: "1", title: "Blinding Lights", artist: "The Weeknd", coverUrl: "https://i.scdn.co/image/ab67616d00001e028863bc11d2aa12b54f5aeb36", durationMs: 200000, url: "" },
-    { id: "2", title: "Anti-Hero", artist: "Taylor Swift", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bb54dde1edccdbb69436798b", durationMs: 200000, url: "" },
-    { id: "3", title: "Me Porto Bonito", artist: "Bad Bunny", coverUrl: "https://i.scdn.co/image/ab67616d00001e0249d6fd6e8f6e806f8664160a", durationMs: 200000, url: "" },
-    { id: "4", title: "Rich Flex", artist: "Drake", coverUrl: "https://i.scdn.co/image/ab67616d00001e020286377e68fa7075cdafc210", durationMs: 200000, url: "" },
-    { id: "5", title: "Levitating", artist: "Dua Lipa", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bd26ede1ae69327010d49946", durationMs: 200000, url: "" },
-    { id: "6", title: "As It Was", artist: "Harry Styles", coverUrl: "https://i.scdn.co/image/ab67616d00001e022e02117d7742d9eef2934279", durationMs: 200000, url: "" }
-  ];
+  const fallbackRecentTracks: Array<{ id: string; title: string; artist: string; coverUrl: string; durationMs: number; url: string }> = [];
 
-  // Fallback/mock data used when home APIs are unavailable.
-  let artists = $state(
-    DEMO_ARTIST_PROFILES.map(({ id, name, avatarUrl }) => ({ id, name, avatarUrl }))
-  );
+  let artists = $state<Array<{ id: string; name: string; avatarUrl: string }>>([]);
   
-  let recentTracks = $state([...fallbackRecentTracks]);
+  let recentTracks = $state<Array<{
+    id: string;
+    title: string;
+    artist: string;
+    coverUrl: string;
+    durationMs: number;
+    url: string;
+    videoUrl?: string;
+    lyrics?: string;
+  }>>([]);
+  let hasLiveTracks = $state(false);
+  let genreTags = $state<string[]>([]);
 
-  let featuredPlaylists = $state([
-    { id: "1", title: "Today's Top Hits", coverUrl: "https://i.scdn.co/image/ab67706f00000002b662363a033b08e2b8665f57", tracks: [fallbackRecentTracks[0]] },
-    { id: "2", title: "RapCaviar", coverUrl: "https://i.scdn.co/image/ab67706f000000021c50005a30ed9bba057f9ed3", tracks: [fallbackRecentTracks[3]] },
-    { id: "3", title: "Viva Latino", coverUrl: "https://i.scdn.co/image/ab67706f00000002b55b6074eda1dceec946caf2", tracks: [fallbackRecentTracks[2]] },
-    { id: "4", title: "Mega Hit Mix", coverUrl: "https://i.scdn.co/image/ab67706f00000002b0fe40a6e1692822f5a9d8f1", tracks: [fallbackRecentTracks[1]] },
-    { id: "5", title: "All Out 2010s", coverUrl: "https://i.scdn.co/image/ab67706f00000002b489d89283f5c90716262a40", tracks: [fallbackRecentTracks[4]] }
-  ]);
+  let featuredPlaylists = $state<Array<{ id: string; title: string; coverUrl: string; tracks: typeof recentTracks }>>([]);
   
-  let mockAlbums = $state([
-    { id: "1", title: "After Hours", artist: "The Weeknd", releaseYear: "2020", coverUrl: "https://i.scdn.co/image/ab67616d00001e028863bc11d2aa12b54f5aeb36" },
-    { id: "2", title: "Midnights", artist: "Taylor Swift", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bb54dde1edccdbb69436798b" },
-    { id: "3", title: "Un Verano Sin Ti", artist: "Bad Bunny", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e0249d6fd6e8f6e806f8664160a" },
-    { id: "4", title: "Her Loss", artist: "Drake", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e020286377e68fa7075cdafc210" }
-  ]);
+  let mockAlbums = $state<Array<{ id: string; title: string; artist: string; releaseYear: string; coverUrl: string; genre: string }>>([]);
 
-  let greeting = $state("Good evening");
+  let greeting = $state("Buenas noches");
 
   async function loadHomeData() {
     try {
@@ -67,13 +56,16 @@
           : [];
 
         if (trendingTracks.length > 0) {
+          hasLiveTracks = true;
           recentTracks = trendingTracks.map((track: any) => ({
             id: track.id,
             title: track.title || "Untitled",
-            artist: track.artistName || "Unknown",
+            artist: track.artistName || "Artista QAMUZ",
             coverUrl: track.imageUrl || "",
             durationMs: track.durationMs || 200000,
-            url: "",
+            url: track.url || `/api/music/${track.id}`,
+            videoUrl: track.videoUrl || undefined,
+            lyrics: track.lyrics || undefined,
           }));
 
           const artistMap = new Map<string, { id: string; name: string; avatarUrl: string }>();
@@ -84,8 +76,8 @@
 
             artistMap.set(track.artistId, {
               id: track.artistId,
-              name: track.artistName || "Unknown",
-              avatarUrl: "https://dummyimage.com/200x200/222/fff&text=Q",
+              name: track.artistName || "Artista QAMUZ",
+              avatarUrl: "/branding/qamuz/icon-dark.png",
             });
           }
           artists = Array.from(artistMap.values()).slice(0, 8);
@@ -93,13 +85,13 @@
           featuredPlaylists = [
             {
               id: "trending-now",
-              title: "Trending Now",
+              title: "Tendencias QAMUZ",
               coverUrl: recentTracks[0]?.coverUrl || "",
               tracks: recentTracks.slice(0, 8),
             },
             {
               id: "for-you",
-              title: "For You",
+              title: "Para ti",
               coverUrl: recentTracks[1]?.coverUrl || recentTracks[0]?.coverUrl || "",
               tracks: recentTracks.slice(2, 10),
             },
@@ -109,33 +101,35 @@
 
       if (genresResponse.ok) {
         const genresPayload = await genresResponse.json();
-        const genreTags = Array.isArray(genresPayload?.genres)
-          ? genresPayload.genres.slice(0, 4)
+        const genreTagsPayload = Array.isArray(genresPayload?.genres)
+          ? genresPayload.genres.slice(0, 8)
           : [];
+        genreTags = genreTagsPayload;
 
-        if (genreTags.length > 0) {
-          mockAlbums = genreTags.map((genre: string, index: number) => ({
+        if (genreTagsPayload.length > 0) {
+          mockAlbums = genreTagsPayload.map((genre: string, index: number) => ({
             id: `genre-${genre}`,
             title: genre.charAt(0).toUpperCase() + genre.slice(1),
-            artist: "Genre Hub",
+            artist: "Explorar género",
             releaseYear: String(new Date().getFullYear()),
-            coverUrl: recentTracks[index]?.coverUrl || "https://dummyimage.com/400x400/111/fff&text=QAMUZ",
+            coverUrl: recentTracks[index]?.coverUrl || "/branding/qamuz/icon-dark.png",
+            genre,
           }));
         }
       }
     } catch (loadError) {
-      console.warn("Failed to load home API data, using fallback values", loadError);
+      console.warn("Failed to load home API data", loadError);
     }
   }
 
   onMount(() => {
     const hour = new Date().getHours();
     if (hour >= 12 && hour < 20) {
-      greeting = "Good afternoon";
+      greeting = "Buenas tardes";
     } else if (hour >= 20) {
-      greeting = "Good evening";
+      greeting = "Buenas noches";
     } else {
-      greeting = "Good morning";
+      greeting = "Buenos días";
     }
 
     const firstName = session?.user?.name ? session.user.name.trim().split(' ')[0] : '';
@@ -146,16 +140,21 @@
     void loadHomeData();
   });
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   function playTrack(track: any) {
+    if (!track.url || !UUID_RE.test(track.id)) return;
     if (musicState.currentTrack?.id === track.id) {
       musicState.togglePlay();
     } else {
       musicState.playTrack({
         id: track.id,
         title: track.title,
-        artist: track.artist || "Unknown",
+        artist: track.artist || "Artista QAMUZ",
         imageUrl: track.coverUrl,
-        url: track.url || "",
+        url: track.url,
+        videoUrl: track.videoUrl,
+        lyrics: track.lyrics,
         durationMs: track.durationMs || 10000
       });
     }
@@ -169,7 +168,17 @@
       {greeting}
     </h1>
 
-    <HeroCarousel />
+    <section class="mb-6 overflow-hidden rounded-3xl border border-cyan-400/20 bg-[radial-gradient(circle_at_18%_12%,rgba(5,224,233,.2),transparent_34%),linear-gradient(125deg,#101a20,#0b0d10_55%,#17130a)] p-6 shadow-2xl sm:p-9">
+      <div class="max-w-2xl">
+        <span class="text-xs font-black tracking-[0.22em] text-cyan-300">GEN AUDIUS IS QAMUZ</span>
+        <h2 class="mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl">Crea. Mezcla. Publica.</h2>
+        <p class="mt-4 max-w-xl text-base leading-relaxed text-zinc-300">Convierte una idea en una canción completa, abre sus pistas en QAMUZ Studio y guarda cada versión en tu biblioteca.</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button type="button" onclick={() => goto("/audio")} class="rounded-full bg-qamuz-btn px-6 py-3 text-sm font-black text-black transition-transform hover:scale-105">Crear canción</button>
+          <button type="button" onclick={() => goto("/studio")} class="rounded-full border border-white/20 bg-white/8 px-6 py-3 text-sm font-bold text-white hover:bg-white/14">Abrir Studio</button>
+        </div>
+      </div>
+    </section>
 
     <!-- Top Quick Grid (6 items) -->
     <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -177,13 +186,14 @@
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div 
+        onclick={() => goto("/library")}
         class="group relative flex items-center gap-2 sm:gap-4 transition-all rounded-md overflow-hidden cursor-pointer shadow-md bg-zinc-800/60 hover:bg-zinc-700/60 text-white"
       >
         <div class="w-14 h-14 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-500 flex items-center justify-center shrink-0 shadow">
           <StarIcon class="w-6 h-6 sm:w-8 sm:h-8 text-white fill-current" />
         </div>
         <span class="font-bold text-xs sm:text-sm truncate flex-1 pr-1 sm:pr-2 text-white">
-          Liked Songs
+          Tu biblioteca
         </span>
         <button 
           class="mr-2 sm:mr-4 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-qamuz-btn text-black hidden sm:flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:scale-105 active:scale-95 transition-all shadow-xl"
@@ -191,6 +201,16 @@
           <PlayIcon class="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5" />
         </button>
       </div>
+
+      <button type="button" onclick={() => goto("/audio")} class="group relative flex items-center gap-2 overflow-hidden rounded-md bg-zinc-800/60 text-left text-white shadow-md transition-all hover:bg-zinc-700/60 sm:gap-4">
+        <span class="flex h-14 w-14 shrink-0 items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-700 text-black sm:h-20 sm:w-20"><SparkleIcon class="h-7 w-7" /></span>
+        <span class="text-xs font-bold sm:text-sm">Crear con IA</span>
+      </button>
+
+      <button type="button" onclick={() => goto("/studio")} class="group relative flex items-center gap-2 overflow-hidden rounded-md bg-zinc-800/60 text-left text-white shadow-md transition-all hover:bg-zinc-700/60 sm:gap-4">
+        <span class="flex h-14 w-14 shrink-0 items-center justify-center bg-gradient-to-br from-amber-300 to-orange-600 text-black sm:h-20 sm:w-20"><AnalyticsIcon class="h-7 w-7" /></span>
+        <span class="text-xs font-bold sm:text-sm">QAMUZ Studio</span>
+      </button>
 
       <!-- Quick Playlists -->
       {#each featuredPlaylists as pl}
@@ -229,6 +249,10 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div 
         class="relative rounded-2xl p-5 bg-gradient-to-r from-emerald-950/90 via-zinc-900 to-indigo-950/90 border border-emerald-500/40 hover:border-emerald-400 transition-all cursor-pointer group shadow-xl flex flex-col justify-between gap-4"
+        onclick={() => goto("/discover")}
+        onkeydown={(e) => e.key === "Enter" && goto("/discover")}
+        role="button"
+        tabindex="0"
       >
         <div class="flex items-start gap-4">
           <div class="w-12 h-12 rounded-xl bg-qamuz-btn text-black font-black flex items-center justify-center shrink-0 shadow-lg group-hover:scale-110 transition-transform">
@@ -236,13 +260,13 @@
           </div>
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
-              <span class="text-white font-extrabold text-base">Smart AI Recommendations</span>
+              <span class="text-white font-extrabold text-base">Descubrimiento inteligente</span>
               <span class="bg-cyan-500/20 text-qamuz-primary border border-cyan-500/30 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
                 ENGINE
               </span>
             </div>
             <p class="text-xs text-zinc-300">
-              Discover new music tailored just for you using our advanced AI algorithms.
+              Escucha música publicada por la comunidad y descubre artistas de QAMUZ.
             </p>
           </div>
         </div>
@@ -250,11 +274,15 @@
         <div class="flex items-center justify-between border-t border-zinc-800/80 pt-3">
           <div class="flex items-center gap-2 text-[11px] text-emerald-400 font-bold">
             <FlameIcon class="w-3.5 h-3.5" />
-            <span>Hot & Trending</span>
+            <span>Tendencias</span>
           </div>
-          <span class="text-xs font-black text-black bg-qamuz-btn px-4 py-1.5 rounded-full group-hover:scale-105 transition-transform shadow">
-            Discover
-          </span>
+          <button
+            type="button"
+            onclick={() => goto("/discover")}
+            class="text-xs font-black text-black bg-qamuz-btn px-4 py-1.5 rounded-full group-hover:scale-105 transition-transform shadow"
+          >
+            Explorar
+          </button>
         </div>
       </div>
 
@@ -270,13 +298,13 @@
           </div>
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
-              <span class="text-white font-extrabold text-base">Upgrade your Experience</span>
+              <span class="text-white font-extrabold text-base">Amplía tu estudio</span>
               <span class="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
                 PRO
               </span>
             </div>
             <p class="text-xs text-zinc-300">
-              Get unlimited skips, highest audio quality, and early access to new AI models.
+              Aumenta tus créditos, calidad de audio y acceso a los modelos musicales.
             </p>
           </div>
         </div>
@@ -284,10 +312,10 @@
         <div class="flex items-center justify-between border-t border-zinc-800/80 pt-3">
           <div class="flex items-center gap-2 text-[11px] text-purple-300 font-bold">
             <FlameIcon class="w-3.5 h-3.5" />
-            <span>Ad-free listening</span>
+            <span>Planes para creadores</span>
           </div>
           <span class="text-xs font-black text-white bg-purple-600 px-4 py-1.5 rounded-full group-hover:scale-105 transition-transform shadow">
-            View Plans
+            Ver planes
           </span>
         </div>
       </div>
@@ -305,22 +333,22 @@
         </div>
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
-            <span class="text-white font-extrabold text-base sm:text-lg">Qamuz AI Studio</span>
+            <span class="text-white font-extrabold text-base sm:text-lg">QAMUZ Studio</span>
             <span class="bg-cyan-500/20 text-qamuz-primary border border-cyan-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-              NEW
+              DAW
             </span>
           </div>
           <p class="text-xs text-zinc-300 max-w-xl">
-            Create your own music from text prompts, generate album art, and more with our integrated AI tools.
+            Abre una canción en estéreo, extrae stems y continúa la mezcla en el editor multipista.
           </p>
         </div>
       </div>
 
       <button 
-        onclick={() => goto("/audio")}
+        onclick={() => goto("/studio")}
         class="bg-qamuz-btn hover:bg-qamuz-btn text-black font-extrabold text-xs px-5 py-2.5 rounded-full group-hover:scale-105 transition-all shadow-md shrink-0 self-end sm:self-center"
       >
-        Open Studio
+        Abrir Studio
       </button>
     </div>
   </div>
@@ -329,15 +357,35 @@
   <section>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-2xl font-bold hover:underline cursor-pointer transition-colors text-white">
-        Recently Played
+        {hasLiveTracks ? "Tendencias QAMUZ" : "Música de QAMUZ"}
       </h2>
-      <span class="text-xs font-bold cursor-pointer transition-colors uppercase tracking-wider text-zinc-400 hover:text-white">
-        Show All
-      </span>
+      <button
+        type="button"
+        onclick={() => goto("/discover")}
+        class="text-xs font-bold cursor-pointer transition-colors uppercase tracking-wider text-zinc-400 hover:text-white"
+      >
+        Ver todo
+      </button>
     </div>
 
+    {#if !hasLiveTracks}
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center mb-4">
+        <p class="text-white font-semibold mb-2">Todavía no hay canciones públicas</p>
+        <p class="text-sm text-zinc-400 mb-5">
+          Publica una canción desde tu biblioteca para mostrarla aquí y en Explorar.
+        </p>
+        <button
+          type="button"
+          onclick={() => goto("/library")}
+          class="bg-qamuz-btn text-black font-bold text-sm px-5 py-2.5 rounded-full"
+        >
+          Ir a la biblioteca
+        </button>
+      </div>
+    {/if}
+
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {#each recentTracks as track, idx}
+      {#each (hasLiveTracks ? recentTracks : fallbackRecentTracks) as track, idx}
         {@const isCurrent = musicState.currentTrack?.id === track.id}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -378,16 +426,29 @@
               {track.artist}
             </span>
           </div>
+          <div class="absolute top-2 right-2 z-10" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+            <TrackOptionsMenu
+              song={{
+                id: track.id,
+                title: track.title,
+                imageUrl: track.coverUrl,
+                videoUrl: track.videoUrl,
+                durationMs: track.durationMs,
+              }}
+              buttonClass="bg-black/55 text-white opacity-100"
+            />
+          </div>
         </div>
       {/each}
     </div>
   </section>
 
   <!-- Section: Popular Artists -->
+  {#if artists.length}
   <section>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-2xl font-bold hover:underline cursor-pointer transition-colors text-white">
-        Popular Artists
+        Artistas populares
       </h2>
     </div>
 
@@ -411,19 +472,21 @@
               {artist.name}
             </span>
             <span class="text-xs capitalize text-zinc-400">
-              Artist
+              Artista
             </span>
           </div>
         </a>
       {/each}
     </div>
   </section>
+  {/if}
 
   <!-- Section: Featured Albums -->
+  {#if mockAlbums.length}
   <section>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-2xl font-bold hover:underline cursor-pointer transition-colors text-white">
-        Featured Albums
+        Géneros destacados
       </h2>
     </div>
 
@@ -433,6 +496,7 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="spotify-card p-3.5 rounded-lg flex flex-col gap-3 group cursor-pointer"
+          onclick={() => goto(album.genre ? `/discover?genre=${encodeURIComponent(album.genre)}` : "/discover")}
         >
           <div class="relative aspect-square w-full rounded-md overflow-hidden shadow-md bg-zinc-800">
             <img 
@@ -449,4 +513,5 @@
       {/each}
     </div>
   </section>
+  {/if}
 </div>

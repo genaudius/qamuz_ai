@@ -79,3 +79,43 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     throw error(500, 'Failed to publish track');
   }
 };
+
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+  try {
+    const session = await locals.auth();
+    if (!session?.user?.id) {
+      throw error(401, 'Authentication required');
+    }
+
+    if (isDemoModeRestricted(true)) {
+      throw error(403, DEMO_MODE_MESSAGES.GENERAL_RESTRICTION);
+    }
+
+    const musicId = params.id;
+    if (!musicId) {
+      throw error(400, 'Music ID is required');
+    }
+
+    const [track] = await db.select().from(music).where(eq(music.id, musicId));
+    if (!track) {
+      throw error(404, 'Track not found');
+    }
+    if (track.userId !== session.user.id) {
+      throw error(403, 'Access denied');
+    }
+
+    const [updated] = await db
+      .update(music)
+      .set({ isPublic: false })
+      .where(eq(music.id, musicId))
+      .returning();
+
+    return json({ success: true, track: updated });
+  } catch (err) {
+    console.error('Music unpublish error:', err);
+    if (isHttpError(err)) {
+      throw err;
+    }
+    throw error(500, 'Failed to unpublish track');
+  }
+};
