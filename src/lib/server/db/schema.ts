@@ -312,6 +312,24 @@ export const music = pgTable("music", {
 	index('music_storage_location_idx').on(table.storageLocation),
 ])
 
+export const musicLikes = pgTable("music_like", {
+	id: text("id")
+		.primaryKey()
+		.notNull()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	musicId: text("musicId")
+		.notNull()
+		.references(() => music.id, { onDelete: "cascade" }),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	unique("music_like_user_track_unique").on(table.userId, table.musicId),
+	index("music_likes_user_idx").on(table.userId),
+	index("music_likes_music_idx").on(table.musicId),
+]);
+
 export const soundEffects = pgTable("sound_effects", {
 	id: text("id")
 		.primaryKey().notNull()
@@ -420,6 +438,18 @@ export const pricingPlans = pgTable("pricing_plan", {
 	videoGenerationLimit: integer("videoGenerationLimit"), // null = unlimited
 	audioGenerationLimit: integer("audioGenerationLimit"), // null = unlimited
 	features: json("features").$type<string[]>().notNull().default([]),
+	isActive: boolean("isActive").notNull().default(true),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+})
+
+export const creditPackages = pgTable("credit_package", {
+	id: text("id").primaryKey().notNull(),
+	name: text("name").notNull(),
+	credits: integer("credits").notNull(),
+	priceAmount: integer("priceAmount").notNull(), // Price in cents
+	currency: text("currency").notNull().default("usd"),
+	badgeText: text("badgeText"),
 	isActive: boolean("isActive").notNull().default(true),
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
@@ -610,6 +640,7 @@ export const aiJobs = pgTable("ai_jobs", {
 	index('ai_jobs_user_idx').on(table.userId),
 ])
 
+// Public artist page (stage name, bio, avatar, banner). This id is the public URL.
 export const artistProfiles = pgTable("artist_profile", {
 	id: text("id")
 		.primaryKey()
@@ -629,7 +660,7 @@ export const artistProfiles = pgTable("artist_profile", {
 	index('artist_profiles_user_idx').on(table.userId),
 ]);
 
-// Artists table
+// Verification tokens / verifiedAt keyed by userId. Not the public URL id.
 export const artists = pgTable("artist", {
   id: text("id").primaryKey().notNull().$defaultFn(() => randomUUID()),
   userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -687,6 +718,53 @@ export const playlistItems = pgTable("playlist_item", {
 }, (table) => [
   index("playlist_item_playlist_idx").on(table.playlistId),
   index("playlist_item_music_idx").on(table.musicId),
+  unique("playlist_item_music_unique").on(table.playlistId, table.musicId),
+]);
+
+export const masterJobs = pgTable("master_job", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	title: text("title").notNull(),
+	sourceName: text("sourceName"),
+	sourceKind: text("sourceKind").notNull().default("upload"),
+	sourceMusicId: text("sourceMusicId"),
+	style: text("style"),
+	recipe: json("recipe"),
+	peakDb: real("peakDb"),
+	lufs: real("lufs"),
+	durationSec: real("durationSec"),
+	mimeType: text("mimeType").notNull().default("audio/wav"),
+	fileSize: integer("fileSize").notNull().default(0),
+	storageLocation: text("storageLocation").notNull().default("local"),
+	cloudPath: text("cloudPath"),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	index("master_job_user_created_idx").on(table.userId, table.createdAt),
+]);
+
+export const dawSessions = pgTable("daw_session", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	name: text("name").notNull(),
+	idea: text("idea"),
+	stage: text("stage"),
+	title: text("title"),
+	audioUrl: text("audioUrl"),
+	mixNotes: text("mixNotes"),
+	snapshot: json("snapshot"),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	unique("daw_session_user_name_unique").on(table.userId, table.name),
+	index("daw_session_user_updated_idx").on(table.userId, table.updatedAt),
 ]);
 
 export const dawSessionRevisions = pgTable("daw_session_revision", {
