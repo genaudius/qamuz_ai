@@ -1,4 +1,5 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { building } from '$app/environment';
 import { streamText, smoothStream, stepCountIs, type ModelMessage } from 'ai';
 import type { AIProvider, AIModelConfig, AIMessage, AIResponse, AIStreamChunk, ChatCompletionParams, ArchitectureObject, AIToolResult } from '../types.js';
 import { env } from '$env/dynamic/private';
@@ -921,8 +922,14 @@ async function initializeModels() {
 	}
 }
 
-// Start enrichment process (non-blocking) and track with Promise
-enrichmentPromise = initializeModels();
+// Enrich models lazily at runtime. SvelteKit imports this module while creating
+// the production bundle; starting a network request there makes deployments
+// depend on OpenRouter being reachable during the build.
+if (!building) {
+	enrichmentPromise = initializeModels();
+} else {
+	enrichmentCompleted = true;
+}
 
 // Export function to wait for enrichment completion with timeout
 export async function waitForEnrichmentCompletion(timeoutMs: number = 10000): Promise<boolean> {
@@ -1091,97 +1098,3 @@ export const openRouterProvider: AIProvider = {
 			// Non-streaming: wait for completion - all properties are promises
 			const text = await result.text;
 			const usage = await result.usage;
-			const finishReason = await result.finishReason;
-			const toolCalls = await result.toolCalls;
-			const response = await result.response;
-
-			return {
-				content: text,
-				usage: usage ? {
-					promptTokens: usage.inputTokens || 0,
-					completionTokens: usage.outputTokens || 0,
-					totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0)
-				} : undefined,
-				model: response.modelId || model,
-				finishReason: finishReason as AIResponse['finishReason'],
-				tool_calls: toolCalls?.map((tc) => ({
-					id: tc.toolCallId,
-					type: 'function' as const,
-					function: {
-						name: tc.toolName,
-						arguments: JSON.stringify(tc.input)
-					}
-				}))
-			};
-		} catch (error) {
-			console.error('OpenRouter multimodal API error:', error);
-			throw new Error(`OpenRouter multimodal API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-		}
-	},
-
-};
-
-// Create async iterator for AI SDK streaming responses
-// Uses fullStream to capture all events including tool calls and results
-async function* createAISDKStreamIterator(result: any): AsyncIterableIterator<AIStreamChunk> {
-	try {
-		for await (const part of result.fullStream) {
-			switch (part.type) {
-				case 'text-delta':
-					yield {
-						content: part.text,
-						done: false,
-						type: 'text'
-					};
-					break;
-
-				case 'tool-call':
-					yield {
-						content: '',
-						done: false,
-						type: 'tool-call',
-						toolCall: {
-							toolCallId: part.toolCallId,
-							toolName: part.toolName,
-							args: part.input // AI SDK v6 uses 'input' not 'args'
-						}
-					};
-					break;
-
-				case 'tool-result':
-					yield {
-						content: '',
-						done: false,
-						type: 'tool-result',
-						toolResult: {
-							toolCallId: part.toolCallId,
-							toolName: part.toolName,
-							result: part.result
-						}
-					};
-					break;
-
-				case 'finish':
-					const usage = await result.usage;
-					yield {
-						content: '',
-						done: true,
-						type: 'finish',
-						finishReason: part.finishReason,
-						usage: usage ? {
-							promptTokens: usage.inputTokens || 0,
-							completionTokens: usage.outputTokens || 0,
-							totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0)
-						} : undefined
-					};
-					break;
-
-				case 'error':
-					throw new Error(part.error?.message || 'Unknown streaming error');
-			}
-		}
-	} catch (error) {
-		throw new Error(`OpenRouter streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-	}
-}
-
