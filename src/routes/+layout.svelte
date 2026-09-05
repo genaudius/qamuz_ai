@@ -86,6 +86,7 @@
     (layoutPathname === "/" && !currentSession?.user) ||
       layoutPathname === "/login" ||
       layoutPathname === "/register" ||
+      layoutPathname === "/studio" ||
       layoutPathname === "/pricing" ||
       layoutPathname === "/terms" ||
       layoutPathname === "/privacy" ||
