@@ -1,4 +1,5 @@
 import type { Handle } from "@sveltejs/kit"
+import { redirect } from "@sveltejs/kit"
 import { sequence } from "@sveltejs/kit/hooks"
 import { building } from '$app/environment'
 import { settingsStore } from '$lib/server/settings-store'
@@ -10,6 +11,21 @@ import { securityHeaders } from '$lib/server/security-headers.js'
 import { getAuth } from '$lib/auth'
 import { svelteKitHandler } from 'better-auth/svelte-kit'
 import { sendWelcomeEmail } from '$lib/server/email.js'
+
+// qamuz.studio is the dedicated public entry point for QAMUZ Studio.
+// Keep the rest of the routes available because the DAW uses this same app's
+// authentication, media, project and generation APIs.
+const studioDomainHandle: Handle = async ({ event, resolve }) => {
+  const isStudioDomain =
+    event.url.hostname === 'qamuz.studio' ||
+    event.url.hostname === 'www.qamuz.studio';
+
+  if (isStudioDomain && event.url.pathname === '/') {
+    redirect(307, '/studio');
+  }
+
+  return resolve(event);
+};
 
 // Settings handle - loads and caches site settings
 const settingsHandle: Handle = async ({ event, resolve }) => {
@@ -334,6 +350,7 @@ const betterAuthHandle: Handle = async ({ event, resolve }) => {
 // Combine all handles: security headers, settings, storage warming, locale default, paraglide, and enhanced auth
 // Storage warming runs after settings to ensure R2 credentials are loaded before storage initialization
 export const handle: Handle = sequence(
+  studioDomainHandle,
   securityHeaders,
   settingsHandle,
   storageWarmingHandle,
