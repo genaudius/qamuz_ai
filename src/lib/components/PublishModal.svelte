@@ -1,16 +1,18 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
+  import { musicState as sharedMusicState } from "$lib/stores/music-state.js";
+  import { appNotice } from "$lib/stores/app-notice.svelte.js";
+  import { notice } from "$lib/ui/notice.js";
   import X from "@lucide/svelte/icons/x";
   import UploadCloud from "@lucide/svelte/icons/upload";
   import Sparkles from "@lucide/svelte/icons/sparkles";
   import ZoomIn from "@lucide/svelte/icons/zoom-in";
   import ZoomOut from "@lucide/svelte/icons/zoom-out";
-  import * as Button from "$lib/components/ui/button/index.js";
+  import BadgeCheck from "@lucide/svelte/icons/badge-check";
   import { fade, scale } from "svelte/transition";
 
-  const musicState = getContext<GlobalMusicState>("musicState");
-
+  const musicState = getContext<GlobalMusicState>("musicState") ?? sharedMusicState;
   let title = $state("");
   let genre = $state("");
   let tagsInput = $state("");
@@ -18,17 +20,53 @@
   let isSubmitting = $state(false);
   let submitError = $state("");
   let submitSuccess = $state("");
+  let alreadyPublic = $state(false);
+  let checkingStatus = $state(false);
 
   const publishTrack = $derived(musicState.publishTarget || musicState.currentTrack);
 
-  // Set initial title from the selected track
+  async function refreshPublishStatus() {
+    if (!publishTrack?.id) {
+      alreadyPublic = false;
+      return;
+    }
+    if (typeof publishTrack.isPublic === "boolean") {
+      alreadyPublic = publishTrack.isPublic;
+      return;
+    }
+    checkingStatus = true;
+    try {
+      const response = await fetch(`/api/music/${publishTrack.id}/info`);
+      if (response.ok) {
+        const info = await response.json();
+        alreadyPublic = Boolean(info?.isPublic);
+        if (publishTrack.id) {
+          musicState.markTrackPublic(publishTrack.id, alreadyPublic);
+        }
+      }
+    } catch {
+      // Keep modal usable even if status check fails.
+    } finally {
+      checkingStatus = false;
+    }
+  }
+
   $effect(() => {
     if (musicState.isPublishModalOpen && publishTrack) {
       title = publishTrack.title || "";
-      genre = "";
-      tagsInput = "";
+      genre = publishTrack.genre || "";
+      tagsInput = (publishTrack.tags || []).join(", ");
       submitError = "";
       submitSuccess = "";
+      void refreshPublishStatus().then(async () => {
+        if (!musicState.isPublishModalOpen) return;
+        if (alreadyPublic) {
+          notice.warning(
+            "Esta canción ya está publicada",
+            "Está visible en el feed. Puedes actualizar título/tags o despublicarla."
+          );
+        }
+      });
     }
   });
 
@@ -36,16 +74,61 @@
     musicState.isPublishModalOpen = false;
   }
 
+  async function handleUnpublish() {
+    if (!publishTrack?.id || isSubmitting) return;
+    const ok = await appNotice.confirm({
+      title: "¿Despublicar esta canción?",
+      description: "Dejará de aparecer en el feed público. Podrás publicarla otra vez cuando quieras.",
+      tone: "warning",
+      confirmLabel: "Despublicar",
+      cancelLabel: "Cancelar",
+    });
+    if (!ok) return;
+
+    isSubmitting = true;
+    submitError = "";
+    try {
+      const response = await fetch(`/api/music/${publishTrack.id}/publish`, { method: "DELETE" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        submitError = payload?.error || "No pude despublicar la canción.";
+        notice.error("No se pudo despublicar", submitError);
+        return;
+      }
+      alreadyPublic = false;
+      musicState.markTrackPublic(publishTrack.id, false);
+      notice.success("Canción despublicada", "Ya no aparece en el feed público.");
+      close();
+    } catch {
+      submitError = "Error de red al despublicar.";
+      notice.error("Error de red", submitError);
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
   async function handlePublish() {
     if (!publishTrack?.id) {
-      submitError = "Could not determine the selected track.";
+      submitError = "No pude identificar la canción.";
       return;
     }
 
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      submitError = "Please provide a title before publishing.";
+      submitError = "Escribe un título antes de publicar.";
       return;
+    }
+
+    if (alreadyPublic) {
+      const update = await appNotice.confirm({
+        title: "Esta canción ya está publicada",
+        description:
+          "Ya está en el feed público. ¿Quieres actualizar el título, género o tags?",
+        tone: "warning",
+        confirmLabel: "Actualizar publicación",
+        cancelLabel: "Cancelar",
+      });
+      if (!update) return;
     }
 
     const tags = tagsInput
@@ -74,25 +157,35 @@
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        submitError = payload?.error || "Failed to publish track.";
+        submitError = payload?.error || "No pude publicar la canción.";
+        notice.error("Publicación fallida", submitError);
         return;
       }
 
-      submitSuccess = "Published successfully!";
-
+      const wasPublic = alreadyPublic;
+      alreadyPublic = true;
+      musicState.markTrackPublic(publishTrack.id, true);
       if (musicState.currentTrack?.id === publishTrack.id) {
         musicState.currentTrack.title = trimmedTitle;
+        musicState.currentTrack.genre = genre.trim() || null;
+        musicState.currentTrack.tags = tags;
       }
       if (musicState.publishTarget?.id === publishTrack.id) {
         musicState.publishTarget.title = trimmedTitle;
+        musicState.publishTarget.genre = genre.trim() || null;
+        musicState.publishTarget.tags = tags;
       }
 
-      setTimeout(() => {
-        close();
-      }, 500);
+      notice.success(
+        wasPublic ? "Publicación actualizada" : "Canción publicada",
+        `“${trimmedTitle}” ya está en el feed.`
+      );
+      submitSuccess = "Listo";
+      setTimeout(() => close(), 450);
     } catch (error) {
       console.error("Publish failed:", error);
-      submitError = "Network error while publishing track.";
+      submitError = "Error de red al publicar.";
+      notice.error("Error de red", submitError);
     } finally {
       isSubmitting = false;
     }
@@ -100,7 +193,6 @@
 </script>
 
 {#if musicState.isPublishModalOpen}
-  <!-- Backdrop -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
@@ -108,7 +200,6 @@
     transition:fade={{ duration: 200 }}
     onclick={close}
   >
-    <!-- Modal Container -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -116,7 +207,6 @@
       onclick={(e) => e.stopPropagation()}
       transition:scale={{ duration: 200, start: 0.95 }}
     >
-      <!-- Close button -->
       <button
         class="absolute top-6 right-6 text-muted-foreground hover:text-white transition-colors"
         onclick={close}
@@ -124,18 +214,34 @@
         <X class="h-5 w-5" />
       </button>
 
-      <!-- Header -->
       <div class="p-8 pb-4">
         <h2 class="text-2xl font-bold text-white tracking-tight mb-2">
-          Publish
+          {alreadyPublic ? "Publicación" : "Publicar"}
         </h2>
         <p class="text-[#a0a0a0] text-sm font-medium">
-          Publishing allows others to use your work as reference for similar
-          songs
+          {alreadyPublic
+            ? "Esta canción ya está publicada. Puedes actualizar los datos o despublicarla."
+            : "Al publicar, otras personas pueden descubrir tu canción en el feed."}
         </p>
       </div>
 
       <div class="px-8 py-4 flex flex-col gap-6">
+        {#if alreadyPublic}
+          <div
+            class="flex items-start gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+          >
+            <BadgeCheck class="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+            <div>
+              <p class="font-semibold text-amber-50">Ya publicada</p>
+              <p class="mt-0.5 text-amber-100/75">
+                {checkingStatus
+                  ? "Comprobando estado…"
+                  : "Visible en el feed público de QAMUZ."}
+              </p>
+            </div>
+          </div>
+        {/if}
+
         {#if submitError}
           <div class="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {submitError}
@@ -148,11 +254,8 @@
           </div>
         {/if}
 
-        <!-- Song title field -->
         <div class="flex flex-col gap-2">
-          <label for="songTitle" class="text-white text-sm font-semibold"
-            >Song title</label
-          >
+          <label for="songTitle" class="text-white text-sm font-semibold">Título</label>
           <div class="relative flex items-center">
             <input
               id="songTitle"
@@ -169,45 +272,36 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="flex flex-col gap-2">
-            <label for="songGenre" class="text-white text-sm font-semibold"
-              >Genre</label
-            >
+            <label for="songGenre" class="text-white text-sm font-semibold">Género</label>
             <input
               id="songGenre"
               type="text"
               bind:value={genre}
               maxlength="40"
-              placeholder="e.g. Bachata"
+              placeholder="ej. Bachata"
               class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-3 px-4 text-white text-sm transition-colors"
             />
           </div>
 
           <div class="flex flex-col gap-2">
-            <label for="songTags" class="text-white text-sm font-semibold"
-              >Tags</label
-            >
+            <label for="songTags" class="text-white text-sm font-semibold">Tags</label>
             <input
               id="songTags"
               type="text"
               bind:value={tagsInput}
               maxlength="180"
-              placeholder="romantic, guitar, tropical"
+              placeholder="romántica, guitarra, tropical"
               class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-3 px-4 text-white text-sm transition-colors"
             />
-            <p class="text-xs text-[#8a8a8a]">Comma separated, up to 12 tags.</p>
+            <p class="text-xs text-[#8a8a8a]">Separados por coma, hasta 12.</p>
           </div>
         </div>
 
-        <!-- Song cover field -->
         <div class="flex flex-col gap-2">
-          <span class="text-white text-sm font-semibold">Song cover</span>
-
+          <span class="text-white text-sm font-semibold">Portada</span>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Left: Cover preview and zoom -->
             <div class="flex flex-col gap-3">
-              <div
-                class="aspect-square rounded-2xl overflow-hidden bg-black relative border border-[#333]"
-              >
+              <div class="aspect-square rounded-2xl overflow-hidden bg-black relative border border-[#333]">
                 {#if publishTrack?.imageUrl}
                   <img
                     src={publishTrack.imageUrl}
@@ -216,15 +310,9 @@
                     style="transform: scale({1 + zoomLevel / 100});"
                   />
                 {:else}
-                  <div
-                    class="w-full h-full flex items-center justify-center text-[#666]"
-                  >
-                    No Cover
-                  </div>
+                  <div class="w-full h-full flex items-center justify-center text-[#666]">Sin portada</div>
                 {/if}
               </div>
-
-              <!-- Zoom slider -->
               <div class="flex items-center gap-3 text-[#a0a0a0]">
                 <ZoomOut class="h-4 w-4 shrink-0" />
                 <input
@@ -239,9 +327,9 @@
               </div>
             </div>
 
-            <!-- Right: Cover actions -->
             <div class="flex flex-col gap-3 justify-start">
               <button
+                type="button"
                 class="flex items-center gap-4 bg-transparent border border-[#333] hover:border-[#555] rounded-2xl p-4 transition-colors text-left group"
               >
                 <div
@@ -250,30 +338,21 @@
                   <UploadCloud class="h-5 w-5 text-white" />
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-white text-sm font-semibold"
-                    >Upload Cover Art</span
-                  >
-                  <span class="text-[#a0a0a0] text-xs"
-                    >JPG or PNG, up to 5MB</span
-                  >
+                  <span class="text-white text-sm font-semibold">Subir portada</span>
+                  <span class="text-[#a0a0a0] text-xs">JPG o PNG, hasta 5MB</span>
                 </div>
               </button>
 
               <button
+                type="button"
                 class="flex items-center gap-4 bg-transparent border border-[#333] hover:border-[#555] rounded-2xl p-4 transition-colors text-left group"
               >
-                <div
-                  class="h-10 w-10 rounded-full bg-[#1b4b47] flex items-center justify-center shrink-0"
-                >
+                <div class="h-10 w-10 rounded-full bg-[#1b4b47] flex items-center justify-center shrink-0">
                   <Sparkles class="h-5 w-5 text-[#3ae0d5]" />
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-white text-sm font-semibold"
-                    >Generate with AI</span
-                  >
-                  <span class="text-[#a0a0a0] text-xs"
-                    >Create a cover from a prompt</span
-                  >
+                  <span class="text-white text-sm font-semibold">Generar con IA</span>
+                  <span class="text-[#a0a0a0] text-xs">Portada desde un prompt</span>
                 </div>
               </button>
             </div>
@@ -281,15 +360,30 @@
         </div>
       </div>
 
-      <!-- Footer / Publish Action -->
-      <div class="p-8 pt-4">
+      <div class="p-8 pt-4 flex flex-col gap-2">
         <button
           onclick={handlePublish}
           disabled={isSubmitting}
-          class="w-full bg-[#3ae0d5] hover:bg-[#3ae0d5]/90 text-black font-bold text-base py-3.5 rounded-xl transition-all shadow-md transform hover:scale-[1.01] active:scale-95"
+          class="w-full bg-[#3ae0d5] hover:bg-[#3ae0d5]/90 text-black font-bold text-base py-3.5 rounded-xl transition-all shadow-md transform hover:scale-[1.01] active:scale-95 disabled:opacity-60"
         >
-          {isSubmitting ? "Publishing..." : "Publish"}
+          {#if isSubmitting}
+            Guardando…
+          {:else if alreadyPublic}
+            Actualizar publicación
+          {:else}
+            Publicar
+          {/if}
         </button>
+        {#if alreadyPublic}
+          <button
+            type="button"
+            onclick={handleUnpublish}
+            disabled={isSubmitting}
+            class="w-full rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-60"
+          >
+            Despublicar
+          </button>
+        {/if}
       </div>
     </div>
   </div>

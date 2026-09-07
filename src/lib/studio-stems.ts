@@ -1,5 +1,6 @@
 import { goto } from '$app/navigation';
-import { toast } from 'svelte-sonner';
+import { appNotice } from '$lib/stores/app-notice.svelte.js';
+import { notice } from '$lib/ui/notice.js';
 
 export interface SongForStems {
 	id?: string;
@@ -69,9 +70,9 @@ export interface OpenStudioOptions {
 }
 
 /** Open QAMUZ Studio 2.0 with the song mix. Optional stem split. */
-export function openSongInStudio(song: SongForStems, options: OpenStudioOptions = {}): void {
+export async function openSongInStudio(song: SongForStems, options: OpenStudioOptions = {}): Promise<void> {
 	if (!song.id || song.id.startsWith('pending-')) {
-		toast.error('La canción todavía se está generando.');
+		notice.error('Todavía se está generando', 'Espera a que termine la canción.');
 		return;
 	}
 
@@ -79,15 +80,17 @@ export function openSongInStudio(song: SongForStems, options: OpenStudioOptions 
 		const existing = findStudioExportForSong(song);
 		if (existing) {
 			const label = existing.title || existing.name || songSessionTitle(song);
-			toast.warning(
-				`“${label}” ya está exportada al DAW editor. Ábrela desde Studio → Sesiones, o crea una copia.`
+			notice.warning(
+				'Ya exportada al DAW',
+				`“${label}” ya está en el editor. Ábrela desde Studio → Sesiones.`
 			);
-			const force = typeof window !== 'undefined'
-				? window.confirm(
-						`“${label}” ya está exportada al DAW editor.\n\n` +
-							`Cancelar para no duplicar, o Aceptar para abrir Studio y crear una copia.`
-					)
-				: false;
+			const force = await appNotice.confirm({
+				title: 'Esta canción ya está en el DAW',
+				description: `“${label}” ya fue exportada al editor. ¿Abrir Studio creando una copia nueva?`,
+				tone: 'warning',
+				confirmLabel: 'Crear copia',
+				cancelLabel: 'Cancelar'
+			});
 			if (!force) return;
 			options = { ...options, forceNew: true };
 		}
@@ -107,10 +110,10 @@ export function openSongInStudio(song: SongForStems, options: OpenStudioOptions 
 	if (bpm) params.set('bpm', String(bpm));
 	if (song.imageUrl) params.set('imageUrl', song.imageUrl);
 
-	toast.message(
+	notice.message(
 		options.extractStems
 			? options.forceNew
-				? 'Abriendo Studio (copia) y extrayendo stems…'
+				? 'Abriendo Studio (copia)…'
 				: 'Abriendo Studio y extrayendo stems…'
 			: options.forceNew
 				? 'Abriendo una copia en Studio…'
@@ -121,5 +124,5 @@ export function openSongInStudio(song: SongForStems, options: OpenStudioOptions 
 
 /** Open QAMUZ Studio with the song mix; the DAW extracts instrument stems and names the session. */
 export function openSongStemsInStudio(song: SongForStems): void {
-	openSongInStudio(song, { extractStems: true });
+	void openSongInStudio(song, { extractStems: true });
 }

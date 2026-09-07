@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { musicState } from "$lib/stores/music-state.js";
   import { toast } from "svelte-sonner";
+  import { notice } from "$lib/ui/notice.js";
   import Play from "@lucide/svelte/icons/play";
   import Pause from "@lucide/svelte/icons/pause";
   import SkipBack from "@lucide/svelte/icons/skip-back";
@@ -9,12 +10,14 @@
   import ImageIcon from "@lucide/svelte/icons/image";
   import Maximize2 from "@lucide/svelte/icons/maximize-2";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import PublishModal from "$lib/components/PublishModal.svelte";
-  import AddToPlaylistDialog from "$lib/components/AddToPlaylistDialog.svelte";
   import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
+  import AddToPlaylistDialog from "$lib/components/AddToPlaylistDialog.svelte";
   import * as Button from "$lib/components/ui/button/index.js";
   import X from "@lucide/svelte/icons/x";
   import { shareTrackLink } from "$lib/utils/share-track.js";
+  import { useSidebar } from "$lib/components/ui/sidebar/context.svelte.js";
+
+  const sidebar = useSidebar();
 
   let audioElement = $state<HTMLAudioElement | undefined>(undefined);
   let seekBar = $state<HTMLDivElement | undefined>(undefined);
@@ -24,6 +27,14 @@
 
   // Parent layout only mounts this when musicState.currentTrack is set.
   const activeTrack = $derived(musicState.currentTrack as NonNullable<typeof musicState.currentTrack>);
+
+  /** Desktop: sit between sidebar and Now Playing rail. */
+  const desktopInset = $derived.by(() => {
+    const leftVar = sidebar.open ? "var(--sidebar-width)" : "var(--sidebar-width-icon)";
+    const left = `calc(${leftVar} + 1rem)`;
+    const right = musicState.isExpanded ? "calc(350px + 1rem)" : "1rem";
+    return { left, right };
+  });
 
   $effect(() => {
     const playId = page.url.searchParams.get("play");
@@ -215,17 +226,25 @@
 ></audio>
 
   <div
-    class="player-shell fixed z-50 flex items-center bg-[#1c1c1c] text-white shadow-2xl border border-white/5 transition-all duration-300
+    class="player-shell fixed z-50 flex items-center bg-[#1c1c1c] text-white shadow-2xl border border-white/5 transition-[left,right,bottom] duration-300
       bottom-[calc(4rem+env(safe-area-inset-bottom))] left-3 right-3 h-[76px] px-3 gap-2 rounded-2xl
-      lg:bottom-6 lg:left-6 lg:h-[88px] lg:px-5 lg:gap-4
-      {musicState.isExpanded ? 'max-lg:hidden lg:right-[370px]' : 'lg:right-6'}"
+      lg:bottom-4 lg:h-[84px] lg:px-5 lg:gap-4
+      {musicState.isExpanded || musicState.isKaraokeOpen ? 'max-lg:hidden' : ''}
+      {musicState.isKaraokeOpen ? 'lg:hidden' : ''}"
+    style={`--player-left: ${desktopInset.left}; --player-right: ${desktopInset.right};`}
   >
     <!-- Left: Track Info -->
     <div class="flex items-center gap-2 md:gap-4 min-w-0 flex-1 basis-[30%] max-w-[40%]">
       <button
         type="button"
         class="h-11 w-11 md:h-14 md:w-14 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center relative group cursor-pointer border-none p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-        onclick={() => musicState.toggleExpanded()}
+        onclick={() => {
+          if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
+            musicState.openKaraoke();
+          } else {
+            musicState.toggleExpanded();
+          }
+        }}
       >
         {#if activeTrack.imageUrl}
           <img
@@ -246,7 +265,13 @@
         <button
           type="button"
           class="text-xs md:text-sm font-bold truncate cursor-pointer hover:underline text-white border-none p-0 bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-          onclick={() => musicState.toggleExpanded()}
+          onclick={() => {
+            if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
+              musicState.openKaraoke();
+            } else {
+              musicState.toggleExpanded();
+            }
+          }}
         >
           {activeTrack.title}
         </button>
@@ -368,7 +393,15 @@
               variant="ghost"
               size="icon"
               class="h-9 w-9 hover:text-white rounded-full"
-              onclick={() => musicState.togglePublishModal()}
+              onclick={() => {
+                if (musicState.currentTrack?.isPublic) {
+                  notice.warning(
+                    "Esta canción ya está publicada",
+                    "Puedes actualizar los datos o despublicarla."
+                  );
+                }
+                musicState.togglePublishModal();
+              }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -473,9 +506,17 @@
     </div>
   </div>
 
-<PublishModal />
 <AddToPlaylistDialog
   bind:open={playlistOpen}
   musicId={activeTrack?.id}
   title={activeTrack?.title}
 />
+
+<style>
+  @media (min-width: 1024px) {
+    .player-shell {
+      left: var(--player-left) !important;
+      right: var(--player-right) !important;
+    }
+  }
+</style>

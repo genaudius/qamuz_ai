@@ -22,9 +22,12 @@
   import { musicState } from "$lib/stores/music-state.js";
   import GlobalMusicPlayer from "$lib/components/GlobalMusicPlayer.svelte";
   import NowPlayingView from "$lib/components/NowPlayingView.svelte";
+  import DesktopKaraokeStage from "$lib/components/DesktopKaraokeStage.svelte";
   import MobileBottomNav from "$lib/components/MobileBottomNav.svelte";
   import MobileMusicStage from "$lib/components/MobileMusicStage.svelte";
   import OnboardingModal from "$lib/components/OnboardingModal.svelte";
+  import AppNoticeDialog from "$lib/components/AppNoticeDialog.svelte";
+  import PublishModal from "$lib/components/PublishModal.svelte";
 
   let { children, data } = $props();
 
@@ -200,7 +203,7 @@
     <ChatSidebar {chatState} />
 
     <!-- Main content area with header -->
-    <div class="relative flex flex-col h-screen w-full min-w-0 transition-all duration-300 {musicState.isExpanded ? 'lg:mr-[350px]' : ''}">
+    <div class="relative flex flex-col h-screen w-full min-w-0 transition-all duration-300 {musicState.isExpanded && !musicState.isKaraokeOpen ? 'lg:mr-[350px]' : ''}">
       <!-- Global Header -->
       <Header {data} />
 
@@ -214,13 +217,15 @@
       </div>
     </div>
     
-    <!-- Now Playing: desktop right rail; mobile immersive short stage -->
+    <!-- Now Playing: desktop right rail / karaoke; mobile immersive short stage -->
     {#if musicState.currentTrack}
       <div class="hidden lg:contents">
-        {#if musicState.isExpanded}
+        {#if musicState.isKaraokeOpen}
+          <DesktopKaraokeStage />
+        {:else if musicState.isExpanded}
           <aside
             class="fixed z-40 border-border/50 bg-background/95 backdrop-blur-md transform transition-transform duration-300
-              inset-y-0 right-0 top-0 bottom-28 w-[350px] border-l
+              inset-y-0 right-0 top-0 bottom-0 w-[350px] border-l
               {musicState.isExpanded ? 'translate-x-0' : 'translate-x-full'}"
           >
             <NowPlayingView />
@@ -239,5 +244,15 @@
   </Sidebar.Provider>
 {/if}
 
-<Toaster position="top-center" />
+<Toaster
+  position="bottom-center"
+  richColors
+  closeButton
+  toastOptions={{
+    class: "qamuz-toast",
+    duration: 4500,
+  }}
+/>
+<AppNoticeDialog />
+<PublishModal />
 <OnboardingModal />

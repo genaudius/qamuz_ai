@@ -7,6 +7,8 @@
   import { shareTrackLink } from "$lib/utils/share-track.js";
   import type { GlobalMusicState, MusicTrack } from "$lib/stores/music.svelte.js";
   import { toast } from "svelte-sonner";
+  import { appNotice } from "$lib/stores/app-notice.svelte.js";
+  import { notice } from "$lib/ui/notice.js";
 
   export type TrackOptionsSong = {
     id: string;
@@ -17,6 +19,7 @@
     videoUrl?: string | null;
     imageUrl?: string | null;
     durationMs?: number | null;
+    isPublic?: boolean | null;
   };
 
   let {
@@ -55,8 +58,37 @@
       title: displayTitle,
       imageUrl: song.imageUrl || undefined,
       videoUrl: song.videoUrl || undefined,
-      durationMs: song.durationMs || 0
+      durationMs: song.durationMs || 0,
+      genre: song.genre ?? null,
+      isPublic: typeof song.isPublic === "boolean" ? song.isPublic : undefined
     };
+  }
+
+  async function openPublish() {
+    open = false;
+    if (!isRealTrack) {
+      notice.error("No se puede publicar", "Esta canción aún no está lista.");
+      return;
+    }
+    let isPublic = typeof song.isPublic === "boolean" ? song.isPublic : undefined;
+    if (typeof isPublic !== "boolean") {
+      try {
+        const response = await fetch(`/api/music/${song.id}/info`);
+        if (response.ok) {
+          const info = await response.json();
+          isPublic = Boolean(info?.isPublic);
+        }
+      } catch {
+        // Modal can still check.
+      }
+    }
+    if (isPublic) {
+      notice.warning(
+        "Esta canción ya está publicada",
+        "Puedes actualizar los datos o despublicarla desde el panel."
+      );
+    }
+    musicState?.openPublishModal({ ...toPlayerTrack(), isPublic });
   }
 
   $effect(() => {
@@ -171,22 +203,29 @@
 
   async function deleteTrack() {
     if (!isRealTrack || deleting) return;
-    if (!window.confirm(`¿Eliminar “${displayTitle}”?`)) return;
+    const ok = await appNotice.confirm({
+      title: `¿Eliminar “${displayTitle}”?`,
+      description: "Esta acción no se puede deshacer. Se borrará de tu biblioteca.",
+      tone: "danger",
+      confirmLabel: "Eliminar",
+      cancelLabel: "Cancelar",
+    });
+    if (!ok) return;
     deleting = true;
     try {
       const response = await fetch(`/api/music/${song.id}`, { method: "DELETE" });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.error || payload?.message || "No pude eliminar la canción");
+        notice.error("No pude eliminar", payload?.error || payload?.message || "Inténtalo de nuevo");
         return;
       }
       if (musicState?.currentTrack?.id === song.id) {
         musicState.closePlayer();
       }
-      toast.success("Canción eliminada");
+      notice.success("Canción eliminada");
       await invalidateAll();
     } catch {
-      toast.error("No pude eliminar la canción");
+      notice.error("No pude eliminar la canción");
     } finally {
       deleting = false;
     }
@@ -264,12 +303,7 @@
     <DropdownMenu.Item
       class="cursor-pointer"
       onclick={() => {
-        open = false;
-        if (!isRealTrack) {
-          toast.error("Esta canción no se puede publicar");
-          return;
-        }
-        musicState?.openPublishModal(toPlayerTrack());
+        void openPublish();
       }}
     >
       Publicar

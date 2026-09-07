@@ -11,6 +11,8 @@ export interface MusicTrack {
     durationMs: number;
     genre?: string | null;
     tags?: string[];
+    /** Published to the public feed. */
+    isPublic?: boolean;
 }
 
 export class GlobalMusicState {
@@ -28,6 +30,8 @@ export class GlobalMusicState {
     volume = $state<number>(1);
     
     isExpanded = $state<boolean>(false); // Now Playing / immersive stage
+    /** Desktop fullscreen karaoke (large lyrics + comments sheet). */
+    isKaraokeOpen = $state<boolean>(false);
     isPublishModalOpen = $state<boolean>(false);
     publishTarget = $state<MusicTrack | null>(null);
     
@@ -59,7 +63,8 @@ export class GlobalMusicState {
                             : Array.isArray(info.timedLyrics) ? info.timedLyrics : [],
                         durationMs: normalized.durationMs || info.durationMs || 0,
                         genre: normalized.genre ?? info.genre ?? null,
-                        tags: normalized.tags?.length ? normalized.tags : info.tags || []
+                        tags: normalized.tags?.length ? normalized.tags : info.tags || [],
+                        isPublic: typeof info.isPublic === 'boolean' ? info.isPublic : normalized.isPublic
                     };
                 }
             } catch {
@@ -126,6 +131,17 @@ export class GlobalMusicState {
     toggleExpanded() {
         if (!this.currentTrack) return;
         this.isExpanded = !this.isExpanded;
+        if (!this.isExpanded) this.isKaraokeOpen = false;
+    }
+
+    openKaraoke() {
+        if (!this.currentTrack) return;
+        this.isExpanded = true;
+        this.isKaraokeOpen = true;
+    }
+
+    closeKaraoke() {
+        this.isKaraokeOpen = false;
     }
 
     togglePublishModal() {
@@ -139,11 +155,24 @@ export class GlobalMusicState {
         this.publishTarget = track ?? this.currentTrack;
         this.isPublishModalOpen = true;
     }
+
+    markTrackPublic(trackId: string, isPublic: boolean) {
+        if (this.currentTrack?.id === trackId) {
+            this.currentTrack = { ...this.currentTrack, isPublic };
+        }
+        if (this.publishTarget?.id === trackId) {
+            this.publishTarget = { ...this.publishTarget, isPublic };
+        }
+        this.queue = this.queue.map((item) =>
+            item.id === trackId ? { ...item, isPublic } : item
+        );
+    }
     
     closePlayer() {
         this.currentTrack = null;
         this.isPlaying = false;
         this.isExpanded = false;
+        this.isKaraokeOpen = false;
         if (this.audioElement) {
             this.audioElement.pause();
             this.audioElement.removeAttribute("src");

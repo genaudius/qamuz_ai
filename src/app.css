@@ -503,3 +503,37 @@
   .animate-eq-3 { animation: eq-bounce 0.7s infinite ease-in-out 0.4s; }
   .animate-eq-4 { animation: eq-bounce 0.5s infinite ease-in-out 0.1s; }
 }
+
+/* Elegant QAMUZ toasts (sonner) — bottom stack, glass card */
+[data-sonner-toaster][data-y-position='bottom'] {
+  bottom: 5.5rem !important;
+}
+
+[data-sonner-toast].qamuz-toast,
+[data-sonner-toast] {
+  --normal-bg: rgba(20, 20, 22, 0.94) !important;
+  --normal-text: #f4f4f5 !important;
+  --normal-border: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 1rem !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45) !important;
+  font-size: 0.925rem !important;
+  padding: 0.9rem 1rem !important;
+}
+
+[data-sonner-toast][data-type='success'] {
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+[data-sonner-toast][data-type='warning'] {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+}
+
+[data-sonner-toast][data-type='error'] {
+  border-color: rgba(251, 113, 133, 0.4) !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-size: 0.8rem !important;
+}
