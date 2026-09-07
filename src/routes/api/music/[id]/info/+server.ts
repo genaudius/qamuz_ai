@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(400, 'Invalid music ID');
 	}
 
-	const [record] = await db
+		const [record] = await db
 		.select({
 			id: music.id,
 			title: music.title,
@@ -26,6 +26,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			userId: music.userId,
 			genre: music.genre,
 			tags: music.tags,
+			likesCount: music.likesCount,
+			playsCount: music.playsCount,
+			commentsCount: music.commentsCount,
 			artistName: users.name
 		})
 		.from(music)
@@ -47,6 +50,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		id: record.id,
 		title: record.title || record.prompt || 'Untitled track',
 		artist: record.artistName || 'QAMUZ',
+		artistId: record.userId,
 		url: `/api/music/${record.id}`,
 		imageUrl: record.imageUrl,
 		videoUrl: record.videoUrl,
@@ -55,6 +59,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		durationMs: record.durationMs || 0,
 		isPublic: record.isPublic,
 		genre: record.genre,
-		tags: record.tags
+		tags: record.tags,
+		likesCount: record.likesCount ?? 0,
+		playsCount: record.playsCount ?? 0,
+		commentsCount: record.commentsCount ?? 0
 	});
 };

@@ -11,6 +11,7 @@
   import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
   import { shareTrackLink } from "$lib/utils/share-track.js";
   import { notice } from "$lib/ui/notice.js";
+  import { openKaraokePage } from "$lib/open-karaoke.js";
 
   let { songs = [] } = $props<{ songs: any[] }>();
 
@@ -72,31 +73,15 @@
   function openTitleKaraoke(song: any, event: Event) {
     stopRow(event);
     if (song.status && song.status !== "completed") return;
-
-    const openImmersive = () => {
-      if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
-        musicState.openKaraoke();
-      } else {
-        musicState.isExpanded = true;
-      }
-    };
-
-    if (musicState.currentTrack?.id === song.id) {
-      openImmersive();
-      return;
-    }
-    void musicState
-      .playTrack({
-        id: song.id,
-        url: `/api/music/${song.id}`,
-        title: songTitle(song),
-        imageUrl: song.imageUrl,
-        videoUrl: song.videoUrl,
-        lyrics: song.lyrics,
-        durationMs: song.durationMs || 0,
-        isPublic: typeof song.isPublic === "boolean" ? song.isPublic : undefined
-      })
-      .then(openImmersive);
+    void openKaraokePage(musicState, {
+      id: song.id,
+      title: songTitle(song),
+      imageUrl: song.imageUrl,
+      videoUrl: song.videoUrl,
+      lyrics: song.lyrics,
+      durationMs: song.durationMs || 0,
+      isPublic: song.isPublic
+    });
   }
 
   function songTitle(song: any) {

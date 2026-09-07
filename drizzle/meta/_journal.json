@@ -64,6 +64,20 @@
       "when": 1787951000000,
       "tag": "0008_usage_tracking_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787960000000,
+      "tag": "0009_music_aligned_lyrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787970000000,
+      "tag": "0010_music_comments",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@
   import { notice } from "$lib/ui/notice.js";
   import { shareTrackLink } from "$lib/utils/share-track.js";
   import { openSongInStudio, openSongStemsInStudio } from "$lib/studio-stems";
+  import { openKaraokePage } from "$lib/open-karaoke.js";
   import {
     activeLyricIndex,
     buildStructuredTimedLyrics,
@@ -284,7 +285,7 @@
             type="button"
             class="text-xl font-bold truncate text-left w-full hover:underline"
             title="Abrir karaoke"
-            onclick={() => musicState.openKaraoke()}
+            onclick={() => void openKaraokePage(musicState, track)}
           >
             {track.title || "Unknown Title"}
           </button>

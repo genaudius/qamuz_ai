@@ -15,6 +15,7 @@
   import * as Button from "$lib/components/ui/button/index.js";
   import X from "@lucide/svelte/icons/x";
   import { shareTrackLink } from "$lib/utils/share-track.js";
+  import { openKaraokePage } from "$lib/open-karaoke.js";
   import { useSidebar } from "$lib/components/ui/sidebar/context.svelte.js";
 
   const sidebar = useSidebar();
@@ -24,6 +25,7 @@
   let isSeeking = $state(false);
   let playlistOpen = $state(false);
   let lastHandledPlayId = $state<string | null>(null);
+  let lastViewedId = $state<string | null>(null);
 
   // Parent layout only mounts this when musicState.currentTrack is set.
   const activeTrack = $derived(musicState.currentTrack as NonNullable<typeof musicState.currentTrack>);
@@ -68,6 +70,46 @@
         nextUrl.searchParams.delete("play");
         const cleaned = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
         window.history.replaceState({}, "", cleaned);
+      }
+    })();
+  });
+
+  $effect(() => {
+    const id = activeTrack?.id;
+    if (!id || id === lastViewedId) return;
+    if (page.url.pathname.startsWith("/karaoke/")) return;
+
+    const key = `qamuz.view.${id}`;
+    try {
+      const last = Number(sessionStorage.getItem(key) || 0);
+      if (Date.now() - last < 30 * 60 * 1000) {
+        lastViewedId = id;
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    lastViewedId = id;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/music/${id}/view`, { method: "POST" });
+        const payload = await response.json().catch(() => null);
+        if (response.ok && payload?.counted) {
+          try {
+            sessionStorage.setItem(key, String(Date.now()));
+          } catch {
+            // ignore
+          }
+          if (musicState.currentTrack?.id === id && typeof payload.playsCount === "number") {
+            musicState.currentTrack = {
+              ...musicState.currentTrack,
+              playsCount: payload.playsCount
+            };
+          }
+        }
+      } catch {
+        // ignore
       }
     })();
   });
@@ -229,8 +271,7 @@
     class="player-shell fixed z-50 flex items-center bg-[#1c1c1c] text-white shadow-2xl border border-white/5 transition-[left,right,bottom] duration-300
       bottom-[calc(4rem+env(safe-area-inset-bottom))] left-3 right-3 h-[76px] px-3 gap-2 rounded-2xl
       lg:bottom-4 lg:h-[84px] lg:px-5 lg:gap-4
-      {musicState.isExpanded || musicState.isKaraokeOpen ? 'max-lg:hidden' : ''}
-      {musicState.isKaraokeOpen ? 'lg:hidden' : ''}"
+      {musicState.isExpanded ? 'max-lg:hidden' : ''}"
     style={`--player-left: ${desktopInset.left}; --player-right: ${desktopInset.right};`}
   >
     <!-- Left: Track Info -->
@@ -238,13 +279,7 @@
       <button
         type="button"
         class="h-11 w-11 md:h-14 md:w-14 rounded-lg overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center relative group cursor-pointer border-none p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-        onclick={() => {
-          if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
-            musicState.openKaraoke();
-          } else {
-            musicState.toggleExpanded();
-          }
-        }}
+        onclick={() => void openKaraokePage(musicState, activeTrack)}
       >
         {#if activeTrack.imageUrl}
           <img
@@ -265,13 +300,7 @@
         <button
           type="button"
           class="text-xs md:text-sm font-bold truncate cursor-pointer hover:underline text-white border-none p-0 bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-          onclick={() => {
-            if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
-              musicState.openKaraoke();
-            } else {
-              musicState.toggleExpanded();
-            }
-          }}
+          onclick={() => void openKaraokePage(musicState, activeTrack)}
         >
           {activeTrack.title}
         </button>

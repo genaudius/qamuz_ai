@@ -3,6 +3,8 @@ export interface MusicTrack {
     url: string;
     title: string;
     artist?: string;
+    /** Owner user id — artist channel `/artist/[id]`. */
+    artistId?: string;
     imageUrl?: string;
     videoUrl?: string;
     lyrics?: string;
@@ -13,6 +15,9 @@ export interface MusicTrack {
     tags?: string[];
     /** Published to the public feed. */
     isPublic?: boolean;
+    likesCount?: number;
+    playsCount?: number;
+    commentsCount?: number;
 }
 
 export class GlobalMusicState {
@@ -30,8 +35,6 @@ export class GlobalMusicState {
     volume = $state<number>(1);
     
     isExpanded = $state<boolean>(false); // Now Playing / immersive stage
-    /** Desktop fullscreen karaoke (large lyrics + comments sheet). */
-    isKaraokeOpen = $state<boolean>(false);
     isPublishModalOpen = $state<boolean>(false);
     publishTarget = $state<MusicTrack | null>(null);
     
@@ -45,8 +48,16 @@ export class GlobalMusicState {
         }
 
         let normalized: MusicTrack = { ...track, url };
-        // Enrich lyrics / video / tags when callers only pass basic fields.
-        if (!normalized.lyrics || !normalized.videoUrl || !normalized.tags || !normalized.genre || !normalized.timedLyrics?.length) {
+        // Enrich lyrics / video / tags / social counts when callers only pass basic fields.
+        const needsMeta =
+            !normalized.lyrics ||
+            !normalized.videoUrl ||
+            !normalized.tags ||
+            !normalized.genre ||
+            !normalized.timedLyrics?.length ||
+            typeof normalized.playsCount !== "number" ||
+            typeof normalized.likesCount !== "number";
+        if (needsMeta) {
             try {
                 const infoRes = await fetch(`/api/music/${normalized.id}/info`);
                 if (infoRes.ok) {
@@ -55,6 +66,7 @@ export class GlobalMusicState {
                         ...normalized,
                         title: normalized.title || info.title,
                         artist: normalized.artist || info.artist,
+                        artistId: normalized.artistId || info.artistId || info.userId || undefined,
                         imageUrl: normalized.imageUrl || info.imageUrl || undefined,
                         videoUrl: normalized.videoUrl || info.videoUrl || undefined,
                         lyrics: normalized.lyrics || info.lyrics || undefined,
@@ -64,7 +76,10 @@ export class GlobalMusicState {
                         durationMs: normalized.durationMs || info.durationMs || 0,
                         genre: normalized.genre ?? info.genre ?? null,
                         tags: normalized.tags?.length ? normalized.tags : info.tags || [],
-                        isPublic: typeof info.isPublic === 'boolean' ? info.isPublic : normalized.isPublic
+                        isPublic: typeof info.isPublic === 'boolean' ? info.isPublic : normalized.isPublic,
+                        likesCount: Number(info.likesCount ?? normalized.likesCount ?? 0),
+                        playsCount: Number(info.playsCount ?? normalized.playsCount ?? 0),
+                        commentsCount: Number(info.commentsCount ?? normalized.commentsCount ?? 0)
                     };
                 }
             } catch {
@@ -76,8 +91,12 @@ export class GlobalMusicState {
             this.currentTrack?.id === normalized.id && this.currentTrack?.url === normalized.url;
         this.currentTrack = normalized;
         this.isPlaying = true;
-        // Desktop: side panel. Mobile: immersive short stage.
-        this.isExpanded = true;
+        // Desktop side panel / mobile immersive — skip on dedicated karaoke route.
+        if (typeof window === "undefined" || !window.location.pathname.startsWith("/karaoke/")) {
+            this.isExpanded = true;
+        } else {
+            this.isExpanded = false;
+        }
         if (!isSameTrack) {
             this.currentTime = 0;
             this.duration = Number.isFinite(normalized.durationMs) && normalized.durationMs > 0
@@ -131,17 +150,6 @@ export class GlobalMusicState {
     toggleExpanded() {
         if (!this.currentTrack) return;
         this.isExpanded = !this.isExpanded;
-        if (!this.isExpanded) this.isKaraokeOpen = false;
-    }
-
-    openKaraoke() {
-        if (!this.currentTrack) return;
-        this.isExpanded = true;
-        this.isKaraokeOpen = true;
-    }
-
-    closeKaraoke() {
-        this.isKaraokeOpen = false;
     }
 
     togglePublishModal() {
@@ -172,7 +180,6 @@ export class GlobalMusicState {
         this.currentTrack = null;
         this.isPlaying = false;
         this.isExpanded = false;
-        this.isKaraokeOpen = false;
         if (this.audioElement) {
             this.audioElement.pause();
             this.audioElement.removeAttribute("src");

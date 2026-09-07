@@ -296,7 +296,8 @@ export const music = pgTable("music", {
 	tags: json("tags").$type<string[]>().notNull().default([]), // Search/discovery tags
 	isPublic: boolean("isPublic").notNull().default(false), // Whether the song is published to the home feed
 	likesCount: integer("likesCount").notNull().default(0), // Number of likes
-	playsCount: integer("playsCount").notNull().default(0), // Number of plays
+	playsCount: integer("playsCount").notNull().default(0), // Number of plays / views
+	commentsCount: integer("commentsCount").notNull().default(0), // Public comment count
 	model: text("model").notNull(), // Music model used (e.g., "music_v1")
 	isInstrumental: boolean("isInstrumental").notNull().default(false), // Whether music is instrumental only
 	imageUrl: text("imageUrl"), // Cover art URL
@@ -332,6 +333,24 @@ export const musicLikes = pgTable("music_like", {
 	unique("music_like_user_track_unique").on(table.userId, table.musicId),
 	index("music_likes_user_idx").on(table.userId),
 	index("music_likes_music_idx").on(table.musicId),
+]);
+
+export const musicComments = pgTable("music_comment", {
+	id: text("id")
+		.primaryKey()
+		.notNull()
+		.$defaultFn(() => randomUUID()),
+	userId: text("userId")
+		.notNull()
+		.references(() => users.id, { onDelete: "cascade" }),
+	musicId: text("musicId")
+		.notNull()
+		.references(() => music.id, { onDelete: "cascade" }),
+	text: text("text").notNull(),
+	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (table) => [
+	index("music_comments_music_created_idx").on(table.musicId, table.createdAt),
+	index("music_comments_user_idx").on(table.userId),
 ]);
 
 export const soundEffects = pgTable("sound_effects", {
