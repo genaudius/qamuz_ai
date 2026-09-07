@@ -9,8 +9,8 @@
     buildStructuredTimedLyrics,
     type TimedLyricLine
   } from "$lib/utils/lyrics-sync.js";
-  import ChevronDown from "@lucide/svelte/icons/chevron-down";
-  import ChevronUp from "@lucide/svelte/icons/chevron-up";
+  import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import ChevronLeft from "@lucide/svelte/icons/chevron-left";
   import Heart from "@lucide/svelte/icons/heart";
   import MessageCircle from "@lucide/svelte/icons/message-circle";
   import Share2 from "@lucide/svelte/icons/share-2";
@@ -23,7 +23,7 @@
 
   type LocalComment = { id: string; text: string; at: number };
 
-  const LINE_STEP = 72;
+  const LINE_STEP = 68;
 
   let liked = $state(false);
   let likesCount = $state(0);
@@ -68,7 +68,7 @@
 
   const lyricsEngineY = $derived.by(() => {
     const focus = activeLine < 0 ? 0 : activeLine;
-    const viewportCenter = 160;
+    const viewportCenter = 220;
     return viewportCenter - (focus * LINE_STEP + LINE_STEP * 0.5);
   });
 
@@ -248,12 +248,15 @@
 </script>
 
 {#if track}
-  <div class="karaoke" role="dialog" aria-label="Karaoke Now Playing">
+  <div
+    class="karaoke"
+    class:chat-open={commentsOpen}
+    role="dialog"
+    aria-label="Karaoke Now Playing"
+  >
     <div
       class="bg"
-      style={track.imageUrl
-        ? `background-image: url(${track.imageUrl})`
-        : undefined}
+      style={track.imageUrl ? `background-image: url(${track.imageUrl})` : undefined}
     ></div>
     <div class="veil"></div>
 
@@ -269,9 +272,6 @@
       </button>
 
       <div class="identity">
-        {#if track.imageUrl}
-          <img src={track.imageUrl} alt="" class="cover" />
-        {/if}
         <div class="meta">
           <h1>{track.title || "Untitled"}</h1>
           {#if track.artist}
@@ -308,147 +308,160 @@
           onclick={() => (commentsOpen = !commentsOpen)}
         >
           <MessageCircle class="h-4 w-4" />
-          <span>{comments.length || "Comentar"}</span>
+          <span>{comments.length || "Chat"}</span>
         </button>
       </div>
     </header>
 
-    <main class="stage" class:sheet-open={commentsOpen}>
-      {#if activeSection}
-        <p class="section-tag">{activeSection}</p>
-      {/if}
-
-      <div class="lyrics-viewport" aria-live="polite">
-        {#if timedLines.length}
-          <div class="lyrics-engine" style={`transform: translate3d(0, ${lyricsEngineY}px, 0)`}>
-            {#each timedLines as line, index}
-              <button
-                type="button"
-                class="lyric-line"
-                class:active={index === activeLine}
-                class:passed={activeLine >= 0 && index < activeLine}
-                class:upcoming={activeLine >= 0 && index === activeLine + 1}
-                onclick={() => seekToLine(index)}
-              >
-                {line.text}
-              </button>
-            {/each}
+    <div class="body">
+      <main class="stage">
+        <div class="hero">
+          <div class="cover-wrap">
+            {#if track.imageUrl}
+              <img src={track.imageUrl} alt="" class="cover-art" />
+            {:else}
+              <div class="cover-fallback">Sin portada</div>
+            {/if}
+            <div class="cover-fade" aria-hidden="true"></div>
           </div>
-        {:else}
-          <p class="empty">Sin letras — disfruta el groove</p>
-        {/if}
-      </div>
 
-      {#if alignedSource === "pending"}
-        <p class="sync-hint">Calibrando voz…</p>
-      {:else if alignedSource === "stt" || alignedSource === "kie" || alignedSource === "cached"}
-        <p class="sync-hint">Sync vocal</p>
-      {:else if alignedSource === "fallback"}
-        <p class="sync-hint">Sync por estructura</p>
-      {/if}
-    </main>
+          <div class="lyrics-col">
+            {#if activeSection}
+              <p class="section-tag">{activeSection}</p>
+            {/if}
 
-    <footer class="transport">
+            <div class="lyrics-viewport" aria-live="polite">
+              {#if timedLines.length}
+                <div
+                  class="lyrics-engine"
+                  style={`transform: translate3d(0, ${lyricsEngineY}px, 0)`}
+                >
+                  {#each timedLines as line, index}
+                    <button
+                      type="button"
+                      class="lyric-line"
+                      class:active={index === activeLine}
+                      class:passed={activeLine >= 0 && index < activeLine}
+                      class:upcoming={activeLine >= 0 && index === activeLine + 1}
+                      onclick={() => seekToLine(index)}
+                    >
+                      {line.text}
+                    </button>
+                  {/each}
+                </div>
+              {:else}
+                <p class="empty">Sin letras — disfruta el groove</p>
+              {/if}
+            </div>
+
+            {#if alignedSource === "pending"}
+              <p class="sync-hint">Calibrando voz…</p>
+            {:else if alignedSource === "stt" || alignedSource === "kie" || alignedSource === "cached"}
+              <p class="sync-hint">Sync vocal</p>
+            {:else if alignedSource === "fallback"}
+              <p class="sync-hint">Sync por estructura</p>
+            {/if}
+          </div>
+        </div>
+
+        <footer class="transport">
+          <button
+            type="button"
+            class="play"
+            aria-label={musicState.isPlaying ? "Pausar" : "Reproducir"}
+            onclick={() => void musicState.togglePlay()}
+          >
+            {#if musicState.isPlaying}
+              <Pause class="h-5 w-5" />
+            {:else}
+              <Play class="h-5 w-5 ml-0.5" />
+            {/if}
+          </button>
+          <div class="seek">
+            <button type="button" class="bar" aria-label="Posición" onclick={onSeekBarClick}>
+              <span class="fill" style={`width: ${progressPercent}%`}></span>
+            </button>
+            <div class="times">
+              <span>{formatTime(playhead)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </div>
+        </footer>
+      </main>
+
       <button
         type="button"
-        class="play"
-        aria-label={musicState.isPlaying ? "Pausar" : "Reproducir"}
-        onclick={() => void musicState.togglePlay()}
+        class="chat-toggle"
+        class:open={commentsOpen}
+        aria-expanded={commentsOpen}
+        aria-controls="karaoke-comments"
+        onclick={() => (commentsOpen = !commentsOpen)}
       >
-        {#if musicState.isPlaying}
-          <Pause class="h-5 w-5" />
+        {#if commentsOpen}
+          <ChevronRight class="h-4 w-4" />
         {:else}
-          <Play class="h-5 w-5 ml-0.5" />
+          <ChevronLeft class="h-4 w-4" />
+          <MessageCircle class="h-4 w-4" />
+          <span>{comments.length}</span>
         {/if}
       </button>
-      <div class="seek">
-        <button
-          type="button"
-          class="bar"
-          aria-label="Posición"
-          onclick={onSeekBarClick}
-        >
-          <span class="fill" style={`width: ${progressPercent}%`}></span>
-        </button>
-        <div class="times">
-          <span>{formatTime(playhead)}</span>
-          <span>{formatTime(duration)}</span>
+
+      <aside
+        id="karaoke-comments"
+        class="chat"
+        class:open={commentsOpen}
+        aria-hidden={!commentsOpen}
+      >
+        <div class="chat-head">
+          <strong>Comentarios</strong>
+          <button
+            type="button"
+            class="icon-btn sm"
+            aria-label="Cerrar comentarios"
+            onclick={() => (commentsOpen = false)}
+          >
+            <ChevronRight class="h-4 w-4" />
+          </button>
         </div>
-      </div>
-    </footer>
-
-    <button
-      type="button"
-      class="sheet-toggle"
-      class:open={commentsOpen}
-      aria-expanded={commentsOpen}
-      aria-controls="karaoke-comments"
-      onclick={() => (commentsOpen = !commentsOpen)}
-    >
-      {#if commentsOpen}
-        <ChevronDown class="h-4 w-4" />
-        <span>Cerrar comentarios</span>
-      {:else}
-        <ChevronUp class="h-4 w-4" />
-        <span>Abrir comentarios ({comments.length})</span>
-      {/if}
-    </button>
-
-    <div
-      id="karaoke-comments"
-      class="sheet"
-      class:open={commentsOpen}
-      aria-hidden={!commentsOpen}
-    >
-      <div class="sheet-handle" aria-hidden="true"></div>
-      <div class="sheet-head">
-        <strong>Comentarios</strong>
-        <button
-          type="button"
-          class="icon-btn sm"
-          aria-label="Cerrar comentarios"
-          onclick={() => (commentsOpen = false)}
-        >
-          <ChevronDown class="h-4 w-4" />
-        </button>
-      </div>
-      <div class="compose">
-        <input
-          bind:value={commentText}
-          placeholder="Escribe un comentario…"
-          maxlength="280"
-          onkeydown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addComment();
-            }
-          }}
-        />
-        <button type="button" class="send" aria-label="Enviar" onclick={addComment}>
-          <Send class="h-4 w-4" />
-        </button>
-      </div>
-      <div class="comment-list">
-        {#each comments as comment}
-          <div class="comment">
-            <p>{comment.text}</p>
-            <span>{new Date(comment.at).toLocaleString()}</span>
-          </div>
-        {:else}
-          <p class="empty-comments">Sé el primero en comentar</p>
-        {/each}
-      </div>
+        <div class="compose">
+          <input
+            bind:value={commentText}
+            placeholder="Escribe un comentario…"
+            maxlength="280"
+            onkeydown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addComment();
+              }
+            }}
+          />
+          <button type="button" class="send" aria-label="Enviar" onclick={addComment}>
+            <Send class="h-4 w-4" />
+          </button>
+        </div>
+        <div class="comment-list">
+          {#each comments as comment}
+            <div class="comment">
+              <p>{comment.text}</p>
+              <span>{new Date(comment.at).toLocaleString()}</span>
+            </div>
+          {:else}
+            <p class="empty-comments">Sé el primero en comentar</p>
+          {/each}
+        </div>
+      </aside>
     </div>
   </div>
 {/if}
 
 <style>
   .karaoke {
+    --chat-w: 320px;
     position: fixed;
     inset: 0;
     z-index: 70;
     display: grid;
-    grid-template-rows: auto 1fr auto auto;
+    grid-template-rows: auto 1fr;
     color: #f4f4f5;
     overflow: hidden;
   }
@@ -456,22 +469,20 @@
     position: absolute;
     inset: -40px;
     background: #0a0a0b center / cover no-repeat;
-    filter: blur(48px) saturate(1.15);
-    transform: scale(1.08);
+    filter: blur(56px) saturate(1.2);
+    transform: scale(1.1);
+    opacity: 0.55;
   }
   .veil {
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(ellipse at 50% 20%, rgba(58, 224, 213, 0.14), transparent 50%),
-      linear-gradient(180deg, rgba(8, 8, 10, 0.72), rgba(8, 8, 10, 0.92) 55%, rgba(8, 8, 10, 0.98));
+      radial-gradient(ellipse at 18% 35%, rgba(58, 224, 213, 0.12), transparent 45%),
+      linear-gradient(180deg, rgba(8, 8, 10, 0.55), rgba(8, 8, 10, 0.88) 70%, #08080a);
   }
 
   .top,
-  .stage,
-  .transport,
-  .sheet-toggle,
-  .sheet {
+  .body {
     position: relative;
     z-index: 1;
   }
@@ -480,28 +491,15 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1rem 1.25rem 0.75rem;
+    padding: 1rem 1.25rem 0.5rem;
   }
   .identity {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
     min-width: 0;
     flex: 1;
   }
-  .cover {
-    width: 3.25rem;
-    height: 3.25rem;
-    border-radius: 0.65rem;
-    object-fit: cover;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  }
-  .meta {
-    min-width: 0;
-  }
   .meta h1 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     font-weight: 750;
     letter-spacing: -0.02em;
     white-space: nowrap;
@@ -560,21 +558,94 @@
     background: rgba(255, 255, 255, 0.14);
   }
 
+  .body {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 0;
+    position: relative;
+  }
+  .karaoke.chat-open .body {
+    grid-template-columns: 1fr var(--chat-w);
+  }
+
   .stage {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    min-width: 0;
     min-height: 0;
-    padding: 0.5rem 1.5rem 1rem;
-    transition: padding-bottom 0.28s ease;
+    padding: 0.25rem 1.5rem 1rem;
   }
-  .stage.sheet-open {
-    padding-bottom: 0.25rem;
+
+  .hero {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(280px, 42%) minmax(0, 1fr);
+    gap: 0;
+    align-items: stretch;
+  }
+
+  .cover-wrap {
+    position: relative;
+    align-self: center;
+    width: 100%;
+    max-width: min(520px, 100%);
+    aspect-ratio: 1;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+  .cover-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .cover-fallback {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(244, 244, 245, 0.45);
+  }
+  /* Bottom of cover dissolves into lyrics plane */
+  .cover-fade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        90deg,
+        transparent 55%,
+        rgba(8, 8, 10, 0.35) 78%,
+        rgba(8, 8, 10, 0.92) 100%
+      ),
+      linear-gradient(
+        180deg,
+        transparent 48%,
+        rgba(8, 8, 10, 0.25) 68%,
+        rgba(8, 8, 10, 0.85) 88%,
+        #08080a 100%
+      );
+  }
+
+  .lyrics-col {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    margin-left: -4.5rem;
+    padding: 1rem 0.5rem 1rem 0;
+    z-index: 2;
   }
   .section-tag {
-    margin: 0 0 0.75rem;
-    font-size: 0.75rem;
+    margin: 0 0 0.5rem 1rem;
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -582,13 +653,23 @@
   }
   .lyrics-viewport {
     position: relative;
-    width: min(920px, 100%);
-    height: min(52vh, 420px);
+    flex: 1;
+    max-height: min(68vh, 560px);
     overflow: hidden;
+    /* Lyrics rise into the cover and vanish at the top */
     mask-image: linear-gradient(
       180deg,
       transparent 0%,
-      #000 12%,
+      rgba(0, 0, 0, 0.35) 10%,
+      #000 22%,
+      #000 78%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.35) 10%,
+      #000 22%,
       #000 78%,
       transparent 100%
     );
@@ -600,12 +681,12 @@
   .lyric-line {
     display: block;
     width: 100%;
-    min-height: 72px;
-    padding: 0.35rem 1rem;
+    min-height: 68px;
+    padding: 0.3rem 1rem;
     border: 0;
     background: transparent;
-    text-align: center;
-    font-size: clamp(1.35rem, 3.2vw, 2.35rem);
+    text-align: left;
+    font-size: clamp(1.25rem, 2.6vw, 2.15rem);
     font-weight: 650;
     line-height: 1.25;
     letter-spacing: -0.02em;
@@ -618,27 +699,26 @@
       opacity 0.25s ease;
   }
   .lyric-line.passed {
-    color: rgba(58, 224, 213, 0.45);
-    opacity: 0.85;
+    color: rgba(58, 224, 213, 0.42);
+    opacity: 0.8;
   }
   .lyric-line.upcoming {
     color: rgba(244, 244, 245, 0.55);
   }
   .lyric-line.active {
     color: #3ae0d5;
-    transform: scale(1.06);
+    transform: translateX(6px) scale(1.04);
     text-shadow: 0 0 28px rgba(58, 224, 213, 0.35);
     font-weight: 800;
   }
   .empty {
-    text-align: center;
     color: rgba(244, 244, 245, 0.45);
-    font-size: 1.25rem;
-    margin-top: 4rem;
+    font-size: 1.15rem;
+    margin: 3rem 1rem;
   }
   .sync-hint {
-    margin-top: 0.75rem;
-    font-size: 0.7rem;
+    margin: 0.5rem 0 0 1rem;
+    font-size: 0.68rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(244, 244, 245, 0.4);
@@ -648,10 +728,8 @@
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    padding: 0.35rem 1.5rem 0.65rem;
-    max-width: 920px;
-    width: 100%;
-    margin: 0 auto;
+    padding: 0.65rem 0 0.25rem;
+    max-width: 720px;
   }
   .play {
     width: 2.75rem;
@@ -693,64 +771,68 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .sheet-toggle {
-    justify-self: center;
+  .chat-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    z-index: 4;
+    transform: translateY(-50%);
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    margin: 0 0 0.75rem;
-    padding: 0.55rem 1rem;
+    gap: 0.35rem;
+    min-height: 2.5rem;
+    padding: 0.45rem 0.7rem;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(20, 20, 22, 0.75);
+    background: rgba(20, 20, 22, 0.82);
     color: rgba(244, 244, 245, 0.9);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 650;
     backdrop-filter: blur(12px);
-    transition: transform 0.2s ease, background 0.2s ease;
+    transition: right 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease;
   }
-  .sheet-toggle.open {
+  .karaoke.chat-open .chat-toggle {
+    right: calc(var(--chat-w) + 0.55rem);
     background: rgba(58, 224, 213, 0.16);
     border-color: rgba(58, 224, 213, 0.35);
     color: #3ae0d5;
+    padding: 0.55rem;
   }
 
-  .sheet {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 2;
-    max-height: min(46vh, 420px);
+  .chat {
     display: flex;
     flex-direction: column;
-    border-radius: 1.25rem 1.25rem 0 0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: 0;
-    background: rgba(14, 14, 16, 0.96);
-    backdrop-filter: blur(20px);
-    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.45);
-    transform: translateY(110%);
-    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-    padding: 0.5rem 1rem 1rem;
+    min-height: 0;
+    width: var(--chat-w);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(12, 12, 14, 0.94);
+    backdrop-filter: blur(18px);
+    padding: 0.85rem 0.9rem 1rem;
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.2s ease;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
   }
-  .sheet.open {
-    transform: translateY(0);
+  .karaoke.chat-open .chat {
+    position: relative;
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
   }
-  .sheet-handle {
-    width: 2.5rem;
-    height: 0.28rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.22);
-    margin: 0.25rem auto 0.65rem;
-  }
-  .sheet-head {
+  .chat-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0.75rem;
   }
-  .sheet-head strong {
+  .chat-head strong {
     font-size: 0.95rem;
   }
   .compose {
@@ -761,25 +843,27 @@
   .compose input {
     flex: 1;
     min-width: 0;
-    height: 2.5rem;
+    height: 2.4rem;
     border-radius: 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.06);
     color: inherit;
-    padding: 0 0.85rem;
+    padding: 0 0.75rem;
     outline: none;
+    font-size: 0.85rem;
   }
   .compose input:focus {
     border-color: rgba(58, 224, 213, 0.45);
   }
   .send {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.4rem;
+    height: 2.4rem;
     border-radius: 0.75rem;
     display: grid;
     place-items: center;
     background: #3ae0d5;
     color: #0a0a0b;
+    flex-shrink: 0;
   }
   .comment-list {
     overflow-y: auto;
@@ -788,30 +872,41 @@
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
-    padding-bottom: 0.5rem;
   }
   .comment {
     border-radius: 0.85rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 0.7rem 0.85rem;
+    padding: 0.65rem 0.75rem;
   }
   .comment p {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     line-height: 1.4;
   }
   .comment span {
     display: block;
-    margin-top: 0.35rem;
-    font-size: 0.7rem;
+    margin-top: 0.3rem;
+    font-size: 0.68rem;
     color: rgba(244, 244, 245, 0.45);
   }
   .empty-comments {
     margin: 1rem 0;
     text-align: center;
     color: rgba(244, 244, 245, 0.45);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 1180px) {
+    .hero {
+      grid-template-columns: minmax(240px, 38%) minmax(0, 1fr);
+    }
+    .lyrics-col {
+      margin-left: -2.5rem;
+    }
+    .karaoke {
+      --chat-w: 280px;
+    }
   }
 
   @media (max-width: 1023px) {
