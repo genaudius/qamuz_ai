@@ -20,9 +20,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			imageUrl: music.imageUrl,
 			videoUrl: music.videoUrl,
 			lyrics: music.lyrics,
+			alignedLyrics: music.alignedLyrics,
 			durationMs: music.durationMs,
 			isPublic: music.isPublic,
 			userId: music.userId,
+			genre: music.genre,
+			tags: music.tags,
 			artistName: users.name
 		})
 		.from(music)
@@ -48,7 +51,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		imageUrl: record.imageUrl,
 		videoUrl: record.videoUrl,
 		lyrics: record.lyrics,
+		timedLyrics: record.alignedLyrics || [],
 		durationMs: record.durationMs || 0,
-		isPublic: record.isPublic
+		isPublic: record.isPublic,
+		genre: record.genre,
+		tags: record.tags
 	});
 };

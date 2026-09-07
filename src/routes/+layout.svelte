@@ -19,9 +19,11 @@
   import Favicon from "$lib/components/Favicon.svelte";
   import { ChatState } from "$lib/components/chat-state.svelte.js";
   import { SettingsState } from "$lib/stores/settings.svelte.js";
-  import { GlobalMusicState } from "$lib/stores/music.svelte.js";
+  import { musicState } from "$lib/stores/music-state.js";
   import GlobalMusicPlayer from "$lib/components/GlobalMusicPlayer.svelte";
   import NowPlayingView from "$lib/components/NowPlayingView.svelte";
+  import MobileBottomNav from "$lib/components/MobileBottomNav.svelte";
+  import MobileMusicStage from "$lib/components/MobileMusicStage.svelte";
   import OnboardingModal from "$lib/components/OnboardingModal.svelte";
 
   let { children, data } = $props();
@@ -102,10 +104,7 @@
   // Create global chat state that persists across route changes
   const chatState = new ChatState();
 
-  // Create global music state
-  const musicState = new GlobalMusicState();
-
-  // Provide chat state, session, and settings to all child components via context
+  // Provide chat state, session, settings, and shared music state
   setContext("chatState", chatState);
   setContext("musicState", musicState);
   setContext("session", () => currentSession);
@@ -206,7 +205,7 @@
       <Header {data} />
 
       <!-- Page content area -->
-      <div class="flex-1 min-w-0 overflow-auto {musicState.currentTrack ? 'pb-20' : ''}">
+      <div class="flex-1 min-w-0 overflow-auto {musicState.currentTrack ? 'pb-44 lg:pb-28' : 'pb-20 lg:pb-0'}">
         {#if isNavigatingToTrackedPage}
           {@render pageTransitionLoader()}
         {:else}
@@ -215,16 +214,30 @@
       </div>
     </div>
     
-    <!-- Right Sidebar Now Playing -->
+    <!-- Now Playing: desktop right rail; mobile immersive short stage -->
     {#if musicState.currentTrack}
-      <aside class="fixed top-0 right-0 w-[350px] border-l border-border/50 bg-background/95 backdrop-blur-md transform transition-transform duration-300 z-30 {musicState.isExpanded ? 'translate-x-0' : 'translate-x-full'} {musicState.currentTrack ? 'bottom-20' : 'bottom-0'}">
-        <NowPlayingView />
-      </aside>
+      <div class="hidden lg:contents">
+        {#if musicState.isExpanded}
+          <aside
+            class="fixed z-40 border-border/50 bg-background/95 backdrop-blur-md transform transition-transform duration-300
+              inset-y-0 right-0 top-0 bottom-28 w-[350px] border-l
+              {musicState.isExpanded ? 'translate-x-0' : 'translate-x-full'}"
+          >
+            <NowPlayingView />
+          </aside>
+        {/if}
+      </div>
+      {#if musicState.isExpanded}
+        <div class="lg:hidden">
+          <MobileMusicStage />
+        </div>
+      {/if}
+      <GlobalMusicPlayer />
     {/if}
+
+    <MobileBottomNav />
   </Sidebar.Provider>
 {/if}
-
-<GlobalMusicPlayer />
 
 <Toaster position="top-center" />
 <OnboardingModal />

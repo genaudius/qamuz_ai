@@ -21,7 +21,7 @@ async function pathExists(path) {
 }
 
 if (devMode && !build) {
-  console.log("[QAMUZ Studio] Dev: el iframe usa http://localhost:1420 (Studio 2.0).");
+  console.log("[QAMUZ Studio] Dev: el iframe usa http://127.0.0.1:1420 (Studio 2.0).");
   process.exit(0);
 }
 

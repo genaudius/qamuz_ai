@@ -57,7 +57,8 @@
               class="cursor-pointer"
               onclick={() => openSongInStudio({
                 id: musicState.currentTrack?.id,
-                title: musicState.currentTrack?.title
+                title: musicState.currentTrack?.title,
+                imageUrl: musicState.currentTrack?.imageUrl
               })}
             >
               Abrir en Studio
@@ -66,10 +67,14 @@
               variant="outline"
               size="sm"
               class="cursor-pointer"
-              onclick={() => openSongStemsInStudio({
-                id: musicState.currentTrack?.id,
-                title: musicState.currentTrack?.title
-              })}
+              onclick={() => {
+                musicState.isExpanded = false;
+                openSongStemsInStudio({
+                  id: musicState.currentTrack?.id,
+                  title: musicState.currentTrack?.title,
+                  imageUrl: musicState.currentTrack?.imageUrl
+                });
+              }}
             >
               Extraer stems
             </Button.Root>

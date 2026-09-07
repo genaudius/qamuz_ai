@@ -341,10 +341,10 @@
   />
 </svelte:head>
 
-<main class="min-h-full p-6 pb-2 flex flex-col">
-  <div class="flex gap-6 w-full h-full {globalMusic.showLibrary && activeMode === 'music' ? 'max-w-full' : 'max-w-3xl mx-auto'}">
+<main class="min-h-full p-4 md:p-6 pb-28 md:pb-32 flex flex-col">
+  <div class="flex flex-col lg:flex-row gap-4 md:gap-6 w-full h-full {globalMusic.showLibrary && activeMode === 'music' ? 'max-w-full' : 'max-w-3xl mx-auto'}">
     <!-- Generator Panel -->
-    <div class="flex flex-col min-w-0 {globalMusic.showLibrary && activeMode === 'music' ? 'w-[400px] shrink-0' : 'w-full flex-1'} transition-all duration-300">
+    <div class="flex flex-col min-w-0 {globalMusic.showLibrary && activeMode === 'music' ? 'w-full lg:w-[400px] lg:shrink-0' : 'w-full flex-1'} transition-all duration-300">
 
     <!-- Output Section -->
     <div class="{activeMode === 'music' && musicSubMode === 'custom' ? 'flex flex-col w-full' : 'flex-1 flex flex-col w-full'}">
@@ -1321,7 +1321,7 @@
       {#if activeMode === "tts"}
         <!-- TTS Input -->
         <InputGroup.Root
-          class="min-h-36 w-full max-w-2xl min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
+          class="min-h-36 w-full max-w-2xl min-w-0 resize-none md:resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
         >
           <InputGroup.Textarea
             bind:value={tts.inputText}
@@ -1545,7 +1545,7 @@
       {:else if activeMode === "stt"}
         <!-- STT Input -->
         <InputGroup.Root
-          class="min-h-36 w-full max-w-2xl min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
+          class="min-h-36 w-full max-w-2xl min-w-0 resize-none md:resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
         >
           <!-- Upload/File Content Area -->
           <div class="flex-1 px-4 flex items-center min-h-24">
@@ -1693,7 +1693,7 @@
       {:else if activeMode === "voice_changer"}
         <!-- Voice Changer Input -->
         <InputGroup.Root
-          class="min-h-36 w-full max-w-2xl min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
+          class="min-h-36 w-full max-w-2xl min-w-0 resize-none md:resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
         >
           <!-- Upload/File Content Area -->
           <div class="flex-1 px-4 flex items-center min-h-24">
@@ -2012,7 +2012,7 @@
             </div>
           {/if}
 
-        <div class="border border-border/50 rounded-[1.5rem] p-4 flex flex-col w-full max-w-2xl min-w-[300px] resize-x overflow-hidden mx-auto shadow-sm transition-all focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20" style="background-color: #1c2120;">
+        <div class="border border-border/50 rounded-[1.5rem] p-4 flex flex-col w-full max-w-2xl min-w-0 resize-none md:resize-x overflow-hidden mx-auto shadow-sm transition-all focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20" style="background-color: #1c2120;">
           <textarea
             bind:value={music.inputPrompt}
             placeholder="What's the vibe?"
@@ -2115,7 +2115,7 @@
       </div>
       {:else if activeMode === "music" && musicSubMode === "custom"}
         <!-- Music Input (Custom) -->
-        <div class="w-full max-w-2xl min-w-[300px] mx-auto space-y-3">
+        <div class="w-full max-w-2xl min-w-0 mx-auto space-y-3">
           {#if music.errorMessage}
             <div class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-sm">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2310,7 +2310,7 @@
           {/if}
 
           <InputGroup.Root
-            class="min-h-36 w-full min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
+            class="min-h-36 w-full min-w-0 resize-none md:resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
           >
             <InputGroup.Textarea
               bind:value={music.inputPrompt}
@@ -2471,7 +2471,7 @@
       {:else}
         <!-- Sound Effects Input -->
         <InputGroup.Root
-          class="min-h-36 w-full max-w-2xl min-w-[300px] resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
+          class="min-h-36 w-full max-w-2xl min-w-0 resize-none md:resize-x overflow-hidden flex-wrap mx-auto rounded-2xl shadow-md has-[[data-slot=input-group-control]:focus-visible]:!ring-0 has-[[data-slot=input-group-control]:focus-visible]:!border-input" style="background-color: #1c2120; border: 1px solid rgba(255,255,255,0.1);"
         >
           <InputGroup.Textarea
             bind:value={sfx.inputDescription}

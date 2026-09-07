@@ -7,11 +7,15 @@ import type {
     MusicGenerationParams,
     AIMusicResponse
 } from '../types.js';
-import { env } from '$env/dynamic/private';
 import { createProviderError } from '../utils.js';
-import { getSunoApiKey } from '$lib/server/settings-store.js';
-
-const SUNO_API_BASE = 'https://api.kie.ai/api/v1';
+import {
+    getKieApiKey,
+    getKieMusicStatus,
+    resolveKieAudioUrl,
+    submitKieMusic,
+    type KieSunoModel,
+    type KieSunoTrack
+} from './kie-music.js';
 
 // Maps our internal model IDs to Suno API model parameter values
 const SUNO_MODEL_MAP: Record<string, string> = {
@@ -24,16 +28,6 @@ const SUNO_MODEL_MAP: Record<string, string> = {
     'suno-v5.5': 'V5_5',
     'suno-v7.5': 'V5_5',
 };
-
-async function getApiKey(): Promise<string> {
-    try {
-        const dbKey = await getSunoApiKey();
-        if (dbKey) return dbKey;
-    } catch {
-        // fall through to env
-    }
-    return (env as Record<string, string>)['SUNO_API_KEY'] || '';
-}
 
 const SUNO_MUSIC_MODELS: AIModelConfig[] = [
     {
@@ -101,49 +95,6 @@ const SUNO_MUSIC_MODELS: AIModelConfig[] = [
     }
 ];
 
-interface SunoTrack {
-    audioUrl?: string;
-    audio_url?: string;
-    downloadUrl?: string;
-    streamUrl?: string;
-    url?: string;
-    duration: number;
-    title?: string;
-    tags?: string;
-    imageUrl?: string;
-    videoUrl?: string;
-    prompt?: string;
-}
-
-interface SunoStatusResponse {
-    data: {
-        status: string;
-        errorMessage?: string;
-        response?: {
-            sunoData?: SunoTrack[];
-        };
-    };
-}
-
-function resolveTrackAudioUrl(track?: SunoTrack): string | null {
-    if (!track) {
-        return null;
-    }
-
-    return track.audioUrl || track.audio_url || track.downloadUrl || track.streamUrl || track.url || null;
-}
-
-function isProviderCreditError(message: string): boolean {
-    const normalized = message.toLowerCase();
-    return (
-        normalized.includes('credits insufficient') ||
-        normalized.includes('insufficient credits') ||
-        normalized.includes('balance isn\'t enough') ||
-        normalized.includes('balance is not enough') ||
-        normalized.includes('top up to continue')
-    );
-}
-
 // ─── Public: submit task, return taskId immediately ───────────────────────────
 export async function sunoSubmitTask(params: {
     prompt: string;
@@ -154,76 +105,64 @@ export async function sunoSubmitTask(params: {
     title?: string;
     callBackUrl?: string;
     referenceAudioUrl?: string;
+    musicLengthMs?: number;
+    vocalGender?: 'male' | 'female' | 'duet';
+    negativeTags?: string;
+    styleWeight?: number;
+    weirdnessConstraint?: number;
+    audioWeight?: number;
+    personaId?: string;
+    personaModel?: 'style_persona' | 'voice_persona';
 }): Promise<string> {
-    const apiKey = await getApiKey();
-    if (!apiKey) throw new Error('Suno API key not configured. Add it in Admin → Settings → AI Models.');
-
-    const sunoModel = SUNO_MODEL_MAP[params.modelId || 'suno-v4.5'] ?? 'V4_5';
+    const sunoModel = (SUNO_MODEL_MAP[params.modelId || 'suno-v4.5'] ?? 'V4_5') as KieSunoModel;
     const callBackUrl = params.callBackUrl || 'https://placeholder.internal/suno-callback';
+    const requestedDuration = params.musicLengthMs == null ? undefined : params.musicLengthMs / 1000;
+    // Kie only supports exact duration in V5.5 custom mode. For a simple instrumental
+    // prompt we can safely promote it to custom mode because no lyrics are reinterpreted.
+    const customMode = params.customMode ?? Boolean(
+        params.forceInstrumental && sunoModel === 'V5_5' && requestedDuration != null
+    );
+    const inferredStyle = customMode ? (params.style?.trim() || params.prompt.trim()) : undefined;
+    const inferredTitle = customMode ? (params.title?.trim() || 'Generated Track') : undefined;
 
-    const body: Record<string, unknown> = {
+    if (params.referenceAudioUrl) {
+        throw new Error('Reference audio requires a dedicated Kie upload/extend or upload/cover operation.');
+    }
+
+    return submitKieMusic({
         prompt: params.prompt,
-        customMode: params.customMode ?? false,
-        instrumental: params.forceInstrumental ?? false,
         model: sunoModel,
+        customMode,
+        instrumental: params.forceInstrumental ?? false,
         callBackUrl,
-    };
-
-    if (params.customMode && params.style) body.style = params.style;
-    if (params.customMode && params.title) body.title = params.title;
-    if (params.referenceAudioUrl) body.audio_url = params.referenceAudioUrl;
-
-    const submitRes = await fetch(`${SUNO_API_BASE}/generate`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        style: inferredStyle,
+        title: inferredTitle,
+        negativeTags: params.negativeTags,
+        vocalGender: params.vocalGender === 'male' ? 'm' : params.vocalGender === 'female' ? 'f' : undefined,
+        styleWeight: params.styleWeight,
+        weirdnessConstraint: params.weirdnessConstraint,
+        audioWeight: params.audioWeight,
+        personaId: params.personaId,
+        personaModel: params.personaModel,
+        duration: customMode && sunoModel === 'V5_5' ? requestedDuration : undefined
     });
-
-    if (!submitRes.ok) {
-        const err = (await submitRes.json().catch(() => ({}))) as { msg?: string };
-        const message = err.msg || submitRes.statusText;
-        if (isProviderCreditError(message)) {
-            throw new Error('Suno account credits are insufficient. Please top up the Suno API account and try again.');
-        }
-
-        throw createProviderError('Suno', 'submit', new Error(message));
-    }
-
-    const submitJson = (await submitRes.json()) as { code: number; data?: { taskId?: string }; msg?: string };
-    if (submitJson.code !== 200 || !submitJson.data?.taskId) {
-        const submitMessage = submitJson.msg || 'No task ID returned';
-        if (isProviderCreditError(submitMessage)) {
-            throw new Error('Suno account credits are insufficient. Please top up the Suno API account and try again.');
-        }
-
-        throw createProviderError('Suno', 'submit API', new Error(submitJson.msg || 'No task ID returned'));
-    }
-
-    return submitJson.data.taskId;
 }
 
 // ─── Public: check task status (called from frontend polling) ─────────────────
 export async function sunoCheckStatus(taskId: string): Promise<
     | { status: 'pending' }
-    | { status: 'done'; track: SunoTrack }
+    | { status: 'done'; track: KieSunoTrack; tracks: KieSunoTrack[] }
     | { status: 'error'; errorMessage: string }
 > {
-    const apiKey = await getApiKey();
+    const apiKey = await getKieApiKey();
     if (!apiKey) throw new Error('Suno API key not configured.');
 
-    const res = await fetch(`${SUNO_API_BASE}/generate/record-info?taskId=${taskId}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-    });
-
-    if (!res.ok) throw createProviderError('Suno', 'status check', new Error(res.status.toString()));
-
-    const { data } = (await res.json()) as SunoStatusResponse;
-
+    const data = await getKieMusicStatus(taskId);
     switch (data.status) {
         case 'SUCCESS':
         case 'FIRST_SUCCESS': {
-            const track = data.response?.sunoData?.find((item) => resolveTrackAudioUrl(item));
-            const audioUrl = resolveTrackAudioUrl(track);
+            const track = data.tracks[0];
+            const audioUrl = resolveKieAudioUrl(track);
 
             if (!track || !audioUrl) {
                 return { status: 'pending' };
@@ -234,7 +173,8 @@ export async function sunoCheckStatus(taskId: string): Promise<
                 track: {
                     ...track,
                     audioUrl,
-                }
+                },
+                tracks: data.tracks
             };
         }
         case 'CREATE_TASK_FAILED':
@@ -248,7 +188,7 @@ export async function sunoCheckStatus(taskId: string): Promise<
 }
 
 async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResponse> {
-    const apiKey = await getApiKey();
+    const apiKey = await getKieApiKey();
     if (!apiKey) throw new Error('Suno API key not configured. Add it in Admin → Settings → AI Models.');
 
     const taskId = await sunoSubmitTask({
@@ -260,23 +200,32 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
         title: params.title,
         callBackUrl: params.callBackUrl,
         referenceAudioUrl: params.referenceAudioUrl,
+        musicLengthMs: params.musicLengthMs,
+        vocalGender: params.vocalGender,
+        negativeTags: params.negativeTags,
+        styleWeight: params.styleWeight,
+        weirdnessConstraint: params.weirdnessConstraint,
+        audioWeight: params.audioWeight,
+        personaId: params.personaId,
+        personaModel: params.personaModel,
     });
 
     // Only used internally (e.g. legacy code paths) — polls until done
     const MAX_WAIT = 600_000;
     const deadline = Date.now() + MAX_WAIT;
-    let track: SunoTrack | undefined;
+    let track: KieSunoTrack | undefined;
+    let tracks: KieSunoTrack[] = [];
 
     while (Date.now() < deadline) {
         const result = await sunoCheckStatus(taskId);
-        if (result.status === 'done') { track = result.track; break; }
+        if (result.status === 'done') { track = result.track; tracks = result.tracks; break; }
         if (result.status === 'error') throw createProviderError('Suno', 'generation task', new Error(result.errorMessage));
         await new Promise((r) => setTimeout(r, 3_000));
     }
 
     if (!track) throw new Error('Suno generation timed out after 10 minutes');
 
-    const audioUrl = resolveTrackAudioUrl(track);
+    const audioUrl = resolveKieAudioUrl(track);
     if (!audioUrl) {
         throw new Error('No audio URL in response');
     }
@@ -295,6 +244,15 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
         imageUrl: track.imageUrl,
         videoUrl: track.videoUrl,
         lyrics: track.prompt || params.prompt,
+        providerTaskId: taskId,
+        variants: tracks.map((variant) => ({
+            id: variant.id,
+            audioUrl: resolveKieAudioUrl(variant)!,
+            title: variant.title,
+            durationMs: variant.duration == null ? undefined : Math.round(variant.duration * 1000),
+            imageUrl: variant.imageUrl,
+            videoUrl: variant.videoUrl
+        }))
     };
 }
 

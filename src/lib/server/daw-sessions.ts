@@ -10,6 +10,8 @@ export type DawSessionBody = {
 	title?: string;
 	audioUrl?: string;
 	mixNotes?: string;
+	musicId?: string;
+	imageUrl?: string;
 	snapshot?: unknown;
 };
 
@@ -26,6 +28,20 @@ export async function upsertUserDawSession(userId: string, body: DawSessionBody)
 	const name = String(body.name ?? '').trim();
 	if (!name) throw new Error('Session name required');
 	const now = new Date();
+	const snapshot =
+		body.snapshot && typeof body.snapshot === 'object'
+			? {
+					...(body.snapshot as Record<string, unknown>),
+					...(body.musicId ? { musicId: body.musicId } : {}),
+					...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
+					...((body.snapshot as { audioFingerprint?: string }).audioFingerprint
+						? {
+								audioFingerprint: (body.snapshot as { audioFingerprint?: string })
+									.audioFingerprint
+							}
+						: {})
+				}
+			: body.snapshot ?? null;
 	const values = {
 		id: randomUUID(),
 		userId,
@@ -35,7 +51,7 @@ export async function upsertUserDawSession(userId: string, body: DawSessionBody)
 		title: body.title ?? null,
 		audioUrl: body.audioUrl ?? null,
 		mixNotes: body.mixNotes ?? null,
-		snapshot: body.snapshot ?? null,
+		snapshot,
 		createdAt: now,
 		updatedAt: now
 	};

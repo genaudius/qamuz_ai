@@ -92,9 +92,9 @@ async function generateMusicCover(result: any, job: any): Promise<string | undef
 	const coverParams: ImageGenerationParams = {
 		model: 'qamuz-local-image',
 		prompt: buildMusicCoverPrompt(result, job.payload || {}),
-		size: '512x512',
-		quality: 'medium',
-		style: 'album cover, editorial music photography, highly detailed',
+		size: '1024x1024',
+		quality: 'high',
+		style: 'album cover, editorial music photography, highly detailed, sharp focus',
 		numberOfImages: 1,
 		userId: job.userId
 	};
@@ -242,6 +242,22 @@ export class PriorityQueueService {
 						...result,
 						musicId,
 					};
+
+					// Karaoke timings for ANY provider (Suno/Kie, MusicGPT, local GenAudius).
+					try {
+						const { prefetchAlignedLyrics } = await import('$lib/server/music/align-lyrics.js');
+						await prefetchAlignedLyrics(musicId);
+						const [alignedRow] = await db
+							.select({ alignedLyrics: music.alignedLyrics })
+							.from(music)
+							.where(eq(music.id, musicId))
+							.limit(1);
+						if (alignedRow?.alignedLyrics) {
+							result.alignedLyrics = alignedRow.alignedLyrics;
+						}
+					} catch (alignErr) {
+						console.warn(`[QUEUE] Aligned lyrics prefetch failed for ${musicId}:`, alignErr);
+					}
 				} else {
 					throw new Error(`Unsupported job type: ${lockedJob.type}`);
 				}
@@ -355,7 +371,16 @@ export class PriorityQueueService {
 					musicLengthMs: payload.musicLengthMs ?? undefined,
 					forceInstrumental: payload.forceInstrumental,
 					vocalGender: payload.vocalGender,
-					referenceAudioUrl: payload.referenceAudioUrl
+					referenceAudioUrl: payload.referenceAudioUrl,
+					customMode: payload.customMode,
+					style: payload.style,
+					title: payload.title,
+					negativeTags: payload.negativeTags,
+					styleWeight: payload.styleWeight,
+					weirdnessConstraint: payload.weirdnessConstraint,
+					audioWeight: payload.audioWeight,
+					personaId: payload.personaId,
+					personaModel: payload.personaModel
 				});
 			}
 

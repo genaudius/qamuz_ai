@@ -4,7 +4,7 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import AddToPlaylistDialog from "$lib/components/AddToPlaylistDialog.svelte";
   import { openSongInStudio, openSongStemsInStudio } from "$lib/studio-stems";
-  import { copyToClipboard } from "$lib/utils/clipboard.js";
+  import { shareTrackLink } from "$lib/utils/share-track.js";
   import type { GlobalMusicState, MusicTrack } from "$lib/stores/music.svelte.js";
   import { toast } from "svelte-sonner";
 
@@ -89,28 +89,58 @@
   }
 
   async function shareTrack() {
-    const shareUrl = `${window.location.origin}/?play=${encodeURIComponent(song.id)}`;
-    const shareData = {
-      title: displayTitle,
-      text: `Escucha “${displayTitle}” en QAMUZ`,
-      url: shareUrl
-    };
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        return;
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-    }
-    const copied = await copyToClipboard(shareUrl);
-    toast[copied ? "success" : "error"](copied ? "Enlace copiado" : "No pude copiar el enlace");
+    const result = await shareTrackLink({ id: song.id, title: displayTitle });
+    if (result === "shared") return;
+    toast[result === "copied" ? "success" : "error"](
+      result === "copied" ? "Enlace copiado" : "No pude copiar el enlace"
+    );
   }
 
   function remixTrack() {
     const seed = song.prompt || displayTitle;
     const prompt = `Remix of “${displayTitle}”: ${seed}`;
     void goto(`/audio?tab=music&prompt=${encodeURIComponent(prompt)}`);
+  }
+
+  async function runMusicTool(action: string, extra: Record<string, unknown> = {}) {
+    if (!isRealTrack) {
+      toast.error("Esta pista no soporta herramientas GenAudius");
+      return;
+    }
+    try {
+      toast.message(`GenAudius: ${action}…`);
+      const response = await fetch("/api/music-tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, musicId: song.id, ...extra })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(payload?.error || `No pude ejecutar ${action}`);
+        return;
+      }
+      if (payload?.status === "processing") {
+        toast.success(`${action} en cola`, {
+          description: payload.jobId ? `Job ${payload.jobId}` : undefined
+        });
+        return;
+      }
+      if (action === "align-lyrics") {
+        toast.success(`Letras alineadas (${payload?.source || "ok"})`);
+        return;
+      }
+      if (action === "wav" && payload?.status === "completed") {
+        toast.success("WAV listo (ffmpeg local)");
+        return;
+      }
+      if (action === "boost-style" && payload?.style) {
+        toast.success("Estilo potenciado", { description: String(payload.style).slice(0, 120) });
+        return;
+      }
+      toast.success(`${action} listo`);
+    } catch {
+      toast.error(`Falló ${action}`);
+    }
   }
 
   function createVideoFromTrack() {
@@ -293,7 +323,8 @@
             title: displayTitle,
             prompt: song.prompt || song.title || undefined,
             genre: song.genre || undefined,
-            isInstrumental: Boolean(song.isInstrumental)
+            isInstrumental: Boolean(song.isInstrumental),
+            imageUrl: song.imageUrl || undefined
           });
         }}
       >
@@ -303,16 +334,93 @@
         class="cursor-pointer"
         onclick={() => {
           open = false;
+          musicState?.isExpanded !== undefined && (musicState.isExpanded = false);
           openSongStemsInStudio({
             id: song.id,
             title: displayTitle,
             prompt: song.prompt || song.title || undefined,
             genre: song.genre || undefined,
-            isInstrumental: Boolean(song.isInstrumental)
+            isInstrumental: Boolean(song.isInstrumental),
+            imageUrl: song.imageUrl || undefined
           });
         }}
       >
         Extraer stems
+      </DropdownMenu.Item>
+      <DropdownMenu.Separator />
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          open = false;
+          void runMusicTool("align-lyrics", { refresh: true });
+        }}
+      >
+        Alinear letras (karaoke)
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          open = false;
+          void runMusicTool("extend");
+        }}
+      >
+        Extender pista
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          open = false;
+          void runMusicTool("cover", {
+            title: `${displayTitle} Cover`,
+            style: song.genre || "pop",
+            prompt: song.prompt || displayTitle
+          });
+        }}
+      >
+        Cover / nuevo estilo
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          open = false;
+          void runMusicTool("add-vocals", {
+            title: displayTitle,
+            style: song.genre || "pop",
+            prompt: song.prompt || "Sing with emotion"
+          });
+        }}
+      >
+        Agregar voces
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          open = false;
+          void runMusicTool("add-instrumental", {
+            title: `${displayTitle} Instrumental`,
+            tags: song.genre || "cinematic"
+          });
+        }}
+      >
+        Agregar instrumental
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          open = false;
+          void runMusicTool("wav");
+        }}
+      >
+        Convertir a WAV
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          open = false;
+          void runMusicTool("boost-style", { content: song.genre || song.prompt || "pop" });
+        }}
+      >
+        Potenciar estilo
       </DropdownMenu.Item>
       <DropdownMenu.Item
         class="cursor-pointer"

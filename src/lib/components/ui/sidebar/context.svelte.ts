@@ -30,7 +30,8 @@ class SidebarState {
 
 	constructor(props: SidebarStateProps) {
 		this.setOpen = props.setOpen;
-		this.#isMobile = new IsMobile();
+		// App shell: bottom nav below 1024px (phones + tablets).
+		this.#isMobile = new IsMobile(1024);
 		this.props = props;
 	}
 

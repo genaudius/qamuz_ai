@@ -302,6 +302,10 @@ export const music = pgTable("music", {
 	imageUrl: text("imageUrl"), // Cover art URL
 	videoUrl: text("videoUrl"), // Video URL
 	lyrics: text("lyrics"), // Lyrics text
+	/** Karaoke-accurate line timings from provider alignment (seconds). */
+	alignedLyrics: json("alignedLyrics").$type<
+		Array<{ text: string; start: number; end?: number; section?: string }>
+	>(),
 	storageLocation: text("storageLocation").notNull().default("local"), // 'local' | 'r2'
 	cloudPath: text("cloudPath"), // Path/key for cloud storage (null for local files)
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),

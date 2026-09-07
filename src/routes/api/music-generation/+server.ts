@@ -81,7 +81,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			forceInstrumental = false,
 			vocalGender = 'female',
 			outputFormat = 'mp3_44100_128',
-			referenceAudioUrl
+			referenceAudioUrl,
+			customMode,
+			style,
+			title,
+			negativeTags,
+			styleWeight,
+			weirdnessConstraint,
+			audioWeight,
+			personaId,
+			personaModel
 		} = body;
 
 		// Validate required fields
@@ -115,9 +124,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// null/undefined = auto mode, skip validation
 		if (musicLengthMs != null) {
 			const durationMs = Number(musicLengthMs);
-			if (isNaN(durationMs) || durationMs < 3000 || durationMs > 300000) {
-				return json({ error: 'Music duration must be between 3 seconds (3000ms) and 5 minutes (300000ms)' }, { status: 400 });
+			if (isNaN(durationMs) || durationMs < 3000 || durationMs > 360000) {
+				return json({ error: 'Music duration must be between 3 seconds and 6 minutes' }, { status: 400 });
 			}
+		}
+
+		for (const [name, value] of Object.entries({ styleWeight, weirdnessConstraint, audioWeight })) {
+			if (value != null && (!Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 1)) {
+				return json({ error: `${name} must be between 0 and 1` }, { status: 400 });
+			}
+		}
+		if (personaModel != null && !['style_persona', 'voice_persona'].includes(personaModel)) {
+			return json({ error: 'Invalid persona model' }, { status: 400 });
 		}
 
 		if (!['male', 'female', 'duet'].includes(vocalGender)) {
@@ -167,7 +185,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					musicLengthMs: musicLengthMs ?? null,
 					forceInstrumental: Boolean(forceInstrumental),
 					vocalGender,
-					referenceAudioUrl
+					referenceAudioUrl,
+					customMode: customMode == null ? undefined : Boolean(customMode),
+					style: typeof style === 'string' ? style.trim() : undefined,
+					title: typeof title === 'string' ? title.trim().slice(0, 80) : undefined,
+					negativeTags: typeof negativeTags === 'string' ? negativeTags.trim() : undefined,
+					styleWeight: styleWeight == null ? undefined : Number(styleWeight),
+					weirdnessConstraint: weirdnessConstraint == null ? undefined : Number(weirdnessConstraint),
+					audioWeight: audioWeight == null ? undefined : Number(audioWeight),
+					personaId: typeof personaId === 'string' ? personaId.trim() : undefined,
+					personaModel
 				},
 				transactionId
 			);

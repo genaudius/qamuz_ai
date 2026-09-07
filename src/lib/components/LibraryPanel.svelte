@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
+  import { musicState as sharedMusicState } from "$lib/stores/music-state.js";
   import Play from "@lucide/svelte/icons/play";
   import MusicIcon from "@lucide/svelte/icons/music";
   import PanelRightClose from "@lucide/svelte/icons/panel-right-close";
@@ -9,7 +10,7 @@
   
   let { songs = [] } = $props<{ songs: any[] }>();
   
-  const musicState = getContext<GlobalMusicState>("musicState");
+  const musicState = getContext<GlobalMusicState>("musicState") ?? sharedMusicState;
   
   // Track if the sidebar should be open (user preference in this session)
   let sidebarOpen = $state(true);

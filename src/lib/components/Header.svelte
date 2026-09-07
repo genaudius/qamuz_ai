@@ -119,7 +119,7 @@
     {/if}
   </div>
 
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-1 sm:gap-3 min-w-0 overflow-x-auto">
     <!-- Library Toggle Button (Right Side) -->
     {#if page.url.pathname === '/audio' && musicState?.activeAudioMode === 'music' && !musicState?.showLibrary}
       <Button
@@ -141,10 +141,10 @@
         onclick={() => window.open("/admin", "_blank", "noopener,noreferrer")}
         onmouseenter={() => warmRoute("/admin")}
         ontouchstart={() => warmRoute("/admin")}
-        class="cursor-pointer"
+        class="cursor-pointer shrink-0"
       >
         <ExternalLinkIcon class="w-4 h-4" />
-        Admin Dashboard
+        <span class="hidden lg:inline">Admin Dashboard</span>
       </Button>
     {/if}
 
@@ -155,10 +155,10 @@
         onclick={() => goto("/artist")}
         onmouseenter={() => warmRoute("/artist")}
         ontouchstart={() => warmRoute("/artist")}
-        class="cursor-pointer"
+        class="cursor-pointer shrink-0"
       >
         <Music2Icon class="w-4 h-4" />
-        My Artist Profile
+        <span class="hidden md:inline">My Artist Profile</span>
       </Button>
       {#if session.user.planTier === "free"}
         <Button
@@ -167,14 +167,14 @@
           onclick={() => goto("/pricing")}
           onmouseenter={() => warmRoute("/pricing")}
           ontouchstart={() => warmRoute("/pricing")}
-          class="cursor-pointer"
+          class="cursor-pointer shrink-0"
         >
           <UpgradeIcon class="w-4 h-4" />
-          {m["auth.upgrade_plan"]()}
+          <span class="hidden sm:inline">{m["auth.upgrade_plan"]()}</span>
         </Button>
       {/if}
       <SettingsIcon
-        class="cursor-pointer w-4 h-4"
+        class="cursor-pointer w-4 h-4 shrink-0"
         onclick={() => goto(SETTINGS_DEFAULT_PATH)}
         onmouseenter={() => warmRoute(SETTINGS_DEFAULT_PATH)}
         ontouchstart={() => warmRoute(SETTINGS_DEFAULT_PATH)}

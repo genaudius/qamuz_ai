@@ -13,6 +13,7 @@
   import HeroCarousel from "./HeroCarousel.svelte";
   import { DEMO_ARTIST_PROFILES } from "$lib/constants/demo-artists.js";
   import TrackOptionsMenu from "$lib/components/TrackOptionsMenu.svelte";
+  import { toast } from "svelte-sonner";
   
   // Theme state (if you have one, or just assume dark based on global classes)
   // For now, we'll assume dark theme styling based on the design
@@ -21,7 +22,18 @@
   const session = $derived(getSession?.() || null);
   const musicState = getContext<GlobalMusicState>("musicState");
 
-  const fallbackRecentTracks = [
+  interface HomeTrack {
+    id: string;
+    title: string;
+    artist: string;
+    coverUrl: string;
+    durationMs: number;
+    url: string;
+    videoUrl?: string;
+    lyrics?: string;
+  }
+
+  const fallbackRecentTracks: HomeTrack[] = [
     { id: "1", title: "Blinding Lights", artist: "The Weeknd", coverUrl: "https://i.scdn.co/image/ab67616d00001e028863bc11d2aa12b54f5aeb36", durationMs: 200000, url: "" },
     { id: "2", title: "Anti-Hero", artist: "Taylor Swift", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bb54dde1edccdbb69436798b", durationMs: 200000, url: "" },
     { id: "3", title: "Me Porto Bonito", artist: "Bad Bunny", coverUrl: "https://i.scdn.co/image/ab67616d00001e0249d6fd6e8f6e806f8664160a", durationMs: 200000, url: "" },
@@ -35,7 +47,9 @@
     DEMO_ARTIST_PROFILES.map(({ id, name, avatarUrl }) => ({ id, name, avatarUrl }))
   );
   
-  let recentTracks = $state([...fallbackRecentTracks]);
+  let recentTracks = $state<HomeTrack[]>([]);
+  let hasLiveTracks = $state(false);
+  let genreTags = $state<string[]>([]);
 
   let featuredPlaylists = $state([
     { id: "1", title: "Today's Top Hits", coverUrl: "https://i.scdn.co/image/ab67706f00000002b662363a033b08e2b8665f57", tracks: [fallbackRecentTracks[0]] },
@@ -46,10 +60,10 @@
   ]);
   
   let mockAlbums = $state([
-    { id: "1", title: "After Hours", artist: "The Weeknd", releaseYear: "2020", coverUrl: "https://i.scdn.co/image/ab67616d00001e028863bc11d2aa12b54f5aeb36" },
-    { id: "2", title: "Midnights", artist: "Taylor Swift", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bb54dde1edccdbb69436798b" },
-    { id: "3", title: "Un Verano Sin Ti", artist: "Bad Bunny", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e0249d6fd6e8f6e806f8664160a" },
-    { id: "4", title: "Her Loss", artist: "Drake", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e020286377e68fa7075cdafc210" }
+    { id: "1", title: "After Hours", artist: "The Weeknd", releaseYear: "2020", coverUrl: "https://i.scdn.co/image/ab67616d00001e028863bc11d2aa12b54f5aeb36", genre: "" },
+    { id: "2", title: "Midnights", artist: "Taylor Swift", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e02bb54dde1edccdbb69436798b", genre: "" },
+    { id: "3", title: "Un Verano Sin Ti", artist: "Bad Bunny", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e0249d6fd6e8f6e806f8664160a", genre: "" },
+    { id: "4", title: "Her Loss", artist: "Drake", releaseYear: "2022", coverUrl: "https://i.scdn.co/image/ab67616d00001e020286377e68fa7075cdafc210", genre: "" }
   ]);
 
   let greeting = $state("Good evening");
@@ -68,6 +82,7 @@
           : [];
 
         if (trendingTracks.length > 0) {
+          hasLiveTracks = true;
           recentTracks = trendingTracks.map((track: any) => ({
             id: track.id,
             title: track.title || "Untitled",
@@ -112,22 +127,24 @@
 
       if (genresResponse.ok) {
         const genresPayload = await genresResponse.json();
-        const genreTags = Array.isArray(genresPayload?.genres)
-          ? genresPayload.genres.slice(0, 4)
+        const genreTagsPayload = Array.isArray(genresPayload?.genres)
+          ? genresPayload.genres.slice(0, 8)
           : [];
+        genreTags = genreTagsPayload;
 
-        if (genreTags.length > 0) {
-          mockAlbums = genreTags.map((genre: string, index: number) => ({
+        if (genreTagsPayload.length > 0) {
+          mockAlbums = genreTagsPayload.map((genre: string, index: number) => ({
             id: `genre-${genre}`,
             title: genre.charAt(0).toUpperCase() + genre.slice(1),
             artist: "Genre Hub",
             releaseYear: String(new Date().getFullYear()),
             coverUrl: recentTracks[index]?.coverUrl || "https://dummyimage.com/400x400/111/fff&text=QAMUZ",
+            genre,
           }));
         }
       }
     } catch (loadError) {
-      console.warn("Failed to load home API data, using fallback values", loadError);
+      console.warn("Failed to load home API data", loadError);
     }
   }
 
@@ -152,16 +169,21 @@
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   function playTrack(track: any) {
-    if (!track.url || !UUID_RE.test(track.id)) return;
+    if (!UUID_RE.test(track.id)) {
+      toast.message("Esta pista es de demostración y no tiene audio");
+      return;
+    }
+    const url = track.url || `/api/music/${track.id}`;
     if (musicState.currentTrack?.id === track.id) {
-      musicState.togglePlay();
+      musicState.isExpanded = true;
+      void musicState.togglePlay();
     } else {
-      musicState.playTrack({
+      void musicState.playTrack({
         id: track.id,
         title: track.title,
         artist: track.artist || "Unknown",
         imageUrl: track.coverUrl,
-        url: track.url,
+        url,
         videoUrl: track.videoUrl,
         lyrics: track.lyrics,
         durationMs: track.durationMs || 10000
@@ -237,6 +259,10 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div 
         class="relative rounded-2xl p-5 bg-gradient-to-r from-emerald-950/90 via-zinc-900 to-indigo-950/90 border border-emerald-500/40 hover:border-emerald-400 transition-all cursor-pointer group shadow-xl flex flex-col justify-between gap-4"
+        onclick={() => goto("/discover")}
+        onkeydown={(e) => e.key === "Enter" && goto("/discover")}
+        role="button"
+        tabindex="0"
       >
         <div class="flex items-start gap-4">
           <div class="w-12 h-12 rounded-xl bg-qamuz-btn text-black font-black flex items-center justify-center shrink-0 shadow-lg group-hover:scale-110 transition-transform">
@@ -260,9 +286,13 @@
             <FlameIcon class="w-3.5 h-3.5" />
             <span>Hot & Trending</span>
           </div>
-          <span class="text-xs font-black text-black bg-qamuz-btn px-4 py-1.5 rounded-full group-hover:scale-105 transition-transform shadow">
+          <button
+            type="button"
+            onclick={() => goto("/discover")}
+            class="text-xs font-black text-black bg-qamuz-btn px-4 py-1.5 rounded-full group-hover:scale-105 transition-transform shadow"
+          >
             Discover
-          </span>
+          </button>
         </div>
       </div>
 
@@ -337,15 +367,35 @@
   <section>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-2xl font-bold hover:underline cursor-pointer transition-colors text-white">
-        Recently Played
+        {hasLiveTracks ? "Trending Now" : "Recently Played"}
       </h2>
-      <span class="text-xs font-bold cursor-pointer transition-colors uppercase tracking-wider text-zinc-400 hover:text-white">
+      <button
+        type="button"
+        onclick={() => goto("/discover")}
+        class="text-xs font-bold cursor-pointer transition-colors uppercase tracking-wider text-zinc-400 hover:text-white"
+      >
         Show All
-      </span>
+      </button>
     </div>
 
+    {#if !hasLiveTracks}
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center mb-4">
+        <p class="text-white font-semibold mb-2">No public tracks yet</p>
+        <p class="text-sm text-zinc-400 mb-5">
+          Publish a song from your library to appear in Trending and Discover.
+        </p>
+        <button
+          type="button"
+          onclick={() => goto("/library")}
+          class="bg-qamuz-btn text-black font-bold text-sm px-5 py-2.5 rounded-full"
+        >
+          Go to Library
+        </button>
+      </div>
+    {/if}
+
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {#each recentTracks as track, idx}
+      {#each (hasLiveTracks ? recentTracks : fallbackRecentTracks) as track, idx}
         {@const isCurrent = musicState.currentTrack?.id === track.id}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -453,6 +503,7 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="spotify-card p-3.5 rounded-lg flex flex-col gap-3 group cursor-pointer"
+          onclick={() => goto(album.genre ? `/discover?genre=${encodeURIComponent(album.genre)}` : "/discover")}
         >
           <div class="relative aspect-square w-full rounded-md overflow-hidden shadow-md bg-zinc-800">
             <img 

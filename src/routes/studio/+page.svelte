@@ -5,7 +5,9 @@
   import { onMount } from "svelte";
   import { authClient } from "$lib/auth-client";
 
-  const studioDevOrigin = "http://localhost:1420";
+  // Keep the hostname identical to the Vite host used by Studio in local dev.
+  // On Windows, `localhost` may resolve to IPv6 while Studio listens on IPv4.
+  const studioDevOrigin = "http://127.0.0.1:1420";
   let studioFrame = $state<HTMLIFrameElement | null>(null);
   let studioMissing = $state(false);
   let reloadNonce = $state(0);
@@ -21,7 +23,7 @@
       home: `${page.url.origin}/`,
       plan: String(page.data.session?.user?.planTier ?? "free")
     });
-    for (const key of ["session", "idea", "extractStems", "musicId", "genre", "instrumental", "autoPlan", "bpm"]) {
+    for (const key of ["session", "idea", "extractStems", "musicId", "genre", "instrumental", "autoPlan", "bpm", "imageUrl"]) {
       const value = page.url.searchParams.get(key);
       if (value) params.set(key, value);
     }
@@ -205,7 +207,7 @@
         <p class="text-xs font-semibold tracking-[0.2em] text-violet-300">QAMUZ STUDIO 2.0</p>
         <h1 class="mt-3 text-2xl font-semibold">El DAW no está en marcha</h1>
         <p class="mt-3 text-sm leading-relaxed text-white/70">
-          En local, el SaaS abre Studio 2.0 en <code class="text-violet-200">http://localhost:1420</code>.
+          En local, el SaaS abre Studio 2.0 en <code class="text-violet-200">http://127.0.0.1:1420</code>.
           Arráncalo con <code class="text-violet-200">npm run dev</code> en
           <code class="text-violet-200">Qamuz_Daw_Studio/qamuz_studio_2.0</code> y vuelve a intentar.
         </p>

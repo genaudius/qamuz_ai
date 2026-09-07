@@ -6,7 +6,11 @@ export interface MusicTrack {
     imageUrl?: string;
     videoUrl?: string;
     lyrics?: string;
+    /** Karaoke-accurate timings in seconds when available. */
+    timedLyrics?: Array<{ text: string; start: number; end?: number; section?: string }>;
     durationMs: number;
+    genre?: string | null;
+    tags?: string[];
 }
 
 export class GlobalMusicState {
@@ -23,46 +27,99 @@ export class GlobalMusicState {
     duration = $state<number>(0);
     volume = $state<number>(1);
     
-    isExpanded = $state<boolean>(false); // Now Playing view visibility
+    isExpanded = $state<boolean>(false); // Now Playing / immersive stage
     isPublishModalOpen = $state<boolean>(false);
     publishTarget = $state<MusicTrack | null>(null);
     
     audioElement = $state<HTMLAudioElement | null>(null);
     
     async playTrack(track: MusicTrack) {
-        const isSameTrack = this.currentTrack?.id === track.id && this.currentTrack?.url === track.url;
-        this.currentTrack = track;
+        const url = (track.url || "").trim();
+        if (!url) {
+            console.error("Playback failed: missing track url", track.id);
+            return;
+        }
+
+        let normalized: MusicTrack = { ...track, url };
+        // Enrich lyrics / video / tags when callers only pass basic fields.
+        if (!normalized.lyrics || !normalized.videoUrl || !normalized.tags || !normalized.genre || !normalized.timedLyrics?.length) {
+            try {
+                const infoRes = await fetch(`/api/music/${normalized.id}/info`);
+                if (infoRes.ok) {
+                    const info = await infoRes.json();
+                    normalized = {
+                        ...normalized,
+                        title: normalized.title || info.title,
+                        artist: normalized.artist || info.artist,
+                        imageUrl: normalized.imageUrl || info.imageUrl || undefined,
+                        videoUrl: normalized.videoUrl || info.videoUrl || undefined,
+                        lyrics: normalized.lyrics || info.lyrics || undefined,
+                        timedLyrics: normalized.timedLyrics?.length
+                            ? normalized.timedLyrics
+                            : Array.isArray(info.timedLyrics) ? info.timedLyrics : [],
+                        durationMs: normalized.durationMs || info.durationMs || 0,
+                        genre: normalized.genre ?? info.genre ?? null,
+                        tags: normalized.tags?.length ? normalized.tags : info.tags || []
+                    };
+                }
+            } catch {
+                // Playback still works without metadata.
+            }
+        }
+
+        const isSameTrack =
+            this.currentTrack?.id === normalized.id && this.currentTrack?.url === normalized.url;
+        this.currentTrack = normalized;
         this.isPlaying = true;
-        this.isExpanded = true; // Auto-expand right sidebar when playing starts
+        // Desktop: side panel. Mobile: immersive short stage.
+        this.isExpanded = true;
         if (!isSameTrack) {
             this.currentTime = 0;
-            this.duration = Number.isFinite(track.durationMs) && track.durationMs > 0
-                ? track.durationMs / 1000
+            this.duration = Number.isFinite(normalized.durationMs) && normalized.durationMs > 0
+                ? normalized.durationMs / 1000
                 : 0;
         }
 
         // Ensure playback starts immediately after Svelte DOM update
-        import('svelte').then(({ tick }) => {
-            tick().then(() => {
-                if (this.audioElement && this.audioElement.paused) {
-                    this.audioElement.play().catch(e => {
-                        console.error("Playback failed:", e);
-                        this.isPlaying = false;
-                    });
-                }
-            });
-        });
+        const { tick } = await import("svelte");
+        await tick();
+        const audio = this.audioElement;
+        if (!audio) return;
+
+        if (!isSameTrack || audio.src !== new URL(normalized.url, window.location.origin).href) {
+            audio.src = normalized.url;
+            audio.load();
+        }
+
+        try {
+            await audio.play();
+            this.isPlaying = true;
+        } catch (e) {
+            console.error("Playback failed:", e);
+            this.isPlaying = false;
+        }
     }
     
-    togglePlay() {
+    async togglePlay() {
         if (!this.currentTrack) return;
-        this.isPlaying = !this.isPlaying;
-        if (this.audioElement) {
-            if (this.isPlaying) {
-                this.audioElement.play();
-            } else {
-                this.audioElement.pause();
-            }
+        const audio = this.audioElement;
+        if (!audio) {
+            this.isPlaying = !this.isPlaying;
+            return;
+        }
+
+        if (this.isPlaying) {
+            audio.pause();
+            this.isPlaying = false;
+            return;
+        }
+
+        try {
+            await audio.play();
+            this.isPlaying = true;
+        } catch (e) {
+            console.error("Playback failed:", e);
+            this.isPlaying = false;
         }
     }
     
@@ -89,6 +146,8 @@ export class GlobalMusicState {
         this.isExpanded = false;
         if (this.audioElement) {
             this.audioElement.pause();
+            this.audioElement.removeAttribute("src");
+            this.audioElement.load();
         }
     }
     

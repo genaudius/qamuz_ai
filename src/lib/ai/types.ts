@@ -323,8 +323,24 @@ export interface MusicGenerationParams {
 	customMode?: boolean; // Suno custom mode
 	style?: string; // Suno style tags
 	title?: string; // Suno track title
+	lyrics?: string; // Explicit lyrics for GenAudius / custom mode
 	callBackUrl?: string; // Suno webhook callback URL
 	referenceAudioUrl?: string; // Audio URL used for references/extend
+	negativeTags?: string;
+	styleWeight?: number; // 0-1
+	weirdnessConstraint?: number; // 0-1
+	audioWeight?: number; // 0-1
+	personaId?: string;
+	personaModel?: 'style_persona' | 'voice_persona';
+}
+
+export interface AIMusicVariant {
+	id?: string;
+	audioUrl: string;
+	title?: string;
+	durationMs?: number;
+	imageUrl?: string;
+	videoUrl?: string;
 }
 
 export interface AIMusicResponse {
@@ -337,6 +353,8 @@ export interface AIMusicResponse {
 	imageUrl?: string;
 	videoUrl?: string;
 	lyrics?: string;
+	providerTaskId?: string;
+	variants?: AIMusicVariant[];
 }
 
 // Sound effects generation types for ElevenLabs Text-to-Sound-Effects API
