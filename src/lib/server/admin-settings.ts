@@ -1,3 +1,4 @@
+import { building } from '$app/environment';
 import { db } from './db';
 import { adminSettings, adminFiles } from './db/schema';
 import { eq } from 'drizzle-orm';
@@ -99,9 +100,12 @@ function getDerivedKey(secret: string): Buffer {
  */
 function validateAuthSecret(): void {
   const { primary, fallback } = getSecretSet();
+  // Preview/build analysis often runs with NODE_ENV=production but without
+  // Production-only env vars. Fail hard only at runtime outside of builds.
+  const mustHaveSecret = IS_PRODUCTION && !building;
 
   if (!primary) {
-    if (IS_PRODUCTION) {
+    if (mustHaveSecret) {
       throw new Error(
         'CRITICAL: BETTER_AUTH_SECRET or AUTH_SECRET must be set. ' +
         'This is required for authentication and admin settings encryption. ' +
@@ -116,7 +120,7 @@ function validateAuthSecret(): void {
   }
 
   if (primary.length < 32) {
-    if (IS_PRODUCTION) {
+    if (mustHaveSecret) {
       throw new Error(
         'CRITICAL: BETTER_AUTH_SECRET/AUTH_SECRET should be at least 32 characters for security. ' +
         `Current length: ${primary.length}. Generate a longer secret: openssl rand -base64 32`
