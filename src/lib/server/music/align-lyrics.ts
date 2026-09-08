@@ -2,7 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import { aiJobs, music } from '$lib/server/db/schema.js';
 import { storageService } from '$lib/server/storage.js';
-import { getKieTimestampedLyrics } from '$lib/ai/providers/kie-music.js';
+import { getKieTimestampedLyrics, isKieGenerateOnly } from '$lib/ai/providers/kie-music.js';
 import { elevenlabsProvider } from '$lib/ai/index.js';
 import {
 	alignedWordsToTimedLines,
@@ -20,9 +20,25 @@ export type AlignedLyricLine = {
 
 export type AlignLyricsResult = {
 	lines: AlignedLyricLine[];
-	source: 'cached' | 'kie' | 'stt' | 'structure' | 'instrumental' | 'empty';
+	source: 'cached' | 'local' | 'kie' | 'stt' | 'structure' | 'instrumental' | 'empty';
 	reason?: string;
 };
+
+function envFlag(name: string, fallback = false): boolean {
+	const raw = process.env[name];
+	if (raw == null || raw === '') return fallback;
+	return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
+}
+
+/** Opt-in: Kie get-timestamped-lyrics costs 0.5 credits per clip. Off by default. */
+export function isKieTimestampedLyricsEnabled(): boolean {
+	return envFlag('KIE_TIMESTAMPED_LYRICS', false);
+}
+
+/** Opt-in: ElevenLabs STT alignment (paid). Off by default. */
+export function isSttLyricsAlignEnabled(): boolean {
+	return envFlag('LYRICS_ALIGN_STT', false);
+}
 
 function toStored(lines: TimedLyricLine[]): AlignedLyricLine[] {
 	return lines.map((line) => ({
@@ -33,9 +49,54 @@ function toStored(lines: TimedLyricLine[]): AlignedLyricLine[] {
 	}));
 }
 
+function pickProviderAudioId(
+	result: Record<string, unknown>,
+	musicId: string
+): string | undefined {
+	const tracks = Array.isArray(result.tracks)
+		? (result.tracks as Array<Record<string, unknown>>)
+		: [];
+	const variants = Array.isArray(result.variants)
+		? (result.variants as Array<Record<string, unknown>>)
+		: [];
+	const musicIds = Array.isArray(result.musicIds)
+		? (result.musicIds as unknown[]).filter((id): id is string => typeof id === 'string')
+		: [];
+
+	let index = tracks.findIndex((track) => track.musicId === musicId);
+	if (index < 0) index = musicIds.indexOf(musicId);
+	if (index < 0 && result.musicId === musicId) index = 0;
+	if (index < 0) return undefined;
+
+	const track = tracks[index];
+	const candidates = [
+		track?.providerAudioId,
+		track?.audioId,
+		variants[index]?.id,
+		variants[0]?.id
+	];
+	for (const value of candidates) {
+		if (typeof value === 'string' && value.trim() && value !== musicId) {
+			return value.trim();
+		}
+	}
+	return undefined;
+}
+
+function idsFromResult(
+	result: Record<string, unknown> | null | undefined,
+	musicId: string
+): { taskId?: string; audioId?: string } {
+	if (!result) return {};
+	return {
+		taskId: typeof result.providerTaskId === 'string' ? result.providerTaskId : undefined,
+		audioId: pickProviderAudioId(result, musicId)
+	};
+}
+
 async function resolveKieSource(musicId: string): Promise<{ taskId?: string; audioId?: string }> {
 	try {
-		const [row] = await db
+		const [primary] = await db
 			.select({ result: aiJobs.result })
 			.from(aiJobs)
 			.where(
@@ -47,15 +108,26 @@ async function resolveKieSource(musicId: string): Promise<{ taskId?: string; aud
 			)
 			.orderBy(desc(aiJobs.completedAt))
 			.limit(1);
-		const result = row?.result as Record<string, unknown> | null;
-		if (!result) return {};
-		const variants = Array.isArray(result.variants)
-			? (result.variants as Array<Record<string, unknown>>)
-			: [];
-		return {
-			taskId: typeof result.providerTaskId === 'string' ? result.providerTaskId : undefined,
-			audioId: typeof variants[0]?.id === 'string' ? variants[0].id : undefined
-		};
+		const fromPrimary = idsFromResult(primary?.result as Record<string, unknown> | null, musicId);
+		if (fromPrimary.taskId && fromPrimary.audioId) return fromPrimary;
+
+		// Sibling clip: musicId lives in musicIds[] / tracks[], not result.musicId.
+		const [sibling] = await db
+			.select({ result: aiJobs.result })
+			.from(aiJobs)
+			.where(
+				and(
+					eq(aiJobs.type, 'music-generation'),
+					eq(aiJobs.status, 'completed'),
+					sql`(${aiJobs.result}->'musicIds') @> ${JSON.stringify([musicId])}::jsonb`
+				)
+			)
+			.orderBy(desc(aiJobs.completedAt))
+			.limit(1);
+		const fromSibling = idsFromResult(sibling?.result as Record<string, unknown> | null, musicId);
+		if (fromSibling.taskId && fromSibling.audioId) return fromSibling;
+
+		return fromPrimary.taskId || fromPrimary.audioId ? fromPrimary : fromSibling;
 	} catch {
 		const jobs = await db
 			.select({ result: aiJobs.result })
@@ -65,20 +137,23 @@ async function resolveKieSource(musicId: string): Promise<{ taskId?: string; aud
 			.limit(100);
 		const source = jobs
 			.map((item) => item.result as Record<string, unknown> | null)
-			.find((result) => result?.musicId === musicId);
-		if (!source) return {};
-		const variants = Array.isArray(source.variants)
-			? (source.variants as Array<Record<string, unknown>>)
-			: [];
-		return {
-			taskId: typeof source.providerTaskId === 'string' ? source.providerTaskId : undefined,
-			audioId: typeof variants[0]?.id === 'string' ? variants[0].id : undefined
-		};
+			.find((result) => {
+				if (!result) return false;
+				if (result.musicId === musicId) return true;
+				const ids = Array.isArray(result.musicIds) ? result.musicIds : [];
+				return ids.includes(musicId);
+			});
+		return idsFromResult(source, musicId);
 	}
 }
 
-async function alignViaKie(musicId: string): Promise<TimedLyricLine[] | null> {
-	const { taskId, audioId } = await resolveKieSource(musicId);
+async function alignViaKie(
+	musicId: string,
+	hints?: { taskId?: string; audioId?: string }
+): Promise<TimedLyricLine[] | null> {
+	const resolved = await resolveKieSource(musicId);
+	const taskId = hints?.taskId || resolved.taskId;
+	const audioId = hints?.audioId || resolved.audioId;
 	if (!taskId || !audioId) return null;
 	const { alignedWords } = await getKieTimestampedLyrics(taskId, audioId);
 	const timed = alignedWordsToTimedLines(alignedWords);
@@ -122,12 +197,20 @@ async function alignViaStt(opts: {
 }
 
 /**
- * Provider-agnostic karaoke alignment for any GenAudius track.
- * Cascade: cache → Kie (if IDs) → STT forced map → structure heuristic.
+ * Provider-agnostic karaoke alignment.
+ * Cascade (default): cache → local charsiu-js (free) → structure.
+ * Paid paths are opt-in via env:
+ *   KIE_TIMESTAMPED_LYRICS=1  → 0.5 Kie credits / clip
+ *   LYRICS_ALIGN_STT=1        → ElevenLabs STT
  */
 export async function alignMusicLyrics(
 	musicId: string,
-	options: { forceRefresh?: boolean } = {}
+	options: {
+		forceRefresh?: boolean;
+		taskId?: string;
+		audioId?: string;
+		allowPaidProviders?: boolean;
+	} = {}
 ): Promise<AlignLyricsResult> {
 	const [record] = await db
 		.select({
@@ -158,39 +241,106 @@ export async function alignMusicLyrics(
 		return { lines: cached, source: 'cached' };
 	}
 
-	// 1) Native provider aligner (Suno/Kie) when available
-	try {
-		const kieLines = await alignViaKie(musicId);
-		if (kieLines?.length) {
-			const lines = toStored(kieLines);
-			await db.update(music).set({ alignedLyrics: lines }).where(eq(music.id, musicId));
-			return { lines, source: 'kie' };
-		}
-	} catch (err) {
-		console.warn(`[align-lyrics] Kie path failed for ${musicId}:`, err);
-	}
+	const allowPaid = options.allowPaidProviders === true;
 
-	// 2) Generic STT alignment against the actual audio (works for local/MusicGPT/GenAudius)
+	// 1) GenAudius worker (RunPod/Modal) — preferred; skip when worker is down
 	try {
-		if (record.cloudPath) {
-			const buffer = await storageService.download(record.cloudPath);
-			const sttLines = await alignViaStt({
-				buffer,
-				mimeType: record.mimeType || 'audio/mpeg',
-				filename: record.filename || `${musicId}.mp3`,
-				lyrics: record.lyrics
-			});
-			if (sttLines?.length) {
-				const lines = toStored(sttLines);
-				await db.update(music).set({ alignedLyrics: lines }).where(eq(music.id, musicId));
-				return { lines, source: 'stt' };
+		if (record.cloudPath && record.lyrics?.trim()) {
+			const { genAudiusClient } = await import('$lib/ai/providers/genaudius-client.js');
+			const health = await genAudiusClient.isReady().catch(() => ({ ready: false }));
+			if (health.ready) {
+				const buffer = await storageService.download(record.cloudPath);
+				const remote = await genAudiusClient.alignLyrics({
+					audioBase64: buffer.toString('base64'),
+					lyrics: record.lyrics,
+					mimeType: record.mimeType || 'audio/mpeg'
+				});
+				if (remote.lines?.length) {
+					const lines = toStored(
+						remote.lines.map((line) => ({
+							text: line.text,
+							start: line.start,
+							end: line.end,
+							timed: remote.source !== 'structure'
+						}))
+					);
+					if (remote.source !== 'structure') {
+						await db.update(music).set({ alignedLyrics: lines }).where(eq(music.id, musicId));
+					}
+					return {
+						lines,
+						source: remote.source === 'structure' ? 'structure' : 'local',
+						reason: remote.source === 'structure' ? 'heuristic_only' : `genaudius:${remote.source}`
+					};
+				}
 			}
 		}
 	} catch (err) {
-		console.warn(`[align-lyrics] STT path failed for ${musicId}:`, err);
+		console.warn(`[align-lyrics] GenAudius worker failed for ${musicId}:`, err);
 	}
 
-	// 3) Structure-aware estimate (intro/chorus/outro) — never leave UI empty if lyrics exist
+	// 2) Optional local charsiu (OFF by default — OOM on full tracks in Node)
+	try {
+		const { alignLyricsWithLocalForcedAlign, isLocalForcedAlignEnabled } = await import(
+			'$lib/server/music/local-forced-align.js'
+		);
+		if (isLocalForcedAlignEnabled() && record.cloudPath && record.lyrics?.trim()) {
+			const buffer = await storageService.download(record.cloudPath);
+			const localLines = await alignLyricsWithLocalForcedAlign({
+				buffer,
+				mimeType: record.mimeType || 'audio/mpeg',
+				lyrics: record.lyrics
+			});
+			if (localLines?.length) {
+				const lines = toStored(localLines);
+				await db.update(music).set({ alignedLyrics: lines }).where(eq(music.id, musicId));
+				return { lines, source: 'local' };
+			}
+		}
+	} catch (err) {
+		console.warn(`[align-lyrics] Local forced-align failed for ${musicId}:`, err);
+	}
+
+	// 3) Optional Kie timestamped lyrics — blocked when Kie is generate-only
+	if ((allowPaid || isKieTimestampedLyricsEnabled()) && !isKieGenerateOnly()) {
+		try {
+			const kieLines = await alignViaKie(musicId, {
+				taskId: options.taskId,
+				audioId: options.audioId
+			});
+			if (kieLines?.length) {
+				const lines = toStored(kieLines);
+				await db.update(music).set({ alignedLyrics: lines }).where(eq(music.id, musicId));
+				return { lines, source: 'kie' };
+			}
+		} catch (err) {
+			console.warn(`[align-lyrics] Kie path failed for ${musicId}:`, err);
+		}
+	}
+
+	// 4) Optional ElevenLabs STT map — off unless env or allowPaid
+	if (allowPaid || isSttLyricsAlignEnabled()) {
+		try {
+			if (record.cloudPath) {
+				const buffer = await storageService.download(record.cloudPath);
+				const sttLines = await alignViaStt({
+					buffer,
+					mimeType: record.mimeType || 'audio/mpeg',
+					filename: record.filename || `${musicId}.mp3`,
+					lyrics: record.lyrics
+				});
+				if (sttLines?.length) {
+					const lines = toStored(sttLines);
+					await db.update(music).set({ alignedLyrics: lines }).where(eq(music.id, musicId));
+					return { lines, source: 'stt' };
+				}
+			}
+		} catch (err) {
+			console.warn(`[align-lyrics] STT path failed for ${musicId}:`, err);
+		}
+	}
+
+	// 5) Structure-aware estimate — never leave UI empty if lyrics exist
 	const durationSec =
 		Number.isFinite(record.durationMs) && (record.durationMs as number) > 0
 			? (record.durationMs as number) / 1000
@@ -198,17 +348,22 @@ export async function alignMusicLyrics(
 	const structured = buildStructuredTimedLyrics(record.lyrics || '', durationSec);
 	if (structured.length) {
 		const lines = toStored(structured);
-		// Do not persist heuristic as "aligned" so a later STT/Kie refresh can upgrade.
 		return { lines, source: 'structure', reason: 'heuristic_only' };
 	}
 
 	return { lines: [], source: 'empty' };
 }
 
-/** Fire-and-forget helper for the generation queue. */
-export async function prefetchAlignedLyrics(musicId: string): Promise<void> {
+/** Prefetch after generate — local/free only (never spend Kie lyrics credits here). */
+export async function prefetchAlignedLyrics(
+	musicId: string,
+	_hints?: { taskId?: string; audioId?: string }
+): Promise<void> {
 	try {
-		await alignMusicLyrics(musicId, { forceRefresh: true });
+		await alignMusicLyrics(musicId, {
+			forceRefresh: true,
+			allowPaidProviders: false
+		});
 	} catch (err) {
 		console.warn(`[align-lyrics] prefetch failed for ${musicId}:`, err);
 	}

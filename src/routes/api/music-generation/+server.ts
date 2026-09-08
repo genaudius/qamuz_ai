@@ -48,6 +48,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		status: job.status,
 		result,
 		errorCode: job.status === 'failed' ? 'generation_unavailable' : null,
+		errorMessage: job.status === 'failed' ? (job.errorMessage ?? null) : null,
 		payload: { prompt }
 	});
 };
@@ -153,13 +154,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		let transactionId: string | undefined;
 		try {
 			const localMusicEnabled = (await getLocalMusicConfig()).enabled;
-			const cost = CreditCostCalculator.getMusicCost();
+			const billingProvider = localMusicEnabled
+				? 'local'
+				: modelId.startsWith('musicgpt')
+					? 'musicgpt'
+					: 'suno';
+			const cost = CreditCostCalculator.getMusicCost(billingProvider);
 			transactionId = await UsageTrackingService.holdTransaction(
-				session.user.id, 
-				cost.credits, 
-				cost.resourceType, 
-				localMusicEnabled ? 'local' : (modelId.startsWith('musicgpt') ? 'musicgpt' : 'suno'),
-				localMusicEnabled ? 'qamuz-local-music' : modelId
+				session.user.id,
+				cost.credits,
+				cost.resourceType,
+				billingProvider === 'local' ? 'local' : billingProvider,
+				billingProvider === 'local' ? 'qamuz-local-music' : modelId
 			);
 		} catch (error) {
 			if (error instanceof UsageLimitError) {

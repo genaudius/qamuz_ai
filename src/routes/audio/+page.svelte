@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import * as m from "$lib/../paraglide/messages.js";
+  import { SUNO_GENERATE_USER_CREDITS } from "$lib/constants/music-pricing.js";
 
   // UI Components
   import Button from "$lib/components/ui/button/button.svelte";
@@ -43,6 +44,7 @@
   import { onMount, untrack } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
+  import { notice } from "$lib/ui/notice.js";
 
   // Import voices from client-safe constants file (for shared getVoiceName helper)
   import { ELEVENLABS_VOICES } from "$lib/constants/elevenlabs.js";
@@ -100,6 +102,7 @@
   });
 
   onMount(() => {
+    music.hydrateFeedFromStorage();
     void music.resumePendingGeneration();
   });
 
@@ -288,6 +291,57 @@
   let customVocalGender = $state<"female" | "male" | "duet">("female");
   let isRefreshingGenres = $state(false);
   let customGenres = $state<string[]>(["Deep House", "Sad", "Tender", "Viola"]);
+  let isGeneratingLyrics = $state(false);
+  let isEnhancingStyle = $state(false);
+
+  async function generateCustomLyrics() {
+    const seed =
+      customTitle.trim() ||
+      customSelectedGenre ||
+      customStyle.trim() ||
+      "write an emotional song";
+    isGeneratingLyrics = true;
+    try {
+      const response = await fetch("/api/music-tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "generate-lyrics",
+          prompt: `Title/theme: ${seed}. Genre: ${customSelectedGenre || "open"}. Style: ${customStyle || "modern"}.`
+        })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Failed to generate lyrics");
+      if (typeof payload?.lyrics === "string" && payload.lyrics.trim()) {
+        customLyrics = payload.lyrics.trim().slice(0, 2200);
+      }
+    } catch (err) {
+      notice.error(err instanceof Error ? err.message : "Failed to generate lyrics");
+    } finally {
+      isGeneratingLyrics = false;
+    }
+  }
+
+  async function enhanceCustomStyle() {
+    const content = customStyle.trim() || customSelectedGenre || "pop";
+    isEnhancingStyle = true;
+    try {
+      const response = await fetch("/api/music-tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "boost-style", content })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Failed to enhance style");
+      if (typeof payload?.style === "string" && payload.style.trim()) {
+        customStyle = payload.style.trim().slice(0, 1200);
+      }
+    } catch (err) {
+      notice.error(err instanceof Error ? err.message : "Failed to enhance style");
+    } finally {
+      isEnhancingStyle = false;
+    }
+  }
 
   async function refreshCustomGenres() {
     isRefreshingGenres = true;
@@ -908,75 +962,92 @@
           {/if}
         </div>
       {:else if activeMode === "music" && musicSubMode !== "custom"}
-        <!-- Conversational Feed -->
-        <div class="flex-1 overflow-y-auto min-h-0 flex flex-col space-y-4 px-2 py-4">
+        <!-- Conversational Feed — same width as the create form (max-w-2xl) -->
+        <div class="flex-1 overflow-y-auto min-h-0 flex flex-col w-full max-w-2xl mx-auto px-2 py-4 space-y-4">
           {#if music.feed.length === 0}
-            <div class="flex-1 flex flex-col justify-start pt-2 pb-4 max-w-3xl">
+            <div class="flex-1 flex flex-col justify-start pt-2 pb-4 w-full">
               <h3 class="text-xl font-bold mb-1">Create with Qamuz</h3>
-              <p class="text-xs text-muted-foreground mb-4">
+              <p class="text-sm text-muted-foreground mb-5 leading-relaxed">
                 Hey, I am your co-producer to help you turn your ideas into the best music! Let me know what you would like to make today?
               </p>
               
-              <div class="flex flex-col gap-3 items-start w-full">
+              <div class="flex flex-col gap-3 items-stretch w-full">
                 <button
-                  class="text-sm border border-border/40 hover:bg-muted/50 px-5 py-3 rounded-[1.25rem] transition-colors flex items-center justify-between w-[400px] max-w-full group text-muted-foreground hover:text-foreground"
+                  class="text-sm border border-border/40 hover:bg-muted/50 px-5 py-4 rounded-2xl transition-colors flex items-center justify-between w-full group text-muted-foreground hover:text-foreground"
                   onclick={() => { music.inputPrompt = 'A love song for someone special'; music.handleGenerate(); }}
                 >
                   <span class="text-left font-medium">A love song for someone special</span>
-                  <ArrowRightIcon class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRightIcon class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity shrink-0" />
                 </button>
                 
                 <button 
-                  class="text-sm border border-border/40 hover:bg-muted/50 px-5 py-3 rounded-[1.25rem] transition-colors flex items-center justify-between w-[400px] max-w-full group text-muted-foreground hover:text-foreground"
+                  class="text-sm border border-border/40 hover:bg-muted/50 px-5 py-4 rounded-2xl transition-colors flex items-center justify-between w-full group text-muted-foreground hover:text-foreground"
                   onclick={() => { music.inputPrompt = 'Surprise me with something cool'; music.handleGenerate(); }}
                 >
                   <span class="text-left font-medium">Surprise me with something cool</span>
-                  <ArrowRightIcon class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRightIcon class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity shrink-0" />
                 </button>
 
                 <button 
-                  class="text-sm border border-border/40 hover:bg-muted/50 px-5 py-3 rounded-[1.25rem] transition-colors flex items-center justify-between w-[450px] max-w-full group text-muted-foreground hover:text-foreground"
+                  class="text-sm border border-border/40 hover:bg-muted/50 px-5 py-4 rounded-2xl transition-colors flex items-center justify-between w-full group text-muted-foreground hover:text-foreground"
                   onclick={() => { music.inputPrompt = 'Country — twangy guitar, open road vibes'; music.handleGenerate(); }}
                 >
                   <span class="text-left font-medium">Country — twangy guitar, open road vibes</span>
-                  <ArrowRightIcon class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRightIcon class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity shrink-0" />
                 </button>
               </div>
             </div>
           {:else}
-            {#each music.feed as item}
+            <div class="flex items-center justify-between gap-2 pb-1">
+              <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Creation history</h3>
+              <p class="text-xs text-muted-foreground">Stays until you delete it</p>
+            </div>
+            {#each music.feed as item (item.id)}
               {#if item.type === 'user'}
                 <!-- User Message -->
                 <div class="flex w-full justify-end">
-                  <div class="max-w-[80%] bg-primary/10 text-foreground px-4 py-3 rounded-2xl rounded-tr-sm">
-                    <p class="whitespace-pre-wrap text-sm">{item.content}</p>
+                  <div class="w-full max-w-full bg-primary/10 text-foreground px-4 py-3.5 rounded-2xl rounded-tr-sm">
+                    <p class="whitespace-pre-wrap text-sm leading-relaxed">{item.content}</p>
                   </div>
                 </div>
               {:else}
                 <!-- AI Message -->
                 <div class="flex w-full justify-start">
-                  <div class="max-w-[85%] sm:max-w-[75%] bg-muted/50 border px-4 py-3 rounded-2xl rounded-tl-sm space-y-3">
-                    {#if item.status === 'generating'}
-                      <div class="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                        <div class="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                        <span>Vibing with your prompt...</span>
+                  <div class="w-full bg-muted/50 border px-4 py-3.5 rounded-2xl rounded-tl-sm space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0 flex-1">
+                        {#if item.status === 'generating'}
+                          <div class="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                            <div class="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                            <span>Vibing with your prompt...</span>
+                          </div>
+                        {:else if item.status === 'error'}
+                          <p class="text-sm text-destructive py-2">{item.content}</p>
+                        {:else if item.status === 'completed' && item.content}
+                          <p class="text-sm italic text-muted-foreground whitespace-pre-wrap pt-1">{item.content}</p>
+                        {/if}
                       </div>
-                    {:else if item.status === 'error'}
-                      <p class="text-sm text-destructive py-2">{item.content}</p>
-                    {:else if item.status === 'completed'}
-                      {#if item.content}
-                        <p class="text-sm italic text-muted-foreground whitespace-pre-wrap pt-1">{item.content}</p>
-                      {/if}
+                      <button
+                        type="button"
+                        class="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Remove from history"
+                        onclick={() => music.removeHistoryEntry(item.id)}
+                      >
+                        <TrashIcon class="w-4 h-4" />
+                      </button>
+                    </div>
                       
-                      {#if item.track}
-                        <!-- Track Card -->
-                        <div class="mt-2 bg-background border rounded-lg p-2.5 flex gap-3 items-center hover:bg-muted/50 transition-colors group">
+                    {#if item.status === 'completed'}
+                      {@const feedTracks = item.tracks?.length ? item.tracks : item.track ? [item.track] : []}
+                      {#each feedTracks as feedTrack (feedTrack.id)}
+                        <!-- Track Card — full form width -->
+                        <div class="mt-1 w-full bg-background border rounded-xl p-3 flex gap-3 items-center hover:bg-muted/50 transition-colors group">
                           <!-- Cover Art -->
-                          <div class="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                            {#if item.track.imageUrl}
-                              <img src={item.track.imageUrl} alt="Cover art" class="w-full h-full object-cover" />
+                          <div class="relative w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                            {#if feedTrack.imageUrl}
+                              <img src={feedTrack.imageUrl} alt="Cover art" class="w-full h-full object-cover" />
                             {:else}
-                              <Music2Icon class="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                              <Music2Icon class="w-7 h-7 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/50" />
                             {/if}
                             
                             <!-- Play Overlay Button -->
@@ -985,30 +1056,29 @@
                               class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                               title="Play"
                               onclick={() => {
-                                if (!item.track) return;
                                 globalMusic.playTrack({
-                                  id: item.track.id,
-                                  url: item.track.url || `/api/music/${item.track.id}`,
-                                  title: item.track.title,
-                                  imageUrl: item.track.imageUrl,
-                                  videoUrl: item.track.videoUrl,
-                                  lyrics: item.track.lyrics,
-                                  durationMs: item.track.durationMs ?? 0
+                                  id: feedTrack.id,
+                                  url: feedTrack.url || `/api/music/${feedTrack.id}`,
+                                  title: feedTrack.title,
+                                  imageUrl: feedTrack.imageUrl,
+                                  videoUrl: feedTrack.videoUrl,
+                                  lyrics: feedTrack.lyrics,
+                                  durationMs: feedTrack.durationMs ?? 0
                                 });
                               }}
                             >
-                              <PlayIcon class="w-6 h-6 text-white" />
+                              <PlayIcon class="w-7 h-7 text-white" />
                             </button>
                           </div>
                           
                           <!-- Info -->
                           <div class="flex-1 min-w-0">
-                            <h4 class="font-medium text-sm truncate">{item.track.title}</h4>
+                            <h4 class="font-medium text-sm truncate">{feedTrack.title}</h4>
                             <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                               <span>Generated</span>
-                              {#if item.track.durationMs}
+                              {#if feedTrack.durationMs}
                                 <span>•</span>
-                                <span>{formatTime(item.track.durationMs / 1000)}</span>
+                                <span>{formatTime(feedTrack.durationMs / 1000)}</span>
                               {/if}
                             </div>
                           </div>
@@ -1016,17 +1086,17 @@
                           <!-- 3-Dots Dropdown -->
                           <TrackOptionsMenu
                             song={{
-                              id: item.track.id,
-                              title: item.track.title,
-                              prompt: item.track.title,
-                              videoUrl: item.track.videoUrl,
-                              imageUrl: item.track.imageUrl
+                              id: feedTrack.id,
+                              title: feedTrack.title,
+                              prompt: feedTrack.title,
+                              videoUrl: feedTrack.videoUrl,
+                              imageUrl: feedTrack.imageUrl
                             }}
                             side="top"
                             buttonClass="text-muted-foreground hover:text-foreground"
                           />
                         </div>
-                      {/if}
+                      {/each}
                     {/if}
                   </div>
                 </div>
@@ -2178,10 +2248,11 @@
                 </button>
                 <button
                   type="button"
-                  class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs text-muted-foreground"
-                  disabled
+                  class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs hover:bg-muted/60 transition-colors disabled:opacity-50"
+                  disabled={music.forceInstrumental || isGeneratingLyrics}
+                  onclick={() => void generateCustomLyrics()}
                 >
-                  Generate Lyrics
+                  {isGeneratingLyrics ? "Generating…" : "Generate Lyrics"}
                 </button>
               </div>
               <span class="text-xs text-muted-foreground">{customLyrics.length}/2200</span>
@@ -2203,10 +2274,11 @@
             <div class="flex items-center gap-2">
               <button
                 type="button"
-                class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs font-medium"
-                disabled
+                class="px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-xs font-medium hover:bg-muted/60 transition-colors disabled:opacity-50"
+                disabled={isEnhancingStyle}
+                onclick={() => void enhanceCustomStyle()}
               >
-                Enhance
+                {isEnhancingStyle ? "Enhancing…" : "Enhance"}
               </button>
               <button
                 type="button"
@@ -2290,7 +2362,7 @@
             {#if music.isGenerating}
               Creating...
             {:else}
-              Create
+              Create · {SUNO_GENERATE_USER_CREDITS} credits · 2 tracks
             {/if}
           </button>
         </div>
@@ -2461,7 +2533,7 @@
                 <span class="hidden md:inline">Generating...</span>
                 <ArrowUpIcon class="w-4 h-4 md:hidden animate-pulse" />
               {:else}
-                <span class="hidden md:inline">Generate Music</span>
+                <span class="hidden md:inline">Generate · {SUNO_GENERATE_USER_CREDITS} cr</span>
                 <ArrowUpIcon class="w-4 h-4 md:hidden" />
               {/if}
             </InputGroup.Button>

@@ -52,7 +52,9 @@
   let audioDuration = $state(0);
   let lastStageTrackId = $state<string | null>(null);
   let alignedLines = $state<TimedLyricLine[] | null>(null);
-  let alignedSource = $state<"pending" | "kie" | "cached" | "stt" | "fallback" | "none">("pending");
+  let alignedSource = $state<
+    "pending" | "local" | "kie" | "cached" | "stt" | "fallback" | "none"
+  >("pending");
 
   const LINE_STEP = 34;
 
@@ -116,10 +118,11 @@
         );
         const src = String(payload?.source || "");
         if (src === "cached") alignedSource = "cached";
+        else if (src === "local") alignedSource = "local";
         else if (src === "kie") alignedSource = "kie";
         else if (src === "stt") alignedSource = "stt";
         else if (src === "structure") alignedSource = "fallback";
-        else alignedSource = alignedLines[0]?.timed ? "stt" : "fallback";
+        else alignedSource = alignedLines[0]?.timed ? "local" : "fallback";
 
         if (ctxMusic.currentTrack?.id === id) {
           ctxMusic.currentTrack = {
@@ -500,8 +503,8 @@
         {/if}
         {#if alignedSource === "pending"}
           <p class="lyric-sync-hint">Calibrando voz…</p>
-        {:else if alignedSource === "stt"}
-          <p class="lyric-sync-hint">Sync vocal GenAudius</p>
+        {:else if alignedSource === "local" || alignedSource === "kie" || alignedSource === "cached" || alignedSource === "stt"}
+          <p class="lyric-sync-hint">Sync vocal</p>
         {:else if alignedSource === "fallback"}
           <p class="lyric-sync-hint">Sync por estructura</p>
         {/if}

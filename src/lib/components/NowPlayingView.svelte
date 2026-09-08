@@ -35,7 +35,9 @@
   let audioDuration = $state(0);
   let lastTrackId = $state<string | null>(null);
   let alignedLines = $state<TimedLyricLine[] | null>(null);
-  let alignedSource = $state<"pending" | "kie" | "cached" | "stt" | "fallback" | "none">("pending");
+  let alignedSource = $state<
+    "pending" | "local" | "kie" | "cached" | "stt" | "fallback" | "none"
+  >("pending");
 
   const track = $derived(musicState.currentTrack);
 
@@ -92,10 +94,11 @@
         );
         const src = String(payload?.source || "");
         if (src === "cached") alignedSource = "cached";
+        else if (src === "local") alignedSource = "local";
         else if (src === "kie") alignedSource = "kie";
         else if (src === "stt") alignedSource = "stt";
         else if (src === "structure") alignedSource = "fallback";
-        else alignedSource = alignedLines[0]?.timed ? "stt" : "fallback";
+        else alignedSource = alignedLines[0]?.timed ? "local" : "fallback";
 
         if (musicState.currentTrack?.id === id) {
           musicState.currentTrack = {
@@ -409,7 +412,7 @@
           <div class="text-xs font-semibold uppercase text-muted-foreground">Lyrics</div>
           {#if alignedSource === "pending"}
             <span class="hint">Calibrando voz…</span>
-          {:else if alignedSource === "stt" || alignedSource === "kie" || alignedSource === "cached"}
+          {:else if alignedSource === "local" || alignedSource === "stt" || alignedSource === "kie" || alignedSource === "cached"}
             <span class="hint">Sync vocal</span>
           {:else if alignedSource === "fallback"}
             <span class="hint">Sync por estructura</span>

@@ -75,10 +75,11 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		return json(result, { status });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Music tool failed';
-		const status =
-			message.includes('required') || message.includes('Unknown')
+		const status = message.includes('generate-only') || message.includes('disabled')
+			? 403
+			: message.includes('required') || message.includes('Unknown')
 				? 400
-				: message.includes('Suno/Kie') || message.includes('requires')
+				: message.includes('Suno/Kie') || message.includes('requires') || message.includes('roadmap')
 					? 409
 					: 502;
 		return json({ error: message }, { status });

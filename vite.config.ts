@@ -95,6 +95,7 @@ export default defineConfig({
 		}
 	},
 	ssr: {
-		noExternal: ['layerchart']
+		noExternal: ['layerchart'],
+		external: ['charsiu-js', 'onnxruntime-node', 'charsiu-js/assets-node']
 	}
 });

@@ -1,38 +1,29 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
-import {
-	getKieAudioRecoveryStatus,
-	submitKieAudioRecovery
-} from '$lib/ai/providers/kie-music.js';
+import { isKieGenerateOnly } from '$lib/ai/providers/kie-music.js';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+/** Kie audio recovery is disabled while Kie is generate-only. */
+export const POST: RequestHandler = async ({ locals }) => {
 	const session = await locals.auth();
 	if (!session?.user?.id) return json({ error: 'Authentication required' }, { status: 401 });
-
-	try {
-		const body = await request.json() as { taskId?: unknown; callBackUrl?: unknown };
-		if (typeof body.taskId !== 'string' || !body.taskId.trim()) {
-			return json({ error: 'Original Suno taskId is required' }, { status: 400 });
-		}
-		const recoveryTaskId = await submitKieAudioRecovery(
-			body.taskId.trim(),
-			typeof body.callBackUrl === 'string' ? body.callBackUrl : undefined
+	if (isKieGenerateOnly()) {
+		return json(
+			{
+				error:
+					'Kie audio recovery is disabled (generate-only). Re-generate the track or download from library.',
+				code: 'kie_generate_only'
+			},
+			{ status: 403 }
 		);
-		return json({ taskId: recoveryTaskId, status: 'queued' }, { status: 202 });
-	} catch (error) {
-		return json({ error: error instanceof Error ? error.message : 'Recovery submission failed' }, { status: 502 });
 	}
+	return json({ error: 'Recovery requires KIE_MUSIC_GENERATE_ONLY=false' }, { status: 403 });
 };
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+export const GET: RequestHandler = async ({ locals }) => {
 	const session = await locals.auth();
 	if (!session?.user?.id) return json({ error: 'Authentication required' }, { status: 401 });
-	const taskId = url.searchParams.get('taskId');
-	if (!taskId) return json({ error: 'Recovery taskId is required' }, { status: 400 });
-
-	try {
-		return json(await getKieAudioRecoveryStatus(taskId));
-	} catch (error) {
-		return json({ error: error instanceof Error ? error.message : 'Recovery status check failed' }, { status: 502 });
-	}
+	return json(
+		{ error: 'Kie recovery disabled (generate-only policy)', code: 'kie_generate_only' },
+		{ status: 403 }
+	);
 };

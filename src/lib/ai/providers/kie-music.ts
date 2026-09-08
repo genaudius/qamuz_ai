@@ -91,6 +91,29 @@ export class KieApiError extends Error {
 	}
 }
 
+/**
+ * Policy: Kie is Generate Music only (plus status poll).
+ * Default ON — set KIE_MUSIC_GENERATE_ONLY=false to unlock legacy tools (not recommended).
+ */
+export function isKieGenerateOnly(): boolean {
+	const raw = (env as Record<string, string>)['KIE_MUSIC_GENERATE_ONLY'];
+	if (raw == null || raw === '') return true;
+	return !['0', 'false', 'no', 'off'].includes(raw.trim().toLowerCase());
+}
+
+function assertKieGenerateOnlyPath(path: string): void {
+	if (!isKieGenerateOnly()) return;
+	const clean = path.split('?')[0];
+	const allowed = clean === '/generate' || clean.startsWith('/generate/record-info');
+	if (!allowed) {
+		throw new KieApiError(
+			`Kie is generate-only. Blocked ${clean}. Use GenAudius workers or OpenRouter for other tools.`,
+			403,
+			403
+		);
+	}
+}
+
 export function resolveKieAudioUrl(track?: KieSunoTrack): string | null {
 	return track?.audioUrl || track?.audio_url || track?.downloadUrl || track?.streamUrl || track?.url || null;
 }
@@ -153,6 +176,7 @@ function isCreditMessage(message: string): boolean {
 }
 
 async function kieRequest<T>(path: string, init?: RequestInit): Promise<KieEnvelope<T>> {
+	assertKieGenerateOnlyPath(path);
 	const apiKey = await getKieApiKey();
 	if (!apiKey) throw new KieApiError('Suno API key not configured. Add it in Admin → Settings → AI Models.');
 

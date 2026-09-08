@@ -1,4 +1,37 @@
+import { env } from '$env/dynamic/private';
 import { getLocalMusicConfig } from '$lib/ai/providers/local-acestep.js';
+
+const DEFAULT_BASE_URL = 'http://127.0.0.1:42003';
+
+function normalizeBaseUrl(value: string): string {
+	const url = new URL(value);
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+		throw new Error('GenAudius URL must use HTTP or HTTPS');
+	}
+	return url.toString().replace(/\/$/, '');
+}
+
+function envUrl(name: string): string | undefined {
+	const raw = (env as Record<string, string>)[name];
+	if (!raw?.trim()) return undefined;
+	try {
+		return normalizeBaseUrl(raw.trim());
+	} catch {
+		return undefined;
+	}
+}
+
+/** Ordered GenAudius worker URLs: primary (RunPod) then failover (Modal). */
+export async function getGenAudiusWorkerUrls(): Promise<string[]> {
+	const config = await getLocalMusicConfig();
+	const urls: string[] = [];
+	const primary = envUrl('GENAUDIUS_PRIMARY_URL') || config.baseUrl || DEFAULT_BASE_URL;
+	const failover = envUrl('GENAUDIUS_FAILOVER_URL');
+	for (const url of [primary, failover]) {
+		if (url && !urls.includes(url)) urls.push(url);
+	}
+	return urls;
+}
 
 async function requestJson<T>(url: string, init?: RequestInit, timeoutMs = 15_000): Promise<T> {
 	const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
@@ -21,19 +54,62 @@ async function withAuthHeaders(baseUrl: string): Promise<Record<string, string>>
 	return { 'Content-Type': 'application/json' };
 }
 
-/** Shared GenAudius (:42003) client for catalog, mixing, health, prompt preview. */
+async function withFailover<T>(
+	run: (baseUrl: string) => Promise<T>,
+	timeoutMs = 15_000
+): Promise<{ data: T; baseUrl: string }> {
+	const urls = await getGenAudiusWorkerUrls();
+	let lastError: unknown;
+	for (const baseUrl of urls) {
+		try {
+			const data = await Promise.race([
+				run(baseUrl),
+				new Promise<never>((_, reject) =>
+					setTimeout(() => reject(new Error(`timeout ${timeoutMs}ms`)), timeoutMs)
+				)
+			]);
+			return { data, baseUrl };
+		} catch (error) {
+			lastError = error;
+			console.warn(`[genaudius] worker failed @ ${baseUrl}:`, error);
+		}
+	}
+	throw lastError instanceof Error
+		? lastError
+		: new Error('All GenAudius workers failed');
+}
+
+async function postAudioTool<T>(
+	path: string,
+	body: Record<string, unknown>,
+	timeoutMs = 180_000
+): Promise<T> {
+	const { data } = await withFailover(async (baseUrl) => {
+		const headers = await withAuthHeaders(baseUrl);
+		return requestJson<T>(`${baseUrl}${path}`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify(body)
+		}, timeoutMs);
+	}, timeoutMs);
+	return data;
+}
+
+/** Shared GenAudius client — catalog, mixing, health, prompt preview, audio tools. */
 export const genAudiusClient = {
 	async isReady(): Promise<{ ready: boolean; baseUrl: string; reason?: string }> {
 		const config = await getLocalMusicConfig();
-		if (!config.enabled) return { ready: false, baseUrl: config.baseUrl, reason: 'disabled' };
+		if (!config.enabled && !envUrl('GENAUDIUS_PRIMARY_URL')) {
+			return { ready: false, baseUrl: config.baseUrl, reason: 'disabled' };
+		}
 		try {
-			const health = await requestJson<{ status?: string; model_loaded?: boolean }>(
-				`${config.baseUrl}/health`
-			);
-			const loaded = health.model_loaded !== false;
+			const { data, baseUrl } = await withFailover(async (url) => {
+				return requestJson<{ status?: string; model_loaded?: boolean }>(`${url}/health`);
+			});
+			const loaded = data.model_loaded !== false;
 			return {
 				ready: loaded,
-				baseUrl: config.baseUrl,
+				baseUrl,
 				reason: loaded ? undefined : 'model_loading'
 			};
 		} catch (error) {
@@ -46,21 +122,27 @@ export const genAudiusClient = {
 	},
 
 	async musicCatalog(): Promise<unknown> {
-		const config = await getLocalMusicConfig();
-		const headers = await withAuthHeaders(config.baseUrl);
-		return requestJson(`${config.baseUrl}/api/music-catalog`, { headers });
+		const { data } = await withFailover(async (baseUrl) => {
+			const headers = await withAuthHeaders(baseUrl);
+			return requestJson(`${baseUrl}/api/music-catalog`, { headers });
+		});
+		return data;
 	},
 
 	async voices(): Promise<unknown> {
-		const config = await getLocalMusicConfig();
-		const headers = await withAuthHeaders(config.baseUrl);
-		return requestJson(`${config.baseUrl}/api/voices`, { headers });
+		const { data } = await withFailover(async (baseUrl) => {
+			const headers = await withAuthHeaders(baseUrl);
+			return requestJson(`${baseUrl}/api/voices`, { headers });
+		});
+		return data;
 	},
 
 	async mixingTools(): Promise<unknown> {
-		const config = await getLocalMusicConfig();
-		const headers = await withAuthHeaders(config.baseUrl);
-		return requestJson(`${config.baseUrl}/api/mixing-tools`, { headers });
+		const { data } = await withFailover(async (baseUrl) => {
+			const headers = await withAuthHeaders(baseUrl);
+			return requestJson(`${baseUrl}/api/mixing-tools`, { headers });
+		});
+		return data;
 	},
 
 	async reverbSuggestion(input: {
@@ -68,24 +150,92 @@ export const genAudiusClient = {
 		channel_role?: string;
 		bpm?: number;
 	}): Promise<unknown> {
-		const config = await getLocalMusicConfig();
-		const headers = await withAuthHeaders(config.baseUrl);
-		const params = new URLSearchParams();
-		if (input.genre) params.set('genre', input.genre);
-		if (input.channel_role) params.set('channel_role', input.channel_role);
-		if (input.bpm != null) params.set('bpm', String(input.bpm));
-		return requestJson(`${config.baseUrl}/api/mixing-tools/reverb-suggestion?${params}`, {
-			headers
+		const { data } = await withFailover(async (baseUrl) => {
+			const headers = await withAuthHeaders(baseUrl);
+			const params = new URLSearchParams();
+			if (input.genre) params.set('genre', input.genre);
+			if (input.channel_role) params.set('channel_role', input.channel_role);
+			if (input.bpm != null) params.set('bpm', String(input.bpm));
+			return requestJson(`${baseUrl}/api/mixing-tools/reverb-suggestion?${params}`, {
+				headers
+			});
 		});
+		return data;
 	},
 
 	async promptPreview(body: Record<string, unknown>): Promise<unknown> {
-		const config = await getLocalMusicConfig();
-		const headers = await withAuthHeaders(config.baseUrl);
-		return requestJson(`${config.baseUrl}/api/prompt/preview`, {
-			method: 'POST',
-			headers,
-			body: JSON.stringify(body)
+		const { data } = await withFailover(async (baseUrl) => {
+			const headers = await withAuthHeaders(baseUrl);
+			return requestJson(`${baseUrl}/api/prompt/preview`, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify(body)
+			});
 		});
+		return data;
+	},
+
+	async convertWav(input: { audioBase64: string; mimeType?: string }): Promise<{
+		mimeType: string;
+		filename: string;
+		bytes: number;
+		audioBase64: string;
+	}> {
+		return postAudioTool('/api/convert/wav', {
+			audioBase64: input.audioBase64,
+			mimeType: input.mimeType || 'audio/mpeg'
+		});
+	},
+
+	async alignLyrics(input: {
+		audioBase64: string;
+		lyrics: string;
+		mimeType?: string;
+	}): Promise<{
+		source: string;
+		lines: Array<{ text: string; start: number; end?: number }>;
+		durationSec?: number;
+	}> {
+		return postAudioTool('/api/align-lyrics', {
+			audioBase64: input.audioBase64,
+			lyrics: input.lyrics,
+			mimeType: input.mimeType || 'audio/mpeg'
+		});
+	},
+
+	async separateStems(input: {
+		audioBase64: string;
+		mimeType?: string;
+		mode?: string;
+	}): Promise<{
+		source: string;
+		stems: Array<{ name: string; mimeType: string; audioBase64: string; bytes: number }>;
+	}> {
+		return postAudioTool(
+			'/api/stems',
+			{
+				audioBase64: input.audioBase64,
+				mimeType: input.mimeType || 'audio/mpeg',
+				mode: input.mode || 'separate_vocal'
+			},
+			300_000
+		);
+	},
+
+	async audioToMidi(input: { audioBase64: string; mimeType?: string }): Promise<{
+		source: string;
+		mimeType: string;
+		filename: string;
+		bytes: number;
+		audioBase64: string;
+	}> {
+		return postAudioTool(
+			'/api/midi',
+			{
+				audioBase64: input.audioBase64,
+				mimeType: input.mimeType || 'audio/mpeg'
+			},
+			300_000
+		);
 	}
 };

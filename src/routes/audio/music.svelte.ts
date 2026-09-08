@@ -32,6 +32,17 @@ export interface MusicFeedItem {
     durationMs?: number;
     createdAt?: string;
   };
+  /** Suno/Kie returns two clips per generate — both appear in the feed/library. */
+  tracks?: Array<{
+    id: string;
+    title: string;
+    url: string;
+    imageUrl?: string;
+    videoUrl?: string;
+    lyrics?: string;
+    durationMs?: number;
+    createdAt?: string;
+  }>;
 }
 
 export interface PendingLibrarySong {
@@ -55,8 +66,7 @@ export class MusicState {
   readonly models = [
     { id: 'suno-v5.5', name: 'Qamuz Music Pro' },
     { id: 'suno-v5', name: 'Qamuz Music Plus' },
-    { id: 'suno-v4.5', name: 'Qamuz Music' },
-    { id: 'musicgpt-v1', name: 'Qamuz Music Studio' }
+    { id: 'suno-v4.5', name: 'Qamuz Music' }
   ];
 
   // Model Selection
@@ -79,9 +89,10 @@ export class MusicState {
   pendingJobId = $state<string | null>(null);
 
   private readonly pendingJobStorageKey = 'qamuz:music-generation:pending-job';
+  private readonly feedStorageKey = 'qamuz:music-create:feed.v1';
   pendingLibrarySongs = $state<PendingLibrarySong[]>([]);
 
-  // Conversational Feed State
+  // Conversational Feed State — persisted until the user deletes entries
   feed = $state<MusicFeedItem[]>([]);
 
   // Derived values
@@ -108,6 +119,51 @@ export class MusicState {
     return this.inputPrompt.length > 4100;
   }
 
+  /** Restore create-session history from localStorage (survives refresh). */
+  hydrateFeedFromStorage(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(this.feedStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as MusicFeedItem[];
+      if (!Array.isArray(parsed)) return;
+      this.feed = parsed.filter(
+        (item) => item && (item.type === 'user' || item.type === 'ai') && typeof item.id === 'string'
+      );
+    } catch {
+      // Ignore corrupt history; keep empty feed.
+    }
+  }
+
+  private persistFeed(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(this.feedStorageKey, JSON.stringify(this.feed));
+    } catch (error) {
+      console.warn('Unable to persist music create history', error);
+    }
+  }
+
+  private commitFeed(next: MusicFeedItem[]): void {
+    this.feed = next;
+    this.persistFeed();
+  }
+
+  /** Remove one create-history block (user prompt + AI result). Does not delete library files. */
+  removeHistoryEntry(itemId: string): void {
+    const index = this.feed.findIndex((item) => item.id === itemId);
+    if (index === -1) return;
+    const next = [...this.feed];
+    const target = next[index];
+    next.splice(index, 1);
+    if (target.type === 'ai' && index > 0 && next[index - 1]?.type === 'user') {
+      next.splice(index - 1, 1);
+    } else if (target.type === 'user' && next[index]?.type === 'ai') {
+      next.splice(index, 1);
+    }
+    this.commitFeed(next);
+  }
+
   // ==================== Core Music Methods ====================
 
   /**
@@ -121,19 +177,20 @@ export class MusicState {
     
     // Add User Message to Feed
     const userMsgId = Date.now().toString() + '-user';
-    this.feed.push({
-      id: userMsgId,
-      type: 'user',
-      content: currentPrompt
-    });
-
-    // Add initial AI Message to Feed
     const aiMsgId = Date.now().toString() + '-ai';
-    this.feed.push({
-      id: aiMsgId,
-      type: 'ai',
-      status: 'queued'
-    });
+    this.commitFeed([
+      ...this.feed,
+      {
+        id: userMsgId,
+        type: 'user',
+        content: currentPrompt
+      },
+      {
+        id: aiMsgId,
+        type: 'ai',
+        status: 'queued'
+      }
+    ]);
 
     this.isGenerating = true;
     this.errorMessage = null;
@@ -176,9 +233,10 @@ export class MusicState {
         updatedFeed[aiMsgIndex] = {
           ...updatedFeed[aiMsgIndex],
           status: 'generating',
+          jobId: data.jobId,
           content: data.analysisText || 'Your track is generating in the background.'
         };
-        this.feed = updatedFeed;
+        this.commitFeed(updatedFeed);
       }
 
       await this.waitForPendingJob(data.jobId, aiMsgId);
@@ -197,7 +255,7 @@ export class MusicState {
           status: 'error',
           content: this.errorMessage
         };
-        this.feed = updatedFeed;
+        this.commitFeed(updatedFeed);
       }
     } finally {
       this.isGenerating = false;
@@ -228,11 +286,11 @@ export class MusicState {
 
       const existingIndex = this.feed.findIndex((item) => item.jobId === pendingJobId);
       if (existingIndex === -1) {
-        this.feed = [
+        this.commitFeed([
           ...this.feed,
           { id: `${pendingJobId}-user`, type: 'user', content: prompt },
           { id: aiMsgId, type: 'ai', status: data.status === 'completed' ? 'completed' : 'generating', jobId: pendingJobId, content: 'Resuming your track generation...' }
-        ];
+        ]);
       }
 
       if (data.status === 'completed' && data.result) {
@@ -241,7 +299,7 @@ export class MusicState {
       }
 
       if (data.status === 'failed') {
-        this.setJobFailed(aiMsgId, m["audio.music_generation_unavailable_description"]());
+        this.setJobFailed(aiMsgId, this.formatJobFailureMessage(data.errorMessage));
         return;
       }
 
@@ -325,6 +383,24 @@ export class MusicState {
     this.pendingLibrarySongs = this.pendingLibrarySongs.filter((song) => song.jobId !== jobId);
   }
 
+  private formatJobFailureMessage(raw?: string | null): string {
+    const detail = (raw || '').trim();
+    if (!detail) return m["audio.music_generation_unavailable_description"]();
+
+    const lower = detail.toLowerCase();
+    if (lower.includes('insufficient_credits') || lower.includes('credits insufficient')) {
+      if (lower.includes('musicgpt')) {
+        return 'MusicGPT provider credits are insufficient. Top up MusicGPT, switch to a Suno model, or enable local GenAudius (:42003).';
+      }
+      if (lower.includes('suno')) {
+        return 'Suno provider credits are insufficient. Top up the Suno/Kie API account in Admin → AI models, or enable local GenAudius (:42003).';
+      }
+      return 'The music provider ran out of credits. Top up the API account, or enable local GenAudius (:42003).';
+    }
+
+    return detail.length > 280 ? `${detail.slice(0, 280)}…` : detail;
+  }
+
   private async waitForPendingJob(jobId: string, aiMsgId: string) {
     for (;;) {
       const response = await fetch(`/api/music-generation?jobId=${encodeURIComponent(jobId)}`);
@@ -340,11 +416,11 @@ export class MusicState {
       }
 
       if (data.status === 'failed') {
-        this.setJobFailed(aiMsgId, m["audio.music_generation_unavailable_description"]());
+        this.setJobFailed(aiMsgId, this.formatJobFailureMessage(data.errorMessage));
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 1200));
     }
   }
 
@@ -352,36 +428,61 @@ export class MusicState {
     const aiMsgIndex = this.feed.findIndex(item => item.id === aiMsgId || item.jobId === jobId);
     if (aiMsgIndex === -1) return;
 
+    const createdAt = new Date().toISOString();
+    const trackList: NonNullable<MusicFeedItem['tracks']> = Array.isArray(result.tracks) && result.tracks.length
+      ? result.tracks.map((track: any, index: number) => ({
+          id: track.musicId || track.id,
+          title: track.title || (index === 0 ? result.title || 'Generated Track' : `Generated Track ${index + 1}`),
+          url: track.url || `/api/music/${track.musicId || track.id}`,
+          imageUrl: track.imageUrl || result.imageUrl,
+          videoUrl: track.videoUrl || result.videoUrl,
+          lyrics: track.lyrics || result.lyrics,
+          durationMs: track.durationMs || result.durationMs,
+          createdAt
+        }))
+      : result.musicId
+        ? [
+            {
+              id: result.musicId,
+              title: result.title || 'Generated Track',
+              url: `/api/music/${result.musicId}`,
+              imageUrl: result.imageUrl,
+              videoUrl: result.videoUrl,
+              lyrics: result.lyrics,
+              durationMs: result.durationMs,
+              createdAt
+            }
+          ]
+        : [];
+
+    if (!trackList.length) return;
+
     const updatedFeed = [...this.feed];
     updatedFeed[aiMsgIndex] = {
       ...updatedFeed[aiMsgIndex],
       status: 'completed',
-      content: 'Here is your track!',
+      content:
+        trackList.length > 1
+          ? `Here are your ${trackList.length} tracks!`
+          : 'Here is your track!',
       jobId,
-      track: {
-        id: result.musicId,
-        title: result.title || 'Generated Track',
-        url: `/api/music/${result.musicId}`,
-        imageUrl: result.imageUrl,
-        videoUrl: result.videoUrl,
-        lyrics: result.lyrics,
-        durationMs: result.durationMs,
-        createdAt: new Date().toISOString()
-      }
+      track: trackList[0],
+      tracks: trackList
     };
     this.feed = updatedFeed;
+    this.persistFeed();
     this.removePendingLibrarySong(jobId);
     this.pendingLibrarySongs = [
-      {
-        id: result.musicId,
+      ...trackList.map((track) => ({
+        id: track.id,
         jobId,
-        prompt: result.prompt || 'Generated Track',
-        imageUrl: result.imageUrl || this.buildPendingArtwork(result.prompt || 'Generated Track'),
-        createdAt: new Date().toISOString(),
+        prompt: result.prompt || track.title,
+        imageUrl: track.imageUrl || this.buildPendingArtwork(result.prompt || track.title),
+        createdAt,
         isInstrumental: Boolean(result.isInstrumental),
-        status: 'completed',
-      },
-      ...this.pendingLibrarySongs,
+        status: 'completed' as const
+      })),
+      ...this.pendingLibrarySongs
     ];
     this.pendingJobId = null;
     this.clearPendingJob();
@@ -397,6 +498,7 @@ export class MusicState {
         content: message
       };
       this.feed = updatedFeed;
+      this.persistFeed();
     }
     if (this.pendingJobId) {
       this.addPendingLibrarySong(this.pendingJobId, message, 'error');

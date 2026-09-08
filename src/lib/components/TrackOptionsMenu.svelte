@@ -395,53 +395,6 @@
         class="cursor-pointer"
         onclick={() => {
           open = false;
-          void runMusicTool("extend");
-        }}
-      >
-        Extender pista
-      </DropdownMenu.Item>
-      <DropdownMenu.Item
-        class="cursor-pointer"
-        onclick={() => {
-          open = false;
-          void runMusicTool("cover", {
-            title: `${displayTitle} Cover`,
-            style: song.genre || "pop",
-            prompt: song.prompt || displayTitle
-          });
-        }}
-      >
-        Cover / nuevo estilo
-      </DropdownMenu.Item>
-      <DropdownMenu.Item
-        class="cursor-pointer"
-        onclick={() => {
-          open = false;
-          void runMusicTool("add-vocals", {
-            title: displayTitle,
-            style: song.genre || "pop",
-            prompt: song.prompt || "Sing with emotion"
-          });
-        }}
-      >
-        Agregar voces
-      </DropdownMenu.Item>
-      <DropdownMenu.Item
-        class="cursor-pointer"
-        onclick={() => {
-          open = false;
-          void runMusicTool("add-instrumental", {
-            title: `${displayTitle} Instrumental`,
-            tags: song.genre || "cinematic"
-          });
-        }}
-      >
-        Agregar instrumental
-      </DropdownMenu.Item>
-      <DropdownMenu.Item
-        class="cursor-pointer"
-        onclick={() => {
-          open = false;
           void runMusicTool("wav");
         }}
       >
@@ -455,6 +408,13 @@
         }}
       >
         Potenciar estilo
+      </DropdownMenu.Item>
+      <DropdownMenu.Item
+        class="cursor-pointer opacity-60"
+        disabled
+        title="Suno-conditioned tools disabled — GenAudius roadmap"
+      >
+        Extender / Cover / Voces (próximamente)
       </DropdownMenu.Item>
       <DropdownMenu.Item
         class="cursor-pointer"

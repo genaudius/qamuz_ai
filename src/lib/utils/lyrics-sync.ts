@@ -304,9 +304,12 @@ export function buildStructuredTimedLyrics(
 	const blocks = groupIntoSections(parsed);
 	const totalDur = duration > 0 ? duration : Math.max(sungRows.length * 3.2, 45);
 
-	// Typical Suno song: pad before first sung word + soft outro trail.
+	// Typical Suno/Kie song: long cold intro before first vocal — pad aggressively
+	// so heuristic lyrics don't light up ahead of the voice.
 	const hasIntro = blocks.some((b) => b.key === 'intro' || b.key === 'instrumental');
-	const leadIn = hasIntro ? Math.min(4, totalDur * 0.03) : Math.min(11, Math.max(5.5, totalDur * 0.09));
+	const leadIn = hasIntro
+		? Math.min(8, Math.max(3, totalDur * 0.045))
+		: Math.min(24, Math.max(12, totalDur * 0.15));
 	const trail = Math.min(8, totalDur * 0.05);
 	const usable = Math.max(totalDur - leadIn - trail, sungRows.length * 1.4);
 
@@ -369,10 +372,23 @@ export function buildTimedLyrics(raw: string, durationSec: number): TimedLyricLi
 	return buildStructuredTimedLyrics(raw, durationSec);
 }
 
+/**
+ * Kie/STT onset marks often fire slightly before the perceived vocal.
+ * Subtract this from the playhead when resolving the active line so lyrics
+ * don't appear ahead of the voice.
+ */
+export const LYRIC_VOICE_LAG_SEC = 0.45;
+
 /** Active lyric index for a playhead time (seconds). */
-export function activeLyricIndex(lines: TimedLyricLine[], timeSec: number): number {
+export function activeLyricIndex(
+	lines: TimedLyricLine[],
+	timeSec: number,
+	lagSec: number = LYRIC_VOICE_LAG_SEC
+): number {
 	if (lines.length === 0) return -1;
-	const t = Number.isFinite(timeSec) ? timeSec : 0;
+	const raw = Number.isFinite(timeSec) ? timeSec : 0;
+	const lag = Number.isFinite(lagSec) ? Math.max(0, lagSec) : 0;
+	const t = raw - lag;
 
 	// Before first sung word → no active lyric (intro / instrumental).
 	if (t < lines[0].start - 0.05) return -1;

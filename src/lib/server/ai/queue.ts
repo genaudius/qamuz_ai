@@ -49,11 +49,18 @@ function extractPromptField(prompt: string, label: string): string | undefined {
 	return match?.[1]?.trim() || undefined;
 }
 
-function buildMusicCoverPrompt(result: any, payload: JobPayload): string {
+function buildMusicCoverPrompt(
+	result: any,
+	payload: JobPayload,
+	options?: { variantIndex?: number; title?: string }
+): string {
 	const sourcePrompt = String(result.prompt || payload.prompt || '').trim();
 	const genre = extractPromptField(sourcePrompt, 'Genre');
 	const style = extractPromptField(sourcePrompt, 'Style');
-	const title = extractPromptField(sourcePrompt, 'Title');
+	const title =
+		options?.title?.trim() ||
+		extractPromptField(sourcePrompt, 'Title') ||
+		String(result.title || '').trim();
 	const lyrics = String(result.lyrics || extractPromptField(sourcePrompt, 'Lyrics') || '')
 		.replace(/\[[^\]]+\]/g, ' ')
 		.replace(/\s+/g, ' ')
@@ -63,6 +70,11 @@ function buildMusicCoverPrompt(result: any, payload: JobPayload): string {
 		: payload.vocalGender === 'duet'
 			? 'the emotional connection between two contrasting performers'
 			: `${payload.vocalGender || 'female'} vocal energy`;
+	const variantIndex = options?.variantIndex ?? 0;
+	const variantCue =
+		variantIndex === 0
+			? 'primary cover, bold focal subject, warm cinematic palette'
+			: `alternate cover take ${variantIndex + 1}, different composition and color mood, distinct silhouette from the primary cover`;
 
 	return [
 		'Professional square album cover artwork, cinematic and emotionally expressive',
@@ -71,13 +83,19 @@ function buildMusicCoverPrompt(result: any, payload: JobPayload): string {
 		title ? `visual concept inspired by the title ${title}` : '',
 		lyrics ? `narrative imagery inspired by these lyrical themes: ${lyrics}` : '',
 		vocalMood,
+		variantCue,
 		'strong central composition, memorable silhouette, premium record artwork, dramatic lighting, rich color harmony',
 		'no typography, no letters, no words, no logos, no watermark'
 	].filter(Boolean).join(', ');
 }
 
-async function generateMusicCover(result: any, job: any): Promise<string | undefined> {
-	if (result.imageUrl) return result.imageUrl;
+async function generateMusicCover(
+	result: any,
+	job: any,
+	options?: { forceNew?: boolean; variantIndex?: number; title?: string }
+): Promise<string | undefined> {
+	// Reuse an existing unique provider/cover URL only when not forcing a new art piece.
+	if (!options?.forceNew && result.imageUrl) return result.imageUrl;
 
 	const { generateLocalImage, isLocalImageReady } = await import('$lib/ai/providers/local-forge.js');
 	const status = await isLocalImageReady();
@@ -86,12 +104,12 @@ async function generateMusicCover(result: any, job: any): Promise<string | undef
 			`[QUEUE] Skipping automatic cover: Forge not reachable at ${status.baseUrl}` +
 			`${status.reason ? ` (${status.reason})` : ''}`
 		);
-		return undefined;
+		return options?.forceNew ? undefined : result.imageUrl;
 	}
 
 	const coverParams: ImageGenerationParams = {
 		model: 'qamuz-local-image',
-		prompt: buildMusicCoverPrompt(result, job.payload || {}),
+		prompt: buildMusicCoverPrompt(result, job.payload || {}, options),
 		size: '1024x1024',
 		quality: 'high',
 		style: 'album cover, editorial music photography, highly detailed, sharp focus',
@@ -103,7 +121,7 @@ async function generateMusicCover(result: any, job: any): Promise<string | undef
 		try {
 			const generated = await generateLocalImage(coverParams, { requireEnabled: false });
 			const imageUrl = `/api/images/${generated.imageId}`;
-			console.log(`[QUEUE] Cover generated for job ${job.id}: ${imageUrl}`);
+			console.log(`[QUEUE] Cover generated for job ${job.id} variant ${options?.variantIndex ?? 0}: ${imageUrl}`);
 			return imageUrl;
 		} catch (error) {
 			console.warn(`[QUEUE] Cover attempt ${attempt}/${maxAttempts} failed:`, error);
@@ -112,7 +130,7 @@ async function generateMusicCover(result: any, job: any): Promise<string | undef
 			}
 		}
 	}
-	return undefined;
+	return options?.forceNew ? undefined : result.imageUrl;
 }
 
 export class PriorityQueueService {
@@ -215,48 +233,150 @@ export class PriorityQueueService {
 				
 				if (lockedJob.type === 'music-generation') {
 					result = await PriorityQueueService.executeMusicGeneration(lockedJob);
-					const musicId = await saveMusicAndGetId(
-						result.audioData,
-						result.mimeType,
-						lockedJob.userId,
-						result.prompt,
-						result.model,
-						result.durationMs,
-						result.isInstrumental,
-						undefined,
-						result.imageUrl,
-						result.videoUrl,
-						result.lyrics
+
+					const variantSources =
+						Array.isArray(result.variants) && result.variants.length > 0
+							? result.variants
+							: [
+									{
+										audioData: result.audioData,
+										mimeType: result.mimeType,
+										title: result.title,
+										durationMs: result.durationMs,
+										imageUrl: result.imageUrl,
+										videoUrl: result.videoUrl,
+										lyrics: result.lyrics
+									}
+								];
+
+					const savedTracks = await Promise.all(
+						variantSources.map(async (variant: any, index: number) => {
+							let audioData = variant.audioData as string | undefined;
+							const mimeType = (variant.mimeType as string) || result.mimeType || 'audio/mpeg';
+							if (!audioData && typeof variant.audioUrl === 'string') {
+								const audioRes = await fetch(variant.audioUrl, {
+									signal: AbortSignal.timeout(120_000)
+								});
+								if (!audioRes.ok) {
+									throw new Error(`Failed to download music variant ${index + 1}: ${audioRes.status}`);
+								}
+								audioData = Buffer.from(await audioRes.arrayBuffer()).toString('base64');
+							}
+							if (!audioData) {
+								throw new Error(`Music variant ${index + 1} has no audio payload`);
+							}
+
+							const musicId = await saveMusicAndGetId(
+								audioData,
+								mimeType,
+								lockedJob.userId,
+								result.prompt,
+								result.model,
+								variant.durationMs ?? result.durationMs,
+								result.isInstrumental,
+								undefined,
+								variant.imageUrl ?? result.imageUrl,
+								variant.videoUrl ?? result.videoUrl,
+								variant.lyrics ?? result.lyrics
+							);
+
+							const title =
+								(typeof variant.title === 'string' && variant.title.trim()) ||
+								(index === 0 ? 'Generated Track' : `Generated Track ${index + 1}`);
+
+							return {
+								musicId,
+								title,
+								imageUrl: variant.imageUrl ?? result.imageUrl,
+								videoUrl: variant.videoUrl ?? result.videoUrl,
+								lyrics: variant.lyrics ?? result.lyrics,
+								durationMs: variant.durationMs ?? result.durationMs,
+								url: `/api/music/${musicId}`,
+								// Needed later for get-timestamped-lyrics (per-clip karaoke sync).
+								providerAudioId:
+									typeof variant.id === 'string' && variant.id.trim()
+										? variant.id.trim()
+										: undefined
+							};
+						})
 					);
 
-					result.imageUrl = await generateMusicCover(result, lockedJob);
-					if (result.imageUrl) {
-						await db.update(music)
-							.set({ imageUrl: result.imageUrl })
-							.where(eq(music.id, musicId));
-					}
+					// Distinct covers per clip (Kie often reuses one imageUrl for both).
+					const providerUrls = savedTracks
+						.map((track) => track.imageUrl)
+						.filter((url): url is string => Boolean(url));
+					const sharedProviderArt =
+						savedTracks.length > 1 &&
+						providerUrls.length === savedTracks.length &&
+						new Set(providerUrls).size === 1;
+
+					await Promise.all(
+						savedTracks.map(async (track, index) => {
+							const forceNew = sharedProviderArt || !track.imageUrl;
+							const coverSource = {
+								...result,
+								imageUrl: forceNew ? undefined : track.imageUrl,
+								title: track.title,
+								lyrics: track.lyrics
+							};
+							const imageUrl = await generateMusicCover(coverSource, lockedJob, {
+								forceNew,
+								variantIndex: index,
+								title: track.title
+							});
+							if (!imageUrl) return;
+							track.imageUrl = imageUrl;
+							await db.update(music).set({ imageUrl }).where(eq(music.id, track.musicId));
+						})
+					);
 
 					await UsageTrackingService.trackUsage(lockedJob.userId, 'audio').catch(console.error);
 
+					const primary = savedTracks[0];
 					result = {
-						...result,
-						musicId,
+						prompt: result.prompt,
+						model: result.model,
+						durationMs: primary?.durationMs ?? result.durationMs,
+						isInstrumental: result.isInstrumental,
+						providerTaskId: result.providerTaskId,
+						musicId: primary?.musicId,
+						musicIds: savedTracks.map((track) => track.musicId),
+						title: primary?.title,
+						imageUrl: primary?.imageUrl,
+						videoUrl: primary?.videoUrl,
+						lyrics: primary?.lyrics,
+						tracks: savedTracks
 					};
 
-					// Karaoke timings for ANY provider (Suno/Kie, MusicGPT, local GenAudius).
+					// Karaoke timings — primary first; siblings in background so the job returns faster.
 					try {
 						const { prefetchAlignedLyrics } = await import('$lib/server/music/align-lyrics.js');
-						await prefetchAlignedLyrics(musicId);
-						const [alignedRow] = await db
-							.select({ alignedLyrics: music.alignedLyrics })
-							.from(music)
-							.where(eq(music.id, musicId))
-							.limit(1);
-						if (alignedRow?.alignedLyrics) {
-							result.alignedLyrics = alignedRow.alignedLyrics;
+						const taskId =
+							typeof result.providerTaskId === 'string' ? result.providerTaskId : undefined;
+						if (primary?.musicId) {
+							await prefetchAlignedLyrics(primary.musicId, {
+								taskId,
+								audioId: primary.providerAudioId
+							});
+							const [alignedRow] = await db
+								.select({ alignedLyrics: music.alignedLyrics })
+								.from(music)
+								.where(eq(music.id, primary.musicId))
+								.limit(1);
+							if (alignedRow?.alignedLyrics) {
+								result.alignedLyrics = alignedRow.alignedLyrics;
+							}
+						}
+						for (const sibling of savedTracks.slice(1)) {
+							void prefetchAlignedLyrics(sibling.musicId, {
+								taskId,
+								audioId: sibling.providerAudioId
+							}).catch((alignErr) =>
+								console.warn(`[QUEUE] Aligned lyrics prefetch failed for ${sibling.musicId}:`, alignErr)
+							);
 						}
 					} catch (alignErr) {
-						console.warn(`[QUEUE] Aligned lyrics prefetch failed for ${musicId}:`, alignErr);
+						console.warn(`[QUEUE] Aligned lyrics prefetch failed:`, alignErr);
 					}
 				} else {
 					throw new Error(`Unsupported job type: ${lockedJob.type}`);
@@ -386,12 +506,14 @@ export class PriorityQueueService {
 
 			return await runMusicGpt(requestedModel);
 		} catch (error) {
-			if (!isSunoModel || !isSunoProviderCreditError(error)) {
-				throw error;
+			// Do not silently fall back to MusicGPT when the user selected Suno.
+			// MusicGPT remains available only when modelId starts with musicgpt-.
+			if (isSunoModel && isSunoProviderCreditError(error)) {
+				console.warn(
+					'[QUEUE] Suno credits insufficient — failing the job (MusicGPT auto-fallback disabled)'
+				);
 			}
-
-			console.warn('[QUEUE] Suno credits insufficient, retrying job with MusicGPT fallback');
-			return await runMusicGpt('musicgpt-v1');
+			throw error;
 		}
 	}
 

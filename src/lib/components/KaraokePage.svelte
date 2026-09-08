@@ -61,7 +61,9 @@
   let lastTrackId = $state<string | null>(null);
   let viewedTrackId = $state<string | null>(null);
   let alignedLines = $state<TimedLyricLine[] | null>(null);
-  let alignedSource = $state<"pending" | "kie" | "cached" | "stt" | "fallback" | "none">("pending");
+  let alignedSource = $state<
+    "pending" | "local" | "kie" | "cached" | "stt" | "fallback" | "none"
+  >("pending");
   let pageAudio = $state<HTMLAudioElement | null>(null);
   let mediaVideo = $state<HTMLVideoElement | null>(null);
   let booting = $state(true);
@@ -223,10 +225,11 @@
         );
         const src = String(payload?.source || "");
         if (src === "cached") alignedSource = "cached";
+        else if (src === "local") alignedSource = "local";
         else if (src === "kie") alignedSource = "kie";
         else if (src === "stt") alignedSource = "stt";
         else if (src === "structure") alignedSource = "fallback";
-        else alignedSource = alignedLines[0]?.timed ? "stt" : "fallback";
+        else alignedSource = alignedLines[0]?.timed ? "local" : "fallback";
 
         if (musicState.currentTrack?.id === id) {
           musicState.currentTrack = {
@@ -636,7 +639,7 @@
         </div>
         {#if alignedSource === "pending"}
           <p class="sync-hint">Calibrando voz…</p>
-        {:else if alignedSource === "stt" || alignedSource === "kie" || alignedSource === "cached"}
+        {:else if alignedSource === "local" || alignedSource === "stt" || alignedSource === "kie" || alignedSource === "cached"}
           <p class="sync-hint">Sync vocal</p>
         {:else if alignedSource === "fallback"}
           <p class="sync-hint">Sync por estructura</p>

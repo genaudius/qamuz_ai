@@ -161,9 +161,18 @@ export async function sunoCheckStatus(taskId: string): Promise<
     switch (data.status) {
         case 'SUCCESS':
         case 'FIRST_SUCCESS': {
-            const track = data.tracks[0];
-            const audioUrl = resolveKieAudioUrl(track);
+            const ready = data.tracks.filter((track) => Boolean(resolveKieAudioUrl(track)));
+            // Kie/Suno bills two clips per generate. Do not finish on FIRST_SUCCESS
+            // with only one ready URL — keep polling until the sibling appears.
+            if (data.status === 'FIRST_SUCCESS' && ready.length < 2) {
+                return { status: 'pending' };
+            }
+            if (!ready.length) {
+                return { status: 'pending' };
+            }
 
+            const track = ready[0];
+            const audioUrl = resolveKieAudioUrl(track);
             if (!track || !audioUrl) {
                 return { status: 'pending' };
             }
@@ -174,7 +183,7 @@ export async function sunoCheckStatus(taskId: string): Promise<
                     ...track,
                     audioUrl,
                 },
-                tracks: data.tracks
+                tracks: ready
             };
         }
         case 'CREATE_TASK_FAILED':
@@ -185,6 +194,21 @@ export async function sunoCheckStatus(taskId: string): Promise<
         default:
             return { status: 'pending' };
     }
+}
+
+async function downloadTrackAudio(track: KieSunoTrack): Promise<{
+    audioData: string;
+    mimeType: string;
+    audioUrl: string;
+    track: KieSunoTrack;
+}> {
+    const audioUrl = resolveKieAudioUrl(track);
+    if (!audioUrl) throw new Error('No audio URL in Suno track');
+    const audioRes = await fetch(audioUrl, { signal: AbortSignal.timeout(120_000) });
+    if (!audioRes.ok) throw new Error(`Failed to download Suno audio: ${audioRes.status}`);
+    const contentType = audioRes.headers.get('content-type') || 'audio/mpeg';
+    const audioData = Buffer.from(await audioRes.arrayBuffer()).toString('base64');
+    return { audioData, mimeType: contentType.includes('wav') ? 'audio/wav' : 'audio/mpeg', audioUrl, track };
 }
 
 async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResponse> {
@@ -210,48 +234,71 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
         personaModel: params.personaModel,
     });
 
-    // Only used internally (e.g. legacy code paths) — polls until done
     const MAX_WAIT = 600_000;
+    const POLL_MS = 1_000;
+    const SECOND_TRACK_GRACE_MS = 90_000;
     const deadline = Date.now() + MAX_WAIT;
-    let track: KieSunoTrack | undefined;
     let tracks: KieSunoTrack[] = [];
+    let firstReadyAt: number | null = null;
 
     while (Date.now() < deadline) {
-        const result = await sunoCheckStatus(taskId);
-        if (result.status === 'done') { track = result.track; tracks = result.tracks; break; }
-        if (result.status === 'error') throw createProviderError('Suno', 'generation task', new Error(result.errorMessage));
-        await new Promise((r) => setTimeout(r, 3_000));
+        const data = await getKieMusicStatus(taskId);
+        if (
+            data.status === 'CREATE_TASK_FAILED' ||
+            data.status === 'GENERATE_AUDIO_FAILED' ||
+            data.status === 'CALLBACK_EXCEPTION' ||
+            data.status === 'SENSITIVE_WORD_ERROR'
+        ) {
+            throw createProviderError('Suno', 'generation task', new Error(data.errorMessage || data.status));
+        }
+
+        const ready = data.tracks.filter((track) => Boolean(resolveKieAudioUrl(track)));
+        if (ready.length >= 1 && firstReadyAt == null) {
+            firstReadyAt = Date.now();
+        }
+
+        // Prefer both Kie clips (normal Suno generate = 2 songs billed).
+        if (ready.length >= 2) {
+            tracks = ready.slice(0, 2);
+            break;
+        }
+
+        // Safety: if the second clip never appears, keep the first rather than hanging.
+        if (firstReadyAt != null && Date.now() - firstReadyAt >= SECOND_TRACK_GRACE_MS && ready.length >= 1) {
+            console.warn(`[Suno] Only ${ready.length} clip(s) ready after grace; continuing with what Kie returned.`);
+            tracks = ready;
+            break;
+        }
+
+        await new Promise((r) => setTimeout(r, POLL_MS));
     }
 
-    if (!track) throw new Error('Suno generation timed out after 10 minutes');
+    if (!tracks.length) throw new Error('Suno generation timed out after 10 minutes');
 
-    const audioUrl = resolveKieAudioUrl(track);
-    if (!audioUrl) {
-        throw new Error('No audio URL in response');
-    }
-
-    const audioRes = await fetch(audioUrl);
-    if (!audioRes.ok) throw new Error(`Failed to download Suno audio: ${audioRes.status}`);
-    const audioData = Buffer.from(await audioRes.arrayBuffer()).toString('base64');
+    const downloaded = await Promise.all(tracks.map((track) => downloadTrackAudio(track)));
+    const primary = downloaded[0];
 
     return {
-        audioData,
-        mimeType: 'audio/mpeg',
+        audioData: primary.audioData,
+        mimeType: primary.mimeType,
         prompt: params.prompt,
         model: params.modelId || 'suno-v4.5',
-        durationMs: Math.round((track.duration || 0) * 1000),
+        durationMs: Math.round((primary.track.duration || 0) * 1000),
         isInstrumental: params.forceInstrumental ?? false,
-        imageUrl: track.imageUrl,
-        videoUrl: track.videoUrl,
-        lyrics: track.prompt || params.prompt,
+        imageUrl: primary.track.imageUrl,
+        videoUrl: primary.track.videoUrl,
+        lyrics: primary.track.prompt || params.prompt,
         providerTaskId: taskId,
-        variants: tracks.map((variant) => ({
-            id: variant.id,
-            audioUrl: resolveKieAudioUrl(variant)!,
-            title: variant.title,
-            durationMs: variant.duration == null ? undefined : Math.round(variant.duration * 1000),
-            imageUrl: variant.imageUrl,
-            videoUrl: variant.videoUrl
+        variants: downloaded.map((item, index) => ({
+            id: item.track.id || `${taskId}-${index + 1}`,
+            audioUrl: item.audioUrl,
+            audioData: item.audioData,
+            mimeType: item.mimeType,
+            title: item.track.title || (index === 0 ? 'Generated Track' : `Generated Track ${index + 1}`),
+            durationMs: item.track.duration == null ? undefined : Math.round(item.track.duration * 1000),
+            imageUrl: item.track.imageUrl,
+            videoUrl: item.track.videoUrl,
+            lyrics: item.track.prompt || params.prompt
         }))
     };
 }

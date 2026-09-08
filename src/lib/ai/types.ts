@@ -341,6 +341,10 @@ export interface AIMusicVariant {
 	durationMs?: number;
 	imageUrl?: string;
 	videoUrl?: string;
+	/** Present when the provider downloaded the variant bytes for persistence. */
+	audioData?: string;
+	mimeType?: string;
+	lyrics?: string;
 }
 
 export interface AIMusicResponse {
