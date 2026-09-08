@@ -344,6 +344,16 @@ const enhancedAuthHandle: Handle = async ({ event, resolve }) => {
 
 const betterAuthHandle: Handle = async ({ event, resolve }) => {
   const auth = await getAuth();
+
+  // Match by pathname so auth works across all production hostnames.
+  // better-auth's built-in isAuthPath() rejects requests when the request
+  // origin differs from a static BETTER_AUTH_URL / ORIGIN (e.g. vercel.app vs
+  // qamuz.ai), which surfaces in the UI as a generic sign-in failure.
+  const pathname = event.url.pathname;
+  if (!building && (pathname === '/api/auth' || pathname.startsWith('/api/auth/'))) {
+    return auth.handler(event.request);
+  }
+
   return svelteKitHandler({ event, resolve, auth, building });
 };
 

@@ -28,41 +28,105 @@ function normalizeOrigin(origin: string): string {
   return origin.endsWith('/') ? origin.slice(0, -1) : origin;
 }
 
-function resolveBaseURL(): string | undefined {
-  const candidates = [env.BETTER_AUTH_URL, env.ORIGIN];
+const DEFAULT_PRODUCTION_HOSTS = [
+  'qamuz.ai',
+  'www.qamuz.ai',
+  'qamuz.studio',
+  'www.qamuz.studio',
+  'qamuz-ai.vercel.app',
+  'qamuz-ai-genaudius-projects.vercel.app',
+  '*.vercel.app',
+] as const;
 
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue;
-    }
-
-    try {
-      return new URL(candidate).origin;
-    } catch (error) {
-      console.warn('[Auth] Invalid auth base URL candidate; ignoring value.', error);
-    }
+function parseOriginCandidate(candidate: string | undefined): string | undefined {
+  if (!candidate) {
+    return undefined;
   }
+
+  try {
+    return normalizeOrigin(new URL(candidate).origin);
+  } catch (error) {
+    console.warn('[Auth] Invalid auth origin candidate; ignoring value.', error);
+    return undefined;
+  }
+}
+
+function resolveFallbackBaseURL(): string | undefined {
+  return (
+    parseOriginCandidate(env.BETTER_AUTH_URL) ||
+    parseOriginCandidate(env.ORIGIN) ||
+    (!IS_PRODUCTION ? 'http://localhost:5173' : undefined)
+  );
+}
+
+/**
+ * Prefer dynamic baseURL so Better Auth's SvelteKit handler matches `/api/auth/*`
+ * on every production hostname (custom domains + Vercel aliases), not only the
+ * single origin stored in BETTER_AUTH_URL / ORIGIN.
+ */
+function resolveBaseURL():
+  | string
+  | {
+      allowedHosts: string[];
+      fallback?: string;
+      protocol?: 'http' | 'https';
+    }
+  | undefined {
+  const fallback = resolveFallbackBaseURL();
+  const extraHosts = (env.AUTH_ALLOWED_HOSTS || '')
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean);
 
   if (!IS_PRODUCTION) {
-    return 'http://localhost:5173';
+    return fallback || 'http://localhost:5173';
   }
 
-  return undefined;
+  const allowedHosts = Array.from(
+    new Set<string>([...DEFAULT_PRODUCTION_HOSTS, ...extraHosts])
+  );
+
+  if (fallback) {
+    try {
+      allowedHosts.push(new URL(fallback).host);
+    } catch {
+      // ignore invalid fallback host
+    }
+  }
+
+  return {
+    allowedHosts,
+    fallback,
+    protocol: 'https',
+  };
 }
 
 function getTrustedOrigins(): string[] {
   const origins = new Set<string>();
 
-  if (env.ORIGIN) {
-    origins.add(env.ORIGIN);
+  const configured = [
+    parseOriginCandidate(env.ORIGIN),
+    parseOriginCandidate(env.BETTER_AUTH_URL),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const origin of configured) {
+    origins.add(origin);
   }
 
-  if (env.BETTER_AUTH_URL) {
-    try {
-      origins.add(new URL(env.BETTER_AUTH_URL).origin);
-    } catch (error) {
-      console.warn('[Auth] Invalid BETTER_AUTH_URL; ignoring trusted origin derivation.', error);
+  for (const host of DEFAULT_PRODUCTION_HOSTS) {
+    if (host.includes('*')) {
+      continue;
     }
+    origins.add(`https://${host}`);
+  }
+
+  const extraOrigins = (env.AUTH_TRUSTED_ORIGINS || '')
+    .split(',')
+    .map((value) => parseOriginCandidate(value.trim()))
+    .filter((value): value is string => Boolean(value));
+
+  for (const origin of extraOrigins) {
+    origins.add(origin);
   }
 
   if (!IS_PRODUCTION) {
