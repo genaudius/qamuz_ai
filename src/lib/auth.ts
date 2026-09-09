@@ -29,20 +29,6 @@ function normalizeOrigin(origin: string): string {
 }
 
 function resolveBaseURL(): string | undefined {
-  const candidates = [env.BETTER_AUTH_URL, env.ORIGIN];
-
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue;
-    }
-
-    try {
-      return new URL(candidate).origin;
-    } catch (error) {
-      console.warn('[Auth] Invalid auth base URL candidate; ignoring value.', error);
-    }
-  }
-
   if (!IS_PRODUCTION) {
     return 'http://localhost:5173';
   }
@@ -55,15 +41,28 @@ function getTrustedOrigins(): string[] {
 
   if (env.ORIGIN) {
     origins.add(env.ORIGIN);
+    // Auto-add www variant if not present
+    if (env.ORIGIN.includes('://qamuz.ai')) {
+      origins.add(env.ORIGIN.replace('://qamuz', '://www.qamuz'));
+    }
   }
 
   if (env.BETTER_AUTH_URL) {
     try {
-      origins.add(new URL(env.BETTER_AUTH_URL).origin);
+      const authOrigin = new URL(env.BETTER_AUTH_URL).origin;
+      origins.add(authOrigin);
+      if (authOrigin.includes('://qamuz.ai')) {
+        origins.add(authOrigin.replace('://qamuz', '://www.qamuz'));
+      }
     } catch (error) {
       console.warn('[Auth] Invalid BETTER_AUTH_URL; ignoring trusted origin derivation.', error);
     }
   }
+
+  // Add explicit production domains to be safe
+  origins.add('https://qamuz.ai');
+  origins.add('https://www.qamuz.ai');
+  origins.add('https://qamuz-ai.vercel.app');
 
   if (!IS_PRODUCTION) {
     origins.add('http://localhost:5173');
