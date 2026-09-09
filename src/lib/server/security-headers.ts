@@ -61,6 +61,7 @@ function generateCSP(): string {
     ],
     'frame-src': [
       "'self'",
+      "https://qamuz.studio",
       "https://js.stripe.com",
       "https://challenges.cloudflare.com",
       ...(isDev ? ["http://localhost:1420", "http://127.0.0.1:1420"] : [])
@@ -91,7 +92,7 @@ export function getSecurityHeaders(): Record<string, string> {
   const isProduction = env.NODE_ENV === 'production';
   const studioEmbed = isDev
     ? '(self "http://localhost:1420" "http://127.0.0.1:1420")'
-    : '(self)';
+    : '(self "https://qamuz.studio")';
 
   const headers: Record<string, string> = {
     // Content Security Policy
