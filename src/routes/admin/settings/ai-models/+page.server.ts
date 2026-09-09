@@ -20,7 +20,11 @@ export const load: PageServerLoad = async () => {
         localImageEnabled: settings.local_image_enabled === 'true',
         localImageBaseUrl: settings.local_image_base_url || 'http://127.0.0.1:7860',
         localVideoEnabled: settings.local_video_enabled === 'true',
-        localVideoBaseUrl: settings.local_video_base_url || 'http://127.0.0.1:42005'
+        localVideoBaseUrl: settings.local_video_base_url || 'http://127.0.0.1:42005',
+        genaudiusModalUrl: settings.genaudius_modal_url || "",
+        genaudiusModalToken: settings.genaudius_modal_token || "",
+        genaudiusRunpodUrl: settings.genaudius_runpod_url || "",
+        genaudiusRunpodToken: settings.genaudius_runpod_token || ""
       },
       isDemoMode: isDemoModeEnabled()
     }
@@ -39,7 +43,11 @@ export const load: PageServerLoad = async () => {
         localImageEnabled: false,
         localImageBaseUrl: 'http://127.0.0.1:7860',
         localVideoEnabled: false,
-        localVideoBaseUrl: 'http://127.0.0.1:42005'
+        localVideoBaseUrl: 'http://127.0.0.1:42005',
+        genaudiusModalUrl: "",
+        genaudiusModalToken: "",
+        genaudiusRunpodUrl: "",
+        genaudiusRunpodToken: ""
       },
       isDemoMode: isDemoModeEnabled()
     }
@@ -68,6 +76,11 @@ export const actions: Actions = {
     const localImageBaseUrl = data.get('localImageBaseUrl')?.toString().trim() || 'http://127.0.0.1:7860'
     const localVideoEnabled = data.get('localVideoEnabled') === 'on'
     const localVideoBaseUrl = data.get('localVideoBaseUrl')?.toString().trim() || 'http://127.0.0.1:42005'
+
+    const genaudiusModalUrl = data.get('genaudiusModalUrl')?.toString().trim() || ''
+    const genaudiusModalToken = data.get('genaudiusModalToken')?.toString().trim() || ''
+    const genaudiusRunpodUrl = data.get('genaudiusRunpodUrl')?.toString().trim() || ''
+    const genaudiusRunpodToken = data.get('genaudiusRunpodToken')?.toString().trim() || ''
 
     try {
       const parsedLocalUrl = new URL(localMusicBaseUrl)
@@ -163,6 +176,18 @@ export const actions: Actions = {
       }
       if (localVideoBaseUrl && localVideoBaseUrl !== currentSettings.local_video_base_url) {
         settingsToSave.push({ key: 'local_video_base_url', value: localVideoBaseUrl, category: 'ai_models', description: 'Launcher-discovered local video API URL' });
+      }
+      if (genaudiusModalUrl !== currentSettings.genaudius_modal_url) {
+        settingsToSave.push({ key: 'genaudius_modal_url', value: genaudiusModalUrl, category: 'ai_models', description: 'Genaudius modal URL' });
+      }
+      if (genaudiusModalToken !== currentSettings.genaudius_modal_token) {
+        settingsToSave.push({ key: 'genaudius_modal_token', value: genaudiusModalToken, category: 'ai_models', description: 'Genaudius modal token' });
+      }
+      if (genaudiusRunpodUrl !== currentSettings.genaudius_runpod_url) {
+        settingsToSave.push({ key: 'genaudius_runpod_url', value: genaudiusRunpodUrl, category: 'ai_models', description: 'Genaudius runpod URL' });
+      }
+      if (genaudiusRunpodToken !== currentSettings.genaudius_runpod_token) {
+        settingsToSave.push({ key: 'genaudius_runpod_token', value: genaudiusRunpodToken, category: 'ai_models', description: 'Genaudius runpod token' });
       }
 
       // Only save if there are actual changes

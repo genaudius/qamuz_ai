@@ -22,7 +22,12 @@
   let isSubmitting = $state(false);
   let showOpenRouterKey = $state(false);
   let showReplicateKey = $state(false);
-  let showElevenLabsKey = $state(false);
+  let genaudiusModalUrl = $state(data.settings.genaudiusModalUrl);
+  let genaudiusModalToken = $state(data.settings.genaudiusModalToken);
+  let genaudiusRunpodUrl = $state(data.settings.genaudiusRunpodUrl);
+  let genaudiusRunpodToken = $state(data.settings.genaudiusRunpodToken);
+  let showGenAudiusModalToken = $state(false);
+  let showGenAudiusRunpodToken = $state(false);
   let showSunoKey = $state(false);
   let showMusicGptKey = $state(false);
 
@@ -67,6 +72,13 @@
   function isReplicateConfigured() {
     return replicateApiKey;
   }
+
+  let isGenAudiusModalConfigured = $derived(
+    genaudiusModalUrl.length > 0 && genaudiusModalToken.length > 0
+  );
+  let isGenAudiusRunpodConfigured = $derived(
+    genaudiusRunpodUrl.length > 0 && genaudiusRunpodToken.length > 0
+  );
 
   function isElevenLabsConfigured() {
     return elevenlabsApiKey;
@@ -392,6 +404,126 @@
       </Card.Content>
     </Card.Root>
 
+
+
+    <!-- GenAudius Configuration -->
+    <Card.Root>
+      <Card.Header>
+        <div class="flex items-center justify-between">
+          <div>
+            <Card.Title class="flex items-center gap-2">
+              GenAudius Serverless Infrastructure
+              {#if isGenAudiusModalConfigured || isGenAudiusRunpodConfigured}
+                <CheckCircleIcon class="w-4 h-4 text-green-500" />
+              {/if}
+            </Card.Title>
+            <Card.Description>Manage API keys and Endpoint URLs for Modal and RunPod serverless deployments.</Card.Description>
+          </div>
+        </div>
+      </Card.Header>
+      <Card.Content class="space-y-6">
+        
+        <!-- Modal Serverless -->
+        <div class="space-y-4">
+          <h4 class="font-medium text-gray-800 flex items-center gap-2">
+            Modal (Primary)
+            {#if isGenAudiusModalConfigured}
+              <CheckCircleIcon class="w-4 h-4 text-green-500" />
+            {/if}
+          </h4>
+          <div class="space-y-2">
+            <Label for="genaudiusModalUrl">Modal Endpoint URL</Label>
+            <Input
+              id="genaudiusModalUrl"
+              name="genaudiusModalUrl"
+              type="text"
+              placeholder="https://your-workspace--genaudius-v1-api-app.modal.run"
+              bind:value={genaudiusModalUrl}
+              disabled={data.isDemoMode}
+            />
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <Label for="genaudiusModalToken">Modal App Token (Secret)</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onclick={() => (showGenAudiusModalToken = !showGenAudiusModalToken)}
+                class="h-auto p-1"
+                disabled={data.isDemoMode}
+              >
+                {#if showGenAudiusModalToken}
+                  <EyeOffIcon class="w-4 h-4" />
+                {:else}
+                  <EyeIcon class="w-4 h-4" />
+                {/if}
+              </Button>
+            </div>
+            <Input
+              id="genaudiusModalToken"
+              name="genaudiusModalToken"
+              type={showGenAudiusModalToken ? "text" : "password"}
+              placeholder="modal_api_token"
+              bind:value={genaudiusModalToken}
+              class="font-mono"
+              disabled={data.isDemoMode}
+            />
+          </div>
+        </div>
+
+        <Separator />
+
+        <!-- RunPod Serverless -->
+        <div class="space-y-4">
+          <h4 class="font-medium text-gray-800 flex items-center gap-2">
+            RunPod (Failover)
+            {#if isGenAudiusRunpodConfigured}
+              <CheckCircleIcon class="w-4 h-4 text-green-500" />
+            {/if}
+          </h4>
+          <div class="space-y-2">
+            <Label for="genaudiusRunpodUrl">RunPod Endpoint URL</Label>
+            <Input
+              id="genaudiusRunpodUrl"
+              name="genaudiusRunpodUrl"
+              type="text"
+              placeholder="https://api.runpod.ai/v2/your_endpoint_id"
+              bind:value={genaudiusRunpodUrl}
+              disabled={data.isDemoMode}
+            />
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <Label for="genaudiusRunpodToken">RunPod API Key (Secret)</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onclick={() => (showGenAudiusRunpodToken = !showGenAudiusRunpodToken)}
+                class="h-auto p-1"
+                disabled={data.isDemoMode}
+              >
+                {#if showGenAudiusRunpodToken}
+                  <EyeOffIcon class="w-4 h-4" />
+                {:else}
+                  <EyeIcon class="w-4 h-4" />
+                {/if}
+              </Button>
+            </div>
+            <Input
+              id="genaudiusRunpodToken"
+              name="genaudiusRunpodToken"
+              type={showGenAudiusRunpodToken ? "text" : "password"}
+              placeholder="runpod_api_key"
+              bind:value={genaudiusRunpodToken}
+              class="font-mono"
+              disabled={data.isDemoMode}
+            />
+          </div>
+        </div>
+      </Card.Content>
+    </Card.Root>
 
     <!-- Local music configuration -->
     <Card.Root>
