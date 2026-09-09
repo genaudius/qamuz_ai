@@ -200,12 +200,19 @@ async function kieRequest<T>(path: string, init?: RequestInit): Promise<KieEnvel
 }
 
 export async function submitKieMusic(input: KieGenerateMusicInput): Promise<string> {
-	const payload = await kieRequest<{ taskId?: string }>('/generate', {
+	const payload = await kieRequest<any>('/generate', {
 		method: 'POST',
 		body: JSON.stringify(buildKieGenerateBody(input))
 	});
-	if (!payload.data?.taskId) throw new KieApiError('Kie did not return a generation task ID.', payload.code);
-	return payload.data.taskId;
+	
+	const rawData = payload.data;
+	const dataObj = Array.isArray(rawData) ? rawData[0] : rawData;
+	
+	if (!dataObj?.taskId && !dataObj?.task_id) {
+		console.error("[KIE] Submit failed, payload:", payload);
+		throw new KieApiError('Kie did not return a generation task ID.', payload.code);
+	}
+	return dataObj.taskId || dataObj.task_id;
 }
 
 export async function getKieMusicStatus(taskId: string): Promise<{
@@ -213,15 +220,27 @@ export async function getKieMusicStatus(taskId: string): Promise<{
 	errorMessage?: string;
 	tracks: KieSunoTrack[];
 }> {
-	const payload = await kieRequest<{
-		status?: string;
-		errorMessage?: string;
-		response?: { sunoData?: KieSunoTrack[] };
-	}>(`/generate/record-info?taskId=${encodeURIComponent(taskId)}`);
+	const payload = await kieRequest<any>(`/generate/record-info?taskId=${encodeURIComponent(taskId)}`);
+	
+	const rawData = payload.data;
+	const dataObj = Array.isArray(rawData) ? rawData[0] : rawData;
+	
+	if (!dataObj) {
+		console.warn(`[KIE] No data returned for taskId ${taskId}. Payload:`, payload);
+		return { status: 'PENDING', tracks: [] };
+	}
+
+	const status = dataObj.status || 'PENDING';
+	if (status === 'FAILED' || status === 'CREATE_TASK_FAILED' || status === 'GENERATE_AUDIO_FAILED') {
+		console.error(`[KIE] Task ${taskId} failed. Status: ${status}, payload:`, payload);
+	} else if (status === 'PENDING') {
+		console.log(`[KIE] Task ${taskId} pending. payload:`, payload);
+	}
+
 	return {
-		status: payload.data?.status || 'PENDING',
-		errorMessage: payload.data?.errorMessage,
-		tracks: (payload.data?.response?.sunoData || []).filter((track) => Boolean(resolveKieAudioUrl(track)))
+		status,
+		errorMessage: dataObj.errorMessage,
+		tracks: (dataObj.response?.sunoData || dataObj.sunoData || []).filter((track: any) => Boolean(resolveKieAudioUrl(track)))
 	};
 }
 
