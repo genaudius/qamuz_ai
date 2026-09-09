@@ -21,6 +21,22 @@ function envUrl(name: string): string | undefined {
 	}
 }
 
+function isRunPodUrl(baseUrl: string): boolean {
+	return new URL(baseUrl).hostname.endsWith('.api.runpod.ai');
+}
+
+function workerToken(baseUrl: string): string | undefined {
+	const primary = envUrl('GENAUDIUS_PRIMARY_URL');
+	const failover = envUrl('GENAUDIUS_FAILOVER_URL');
+	if (primary === baseUrl) {
+		return env.GENAUDIUS_PRIMARY_TOKEN || env.GENAUDIUS_API_TOKEN || undefined;
+	}
+	if (failover === baseUrl) {
+		return env.GENAUDIUS_FAILOVER_TOKEN || env.GENAUDIUS_API_TOKEN || undefined;
+	}
+	return env.GENAUDIUS_API_TOKEN || undefined;
+}
+
 /** Ordered GenAudius worker URLs: primary (RunPod) then failover (Modal). */
 export async function getGenAudiusWorkerUrls(): Promise<string[]> {
 	const config = await getLocalMusicConfig();
@@ -43,6 +59,10 @@ async function requestJson<T>(url: string, init?: RequestInit, timeoutMs = 15_00
 }
 
 async function withAuthHeaders(baseUrl: string): Promise<Record<string, string>> {
+	const configuredToken = workerToken(baseUrl);
+	if (configuredToken) {
+		return { Authorization: `Bearer ${configuredToken}`, 'Content-Type': 'application/json' };
+	}
 	try {
 		const auth = await requestJson<{ token?: string }>(`${baseUrl}/api/auth/auto`);
 		if (auth.token) {
@@ -86,6 +106,27 @@ async function postAudioTool<T>(
 ): Promise<T> {
 	const { data } = await withFailover(async (baseUrl) => {
 		const headers = await withAuthHeaders(baseUrl);
+		if (isRunPodUrl(baseUrl)) {
+			const operationByPath: Record<string, string> = {
+				'/api/convert/wav': 'convert_wav',
+				'/api/align-lyrics': 'align_lyrics',
+				'/api/stems': 'stems',
+				'/api/midi': 'midi'
+			};
+			const response = await requestJson<{ output?: T; error?: string }>(
+				`${baseUrl}/runsync`,
+				{
+					method: 'POST',
+					headers,
+					body: JSON.stringify({ input: { operation: operationByPath[path], ...body } })
+				},
+				timeoutMs
+			);
+			if (response.error || !response.output) {
+				throw new Error(response.error || 'RunPod returned no output');
+			}
+			return response.output;
+		}
 		return requestJson<T>(`${baseUrl}${path}`, {
 			method: 'POST',
 			headers,

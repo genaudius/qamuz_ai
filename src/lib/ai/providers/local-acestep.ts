@@ -64,6 +64,42 @@ function normalizeBaseUrl(value: string): string {
 	return url.toString().replace(/\/$/, '');
 }
 
+function configuredWorkerUrls(): string[] {
+	const urls: string[] = [];
+	for (const raw of [env.GENAUDIUS_PRIMARY_URL, env.GENAUDIUS_FAILOVER_URL]) {
+		if (!raw?.trim()) continue;
+		try {
+			const url = normalizeBaseUrl(raw.trim());
+			if (!urls.includes(url)) urls.push(url);
+		} catch {
+			// Ignore invalid optional worker URLs and retain the remaining targets.
+		}
+	}
+	return urls;
+}
+
+function workerToken(baseUrl: string): string | undefined {
+	const safeUrl = (value?: string) => {
+		try {
+			return value?.trim() ? normalizeBaseUrl(value.trim()) : undefined;
+		} catch {
+			return undefined;
+		}
+	};
+	const primary = safeUrl(env.GENAUDIUS_PRIMARY_URL);
+	const failover = safeUrl(env.GENAUDIUS_FAILOVER_URL);
+	if (baseUrl === primary) return env.GENAUDIUS_PRIMARY_TOKEN || env.GENAUDIUS_API_TOKEN || undefined;
+	if (baseUrl === failover) return env.GENAUDIUS_FAILOVER_TOKEN || env.GENAUDIUS_API_TOKEN || undefined;
+	return env.GENAUDIUS_API_TOKEN || undefined;
+}
+
+function workerKind(baseUrl: string): 'modal' | 'runpod' | 'local' {
+	const hostname = new URL(baseUrl).hostname;
+	if (hostname.endsWith('.modal.run')) return 'modal';
+	if (hostname.endsWith('.api.runpod.ai')) return 'runpod';
+	return 'local';
+}
+
 export async function getLocalMusicConfig(): Promise<LocalMusicConfig> {
 	const [enabledSetting, baseUrlSetting] = await Promise.all([
 		adminSettingsService.getSetting('local_music_enabled').catch(() => null),
@@ -72,7 +108,7 @@ export async function getLocalMusicConfig(): Promise<LocalMusicConfig> {
 	const enabledValue = enabledSetting ?? env.LOCAL_MUSIC_ENABLED ?? 'false';
 	const baseUrl = baseUrlSetting ?? env.LOCAL_MUSIC_BASE_URL ?? DEFAULT_BASE_URL;
 	return {
-		enabled: enabledValue === 'true',
+		enabled: enabledValue === 'true' || configuredWorkerUrls().length > 0,
 		baseUrl: normalizeBaseUrl(baseUrl)
 	};
 }
@@ -114,22 +150,61 @@ function isTerminalFailure(status?: string): boolean {
 	return status === 'failed' || status === 'cancelled';
 }
 
+interface CloudMusicResult {
+	audio_base64: string;
+	format?: string;
+	sample_rate?: number;
+	seconds?: number;
+	lyrics?: string;
+	image_url?: string;
+}
+
+async function generateWithCloudWorker(
+	baseUrl: string,
+	body: Record<string, unknown>
+): Promise<CloudMusicResult> {
+	const token = workerToken(baseUrl);
+	if (!token) throw new Error(`Missing GenAudius token for ${new URL(baseUrl).hostname}`);
+	const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+	const cloudInput = {
+		operation: 'generate',
+		genre: body.genre,
+		style: body.style,
+		text: body.songDescription,
+		seconds: body.duration,
+		temperature: 1,
+		top_k: 250,
+		top_p: 0,
+		cfg_scale: 3,
+		seed: body.seed
+	};
+
+	if (workerKind(baseUrl) === 'runpod') {
+		const result = await requestJson<{
+			output?: CloudMusicResult;
+			error?: string;
+			status?: string;
+		}>(
+			`${baseUrl}/runsync`,
+			{ method: 'POST', headers, body: JSON.stringify({ input: cloudInput }) },
+			GENERATION_TIMEOUT_MS
+		);
+		if (result.error || !result.output) {
+			throw new Error(result.error || `RunPod generation ${result.status || 'returned no output'}`);
+		}
+		return result.output;
+	}
+
+	return requestJson<CloudMusicResult>(
+		`${baseUrl}/v1/generate`,
+		{ method: 'POST', headers, body: JSON.stringify(cloudInput) },
+		GENERATION_TIMEOUT_MS
+	);
+}
+
 async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResponse> {
 	const config = await getLocalMusicConfig();
 	if (!config.enabled) throw new Error('Local music provider is not enabled');
-
-	const health = await requestJson<{ status?: string; model_loaded?: boolean }>(
-		`${config.baseUrl}/health`
-	).catch(() => ({ status: 'ok', model_loaded: true }));
-	if (health.model_loaded === false) {
-		throw new Error('GenAudius is still loading the music model. Try again in a minute.');
-	}
-
-	const token = await ensureAuthToken(config.baseUrl);
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json',
-		...(token ? { Authorization: `Bearer ${token}` } : {})
-	};
 	const durationSeconds = Math.max(15, Math.min(240, Math.round((params.musicLengthMs ?? 210_000) / 1000)));
 	const genre = inferGenre(params.prompt, params.style);
 	const style = inferStyle(params.prompt, params.style);
@@ -146,6 +221,44 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
 		batchSize: 1,
 		audioFormat: String(params.outputFormat || '').toLowerCase().includes('wav') ? 'wav' : 'mp3',
 		vocalLanguage: 'es'
+	};
+
+	const cloudUrls = configuredWorkerUrls();
+	if (cloudUrls.length) {
+		let lastError: unknown;
+		for (const baseUrl of cloudUrls) {
+			try {
+				const result = await generateWithCloudWorker(baseUrl, body);
+				if (!result.audio_base64) throw new Error('GenAudius cloud worker returned no audio');
+				return {
+					audioData: result.audio_base64,
+					mimeType: result.format === 'mp3' ? 'audio/mpeg' : 'audio/wav',
+					prompt: params.prompt,
+					model: `genaudius-${workerKind(baseUrl)}`,
+					durationMs: Math.round(Number(result.seconds ?? durationSeconds) * 1000),
+					isInstrumental: params.forceInstrumental ?? false,
+					lyrics: result.lyrics || params.lyrics,
+					imageUrl: result.image_url
+				};
+			} catch (error) {
+				lastError = error;
+				console.warn(`[genaudius] generation worker failed @ ${baseUrl}:`, error);
+			}
+		}
+		throw lastError instanceof Error ? lastError : new Error('All GenAudius generation workers failed');
+	}
+
+	const health = await requestJson<{ status?: string; model_loaded?: boolean }>(
+		`${config.baseUrl}/health`
+	).catch(() => ({ status: 'ok', model_loaded: true }));
+	if (health.model_loaded === false) {
+		throw new Error('GenAudius is still loading the music model. Try again in a minute.');
+	}
+
+	const token = await ensureAuthToken(config.baseUrl);
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		...(token ? { Authorization: `Bearer ${token}` } : {})
 	};
 	const submitted = await requestJson<{ jobId?: string }>(`${config.baseUrl}/api/generate`, {
 		method: 'POST',
