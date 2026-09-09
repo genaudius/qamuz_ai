@@ -11,6 +11,7 @@ import { securityHeaders } from '$lib/server/security-headers.js'
 import { getAuth } from '$lib/auth'
 import { svelteKitHandler } from 'better-auth/svelte-kit'
 import { sendWelcomeEmail } from '$lib/server/email.js'
+import { readStudioBearer } from '$lib/server/studio-sso.js'
 
 // Settings handle - loads and caches site settings
 const settingsHandle: Handle = async ({ event, resolve }) => {
@@ -173,7 +174,19 @@ const enhancedAuthHandle: Handle = async ({ event, resolve }) => {
     });
 
     if (!sessionData?.user?.id) {
-      return null;
+      const studio = readStudioBearer(event.request);
+      if (!studio) return null;
+      return {
+        user: {
+          id: studio.saasUserId,
+          email: studio.email,
+          name: studio.name || null,
+          image: null,
+          isAdmin: false,
+          planTier: studio.planTier,
+        },
+        expires: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+      };
     }
 
     const sessionExpiresAt = sessionData.session.expiresAt;
