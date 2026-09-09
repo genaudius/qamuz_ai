@@ -8,13 +8,14 @@
   // Keep the hostname identical to the Vite host used by Studio in local dev.
   // On Windows, `localhost` may resolve to IPv6 while Studio listens on IPv4.
   const studioDevOrigin = "http://127.0.0.1:1420";
+  const studioProductionOrigin = "https://qamuz.studio";
   let studioFrame = $state<HTMLIFrameElement | null>(null);
   let studioMissing = $state(false);
   let reloadNonce = $state(0);
 
   function studioUrl(params: URLSearchParams) {
     if (dev) return `${studioDevOrigin}/?${params}`;
-    return `/qamuz-studio/?${params}`;
+    return `${studioProductionOrigin}/?${params}`;
   }
 
   function studioParams() {
@@ -36,7 +37,7 @@
   function isStudioOrigin(origin: string) {
     try {
       const url = new URL(origin);
-      return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "qamuz.ai" || url.hostname.endsWith(".qamuz.ai");
+      return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "qamuz.ai" || url.hostname.endsWith(".qamuz.ai") || url.hostname === "qamuz.studio" || url.hostname.endsWith(".qamuz.studio");
     } catch {
       return false;
     }
