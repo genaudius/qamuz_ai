@@ -268,7 +268,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					personaModel
 				});
 
-				const jobId = crypto.randomUUID();
+				const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 				await db.insert(aiJobs).values({
 					id: jobId,
 					userId: session.user.id,
