@@ -74,6 +74,17 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 			});
 		}
 
+		// Handle Kie external CDN links
+		if (musicRecord.storageLocation === 'kie' && musicRecord.cloudPath) {
+			return new Response(null, {
+				status: 302,
+				headers: {
+					'Location': musicRecord.cloudPath,
+					'Cache-Control': 'public, max-age=3600'
+				}
+			});
+		}
+
 		// Handle local files - use cloudPath stored in database
 		if (!musicRecord.cloudPath) {
 			throw error(404, 'Music file path not found');
