@@ -11,6 +11,10 @@ import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mo
 import { getLocalMusicConfig } from '$lib/ai/providers/local-acestep.js';
 import { getGenerationRateLimitPayload } from '$lib/server/file-upload-rate-limiting.js';
 
+export const config = {
+	maxDuration: 60 // Prevent Vercel timeout when downloading 2x 5MB MP3s
+};
+
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const session = await locals.auth();
 	if (!session?.user?.id) {
@@ -43,7 +47,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			const taskId = (job.payload as any).taskId;
 			const data = await getKieMusicStatus(taskId);
 			
-			if (data.status === 'SUCCESS' || data.status === 'FIRST_SUCCESS') {
+			if (data.status === 'SUCCESS') {
 				const ready = data.tracks?.filter((track: any) => Boolean(resolveKieAudioUrl(track))) || [];
 				if (ready.length > 0) {
 					const { saveMusicAndGetId } = await import('$lib/ai/utils.js');
