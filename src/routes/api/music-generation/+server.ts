@@ -45,7 +45,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			
 			if (data.status === 'SUCCESS' || data.status === 'FIRST_SUCCESS') {
 				const ready = data.tracks?.filter((track: any) => Boolean(resolveKieAudioUrl(track))) || [];
-				if (ready.length > 0 && (data.status === 'SUCCESS' || ready.length >= 2)) {
+				if (ready.length > 0) {
 					const { saveMusicAndGetId } = await import('$lib/ai/utils.js');
 					
 					const savedTracks = await Promise.all(ready.map(async (track: any, index: number) => {
