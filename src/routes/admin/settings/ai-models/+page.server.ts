@@ -24,7 +24,8 @@ export const load: PageServerLoad = async () => {
         genaudiusModalUrl: settings.genaudius_modal_url || "",
         genaudiusModalToken: settings.genaudius_modal_token || "",
         genaudiusRunpodUrl: settings.genaudius_runpod_url || "",
-        genaudiusRunpodToken: settings.genaudius_runpod_token || ""
+        genaudiusRunpodToken: settings.genaudius_runpod_token || "",
+        genaudiusEnabled: settings.genaudius_enabled === 'true'
       },
       isDemoMode: isDemoModeEnabled()
     }
@@ -47,7 +48,8 @@ export const load: PageServerLoad = async () => {
         genaudiusModalUrl: "",
         genaudiusModalToken: "",
         genaudiusRunpodUrl: "",
-        genaudiusRunpodToken: ""
+        genaudiusRunpodToken: "",
+        genaudiusEnabled: false
       },
       isDemoMode: isDemoModeEnabled()
     }
@@ -81,6 +83,7 @@ export const actions: Actions = {
     const genaudiusModalToken = data.get('genaudiusModalToken')?.toString().trim() || ''
     const genaudiusRunpodUrl = data.get('genaudiusRunpodUrl')?.toString().trim() || ''
     const genaudiusRunpodToken = data.get('genaudiusRunpodToken')?.toString().trim() || ''
+    const genaudiusEnabled = data.get('genaudiusEnabled') === 'on'
 
     try {
       const parsedLocalUrl = new URL(localMusicBaseUrl)
@@ -188,6 +191,9 @@ export const actions: Actions = {
       }
       if (genaudiusRunpodToken !== currentSettings.genaudius_runpod_token) {
         settingsToSave.push({ key: 'genaudius_runpod_token', value: genaudiusRunpodToken, category: 'ai_models', description: 'Genaudius runpod token' });
+      }
+      if (String(genaudiusEnabled) !== currentSettings.genaudius_enabled) {
+        settingsToSave.push({ key: 'genaudius_enabled', value: String(genaudiusEnabled), category: 'ai_models', description: 'Enable GenAudius integration' });
       }
 
       // Only save if there are actual changes

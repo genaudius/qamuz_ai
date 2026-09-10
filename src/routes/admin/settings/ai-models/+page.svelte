@@ -27,6 +27,7 @@
   let genaudiusModalToken = $state(data.settings.genaudiusModalToken);
   let genaudiusRunpodUrl = $state(data.settings.genaudiusRunpodUrl);
   let genaudiusRunpodToken = $state(data.settings.genaudiusRunpodToken);
+  let genaudiusEnabled = $state(data.settings.genaudiusEnabled);
   let showGenAudiusModalToken = $state(false);
   let showGenAudiusRunpodToken = $state(false);
   let showElevenLabsKey = $state(false);
@@ -58,6 +59,11 @@
     elevenlabsApiKey = settings?.elevenlabsApiKey || "";
     sunoApiKey = settings?.sunoApiKey || "";
     musicgptApiKey = settings?.musicgptApiKey || "";
+    genaudiusModalUrl = settings?.genaudiusModalUrl || "";
+    genaudiusModalToken = settings?.genaudiusModalToken || "";
+    genaudiusRunpodUrl = settings?.genaudiusRunpodUrl || "";
+    genaudiusRunpodToken = settings?.genaudiusRunpodToken || "";
+    genaudiusEnabled = settings?.genaudiusEnabled || false;
     localMusicEnabled = settings?.localMusicEnabled || false;
     localMusicBaseUrl = settings?.localMusicBaseUrl || "http://localhost:42003";
     localImageEnabled = settings?.localImageEnabled || false;
@@ -191,9 +197,9 @@
         </div>
       </Card.Header>
       <Card.Content class="space-y-4">
-        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <h4 class="font-medium text-gray-800 mb-2">Setup Instructions:</h4>
-          <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+        <div class="p-3 bg-muted border border-gray-200 rounded-md">
+          <h4 class="font-medium text-foreground mb-2">Setup Instructions:</h4>
+          <ol class="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
             <li>
               Go to <a
                 href="https://openrouter.ai/"
@@ -267,9 +273,9 @@
         </div>
       </Card.Header>
       <Card.Content class="space-y-4">
-        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <h4 class="font-medium text-gray-800 mb-2">Setup Instructions:</h4>
-          <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+        <div class="p-3 bg-muted border border-gray-200 rounded-md">
+          <h4 class="font-medium text-foreground mb-2">Setup Instructions:</h4>
+          <ol class="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
             <li>
               Go to <a
                 href="https://replicate.com/account/api-tokens"
@@ -353,9 +359,9 @@
         </div>
       </Card.Header>
       <Card.Content class="space-y-4">
-        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <h4 class="font-medium text-gray-800 mb-2">Setup Instructions:</h4>
-          <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+        <div class="p-3 bg-muted border border-gray-200 rounded-md">
+          <h4 class="font-medium text-foreground mb-2">Setup Instructions:</h4>
+          <ol class="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
             <li>
               Go to <a
                 href="https://elevenlabs.io/app/settings/api-keys"
@@ -411,7 +417,7 @@
     <!-- GenAudius Configuration -->
     <Card.Root>
       <Card.Header>
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-4">
           <div>
             <Card.Title class="flex items-center gap-2">
               GenAudius Serverless Infrastructure
@@ -421,13 +427,23 @@
             </Card.Title>
             <Card.Description>Manage API keys and Endpoint URLs for Modal and RunPod serverless deployments.</Card.Description>
           </div>
+          <label class="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              name="genaudiusEnabled"
+              bind:checked={genaudiusEnabled}
+              disabled={data.isDemoMode}
+              class="h-4 w-4 rounded border-gray-300"
+            />
+            Enabled
+          </label>
         </div>
       </Card.Header>
       <Card.Content class="space-y-6">
         
         <!-- Modal Serverless -->
         <div class="space-y-4">
-          <h4 class="font-medium text-gray-800 flex items-center gap-2">
+          <h4 class="font-medium text-foreground flex items-center gap-2">
             Modal (Primary)
             {#if isGenAudiusModalConfigured}
               <CheckCircleIcon class="w-4 h-4 text-green-500" />
@@ -478,7 +494,7 @@
 
         <!-- RunPod Serverless -->
         <div class="space-y-4">
-          <h4 class="font-medium text-gray-800 flex items-center gap-2">
+          <h4 class="font-medium text-foreground flex items-center gap-2">
             RunPod (Failover)
             {#if isGenAudiusRunpodConfigured}
               <CheckCircleIcon class="w-4 h-4 text-green-500" />
@@ -652,9 +668,9 @@
         </div>
       </Card.Header>
       <Card.Content class="space-y-4">
-        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <h4 class="font-medium text-gray-800 mb-2">Setup Instructions:</h4>
-          <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+        <div class="p-3 bg-muted border border-gray-200 rounded-md">
+          <h4 class="font-medium text-foreground mb-2">Setup Instructions:</h4>
+          <ol class="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
             <li>
               Go to <a
                 href="https://kie.ai"
@@ -728,9 +744,9 @@
         </div>
       </Card.Header>
       <Card.Content class="space-y-4">
-        <div class="p-3 bg-gray-50 border border-gray-200 rounded-md">
-          <h4 class="font-medium text-gray-800 mb-2">Setup Instructions:</h4>
-          <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+        <div class="p-3 bg-muted border border-gray-200 rounded-md">
+          <h4 class="font-medium text-foreground mb-2">Setup Instructions:</h4>
+          <ol class="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
             <li>
               Go to <a
                 href="https://musicgpt.com"
