@@ -4,6 +4,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
+  import { Separator } from "$lib/components/ui/separator/index.js";
   import { enhance } from "$app/forms";
 
   // Import icons
@@ -28,6 +29,7 @@
   let genaudiusRunpodToken = $state(data.settings.genaudiusRunpodToken);
   let showGenAudiusModalToken = $state(false);
   let showGenAudiusRunpodToken = $state(false);
+  let showElevenLabsKey = $state(false);
   let showSunoKey = $state(false);
   let showMusicGptKey = $state(false);
 
