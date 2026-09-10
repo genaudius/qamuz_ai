@@ -83,7 +83,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 					const result = {
 						prompt: (job.payload as any).prompt,
 						model: (job.payload as any).modelId || 'suno-v5.5',
-						variants: savedTracks
+						tracks: savedTracks
 					};
 
 					await db.update(aiJobs).set({ status: 'completed', result }).where(eq(aiJobs.id, job.id));
