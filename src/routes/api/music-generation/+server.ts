@@ -36,6 +36,71 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		return json({ error: 'Access denied' }, { status: 403 });
 	}
 
+	// POLL KIE DIRECTLY IF IT'S A SUNO JOB
+	if (job.status === 'processing' && job.payload && typeof job.payload === 'object' && (job.payload as any).taskId) {
+		try {
+			const { getKieMusicStatus, resolveKieAudioUrl } = await import('$lib/ai/providers/kie-music.js');
+			const taskId = (job.payload as any).taskId;
+			const data = await getKieMusicStatus(taskId);
+			
+			if (data.status === 'SUCCESS' || data.status === 'FIRST_SUCCESS') {
+				const ready = data.tracks?.filter((track: any) => Boolean(resolveKieAudioUrl(track))) || [];
+				if (ready.length > 0 && (data.status === 'SUCCESS' || ready.length >= 2)) {
+					const { saveMusicAndGetId } = await import('$lib/ai/utils.js');
+					
+					const savedTracks = await Promise.all(ready.map(async (track: any, index: number) => {
+						const audioUrl = resolveKieAudioUrl(track)!;
+						const audioRes = await fetch(audioUrl, { signal: AbortSignal.timeout(120_000) });
+						if (!audioRes.ok) throw new Error(`Failed to download audio: ${audioRes.status}`);
+						const contentType = audioRes.headers.get('content-type') || 'audio/mpeg';
+						const audioData = Buffer.from(await audioRes.arrayBuffer()).toString('base64');
+						
+						const musicId = await saveMusicAndGetId(
+							audioData,
+							contentType.includes('wav') ? 'audio/wav' : 'audio/mpeg',
+							session.user.id,
+							(job.payload as any).prompt || 'Generated Music',
+							(job.payload as any).modelId || 'suno-v5.5',
+							track.duration ? track.duration * 1000 : 210000,
+							false,
+							undefined,
+							track.imageUrl,
+							track.videoUrl,
+							track.prompt
+						);
+
+						return {
+							musicId,
+							title: track.title || `Generated Track ${index + 1}`,
+							imageUrl: track.imageUrl,
+							videoUrl: track.videoUrl,
+							lyrics: track.prompt,
+							durationMs: track.duration ? track.duration * 1000 : 210000,
+							url: `/api/music/${musicId}`
+						};
+					}));
+
+					const result = {
+						prompt: (job.payload as any).prompt,
+						model: (job.payload as any).modelId || 'suno-v5.5',
+						variants: savedTracks
+					};
+
+					await db.update(aiJobs).set({ status: 'completed', result }).where(eq(aiJobs.id, job.id));
+					job.status = 'completed';
+					job.result = result;
+				}
+			} else if (['CREATE_TASK_FAILED', 'GENERATE_AUDIO_FAILED', 'CALLBACK_EXCEPTION', 'SENSITIVE_WORD_ERROR'].includes(data.status)) {
+				const errorMessage = data.errorMessage || data.status;
+				await db.update(aiJobs).set({ status: 'failed', errorMessage }).where(eq(aiJobs.id, job.id));
+				job.status = 'failed';
+				job.errorMessage = errorMessage;
+			}
+		} catch (e) {
+			console.error('Error polling Kie:', e);
+		}
+	}
+
 	const result = job.result && typeof job.result === 'object'
 		? Object.fromEntries(Object.entries(job.result as Record<string, unknown>).filter(([key]) => key !== 'model'))
 		: job.result;
@@ -182,34 +247,75 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// 2. Queue the generation job and return immediately
 		// ----------------------------------------------------
 		try {
-			const jobId = await PriorityQueueService.enqueue(
-				session.user.id,
-				'music-generation',
-				{
+			if (modelId.startsWith('suno-')) {
+				const { sunoSubmitTask } = await import('$lib/ai/providers/suno.js');
+				const taskId = await sunoSubmitTask({
 					prompt: prompt.trim(),
 					modelId,
-					musicLengthMs: musicLengthMs ?? null,
 					forceInstrumental: Boolean(forceInstrumental),
-					vocalGender,
-					referenceAudioUrl,
 					customMode: customMode == null ? undefined : Boolean(customMode),
 					style: typeof style === 'string' ? style.trim() : undefined,
 					title: typeof title === 'string' ? title.trim().slice(0, 80) : undefined,
+					callBackUrl: undefined,
+					referenceAudioUrl,
+					musicLengthMs: musicLengthMs ?? null,
+					vocalGender,
 					negativeTags: typeof negativeTags === 'string' ? negativeTags.trim() : undefined,
 					styleWeight: styleWeight == null ? undefined : Number(styleWeight),
 					weirdnessConstraint: weirdnessConstraint == null ? undefined : Number(weirdnessConstraint),
 					audioWeight: audioWeight == null ? undefined : Number(audioWeight),
 					personaId: typeof personaId === 'string' ? personaId.trim() : undefined,
 					personaModel
-				},
-				transactionId
-			);
+				});
 
-			return json({
-				jobId,
-				status: 'queued',
-				analysisText: 'Your track is generating in the background. You can keep using QAMUZ while it finishes.'
-			}, { status: 202 });
+				const jobId = crypto.randomUUID();
+				await db.insert(aiJobs).values({
+					id: jobId,
+					userId: session.user.id,
+					type: 'music-generation',
+					payload: { prompt: prompt.trim(), modelId, taskId },
+					priority: 1,
+					transactionId,
+					status: 'processing',
+					startedAt: new Date(),
+					attempts: 1
+				});
+
+				return json({
+					jobId,
+					status: 'queued',
+					analysisText: 'Your track is generating on Kie AI. Please wait...'
+				}, { status: 202 });
+			} else {
+				const jobId = await PriorityQueueService.enqueue(
+					session.user.id,
+					'music-generation',
+					{
+						prompt: prompt.trim(),
+						modelId,
+						musicLengthMs: musicLengthMs ?? null,
+						forceInstrumental: Boolean(forceInstrumental),
+						vocalGender,
+						referenceAudioUrl,
+						customMode: customMode == null ? undefined : Boolean(customMode),
+						style: typeof style === 'string' ? style.trim() : undefined,
+						title: typeof title === 'string' ? title.trim().slice(0, 80) : undefined,
+						negativeTags: typeof negativeTags === 'string' ? negativeTags.trim() : undefined,
+						styleWeight: styleWeight == null ? undefined : Number(styleWeight),
+						weirdnessConstraint: weirdnessConstraint == null ? undefined : Number(weirdnessConstraint),
+						audioWeight: audioWeight == null ? undefined : Number(audioWeight),
+						personaId: typeof personaId === 'string' ? personaId.trim() : undefined,
+						personaModel
+					},
+					transactionId
+				);
+
+				return json({
+					jobId,
+					status: 'queued',
+					analysisText: 'Your track is generating in the background. You can keep using QAMUZ while it finishes.'
+				}, { status: 202 });
+			}
 		} catch (error: any) {
 			console.error('Music queue error:', error);
 			await UsageTrackingService.rollbackTransaction(transactionId, error.message);
