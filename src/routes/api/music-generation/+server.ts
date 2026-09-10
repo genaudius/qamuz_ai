@@ -50,99 +50,70 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			if (data.status === 'SUCCESS') {
 				const ready = data.tracks?.filter((track: any) => Boolean(resolveKieAudioUrl(track))) || [];
 				if (ready.length > 0) {
-					const { saveMusicAndGetId } = await import('$lib/ai/utils.js');
-					
-					const savedTracks = await Promise.all(ready.map(async (track: any, index: number) => {
-						const audioUrl = resolveKieAudioUrl(track)!;
-						
-						// Immediately create the DB record using the Kie CDN URL to prevent Vercel 10s timeout
+					// Atomically lock job status to prevent concurrent polling duplicate inserts
+					const [lockAcquired] = await db
+						.update(aiJobs)
+						.set({ status: 'completed' })
+						.where(and(eq(aiJobs.id, job.id), eq(aiJobs.status, 'processing')))
+						.returning({ id: aiJobs.id });
+
+					if (lockAcquired) {
 						const { music } = await import('$lib/server/db/schema.js');
 						const { randomUUID } = await import('crypto');
-						
-						const [inserted] = await db.insert(music).values({
-							id: randomUUID(),
-							filename: `kie-${track.id || Date.now()}.mp3`,
-							userId: session.user.id,
-							mimeType: 'audio/mpeg',
-							fileSize: 0,
-							prompt: (job.payload as any).prompt || track.prompt || 'Generated Music',
+
+						const savedTracks = await Promise.all(ready.map(async (track: any, index: number) => {
+							const audioUrl = resolveKieAudioUrl(track)!;
+							const durationMs = Math.round(Number(track.duration || 210) * 1000);
+							
+							const [inserted] = await db.insert(music).values({
+								id: randomUUID(),
+								filename: `kie-${track.id || Date.now()}-${index}.mp3`,
+								userId: session.user.id,
+								mimeType: 'audio/mpeg',
+								fileSize: 0,
+								prompt: (job.payload as any).prompt || track.prompt || 'Generated Music',
+								model: (job.payload as any).modelId || 'suno-v5.5',
+								cloudPath: audioUrl,
+								storageLocation: 'kie',
+								durationMs: durationMs,
+								imageUrl: track.imageUrl,
+								videoUrl: track.videoUrl,
+								title: track.title || `Generated Track ${index + 1}`,
+								isInstrumental: (job.payload as any).instrumental || false
+							}).returning({ id: music.id });
+
+							return {
+								musicId: inserted.id,
+								title: track.title || `Generated Track ${index + 1}`,
+								imageUrl: track.imageUrl,
+								videoUrl: track.videoUrl,
+								lyrics: track.prompt,
+								durationMs: durationMs,
+								url: audioUrl
+							};
+						}));
+
+						const result = {
+							prompt: (job.payload as any).prompt,
 							model: (job.payload as any).modelId || 'suno-v5.5',
-							cloudPath: audioUrl,
-							storageLocation: 'kie', // Custom flag to indicate it's an external URL
-							durationMs: track.duration ? track.duration * 1000 : 210000,
-							imageUrl: track.imageUrl,
-							videoUrl: track.videoUrl,
-							title: track.title || `Generated Track ${index + 1}`,
-							isInstrumental: (job.payload as any).instrumental || false
-						}).returning({ id: music.id });
-						
-						const musicId = inserted.id;
-
-						// Fire and forget detached promise to download and save it properly in the background
-						const { saveMusicAndGetId } = await import('$lib/ai/utils.js');
-						Promise.resolve().then(async () => {
-							try {
-								const audioRes = await fetch(audioUrl, { signal: AbortSignal.timeout(120_000) });
-								if (!audioRes.ok) return;
-								const contentType = audioRes.headers.get('content-type') || 'audio/mpeg';
-								const audioData = Buffer.from(await audioRes.arrayBuffer()).toString('base64');
-								
-								// Use the existing robust save logic, then update the music record
-								const realMusicId = await saveMusicAndGetId(
-									audioData,
-									contentType.includes('wav') ? 'audio/wav' : 'audio/mpeg',
-									session.user.id,
-									(job.payload as any).prompt || 'Generated Music',
-									(job.payload as any).modelId || 'suno-v5.5',
-									track.duration ? track.duration * 1000 : 210000,
-									false,
-									undefined,
-									track.imageUrl,
-									track.videoUrl,
-									track.prompt
-								);
-								
-								// Update our quick-inserted record with the real downloaded path
-								const { music: m } = await import('$lib/server/db/schema.js');
-								const [realRecord] = await db.select().from(m).where(eq(m.id, realMusicId)).limit(1);
-								if (realRecord) {
-									await db.update(m).set({
-										storageLocation: realRecord.storageLocation,
-										cloudPath: realRecord.cloudPath,
-										fileSize: realRecord.fileSize
-									}).where(eq(m.id, musicId));
-									// Cleanup the temporary duplicated real record since we transferred its paths
-									await db.delete(m).where(eq(m.id, realMusicId));
-								}
-							} catch (e) {
-								console.error('[KIE SYNC] Background download failed:', e);
-							}
-						}).catch(() => {});
-
-						return {
-							musicId,
-							title: track.title || `Generated Track ${index + 1}`,
-							imageUrl: track.imageUrl,
-							videoUrl: track.videoUrl,
-							lyrics: track.prompt,
-							durationMs: track.duration ? track.duration * 1000 : 210000,
-							url: audioUrl
+							tracks: savedTracks
 						};
-					}));
 
-					const result = {
-						prompt: (job.payload as any).prompt,
-						model: (job.payload as any).modelId || 'suno-v5.5',
-						tracks: savedTracks
-					};
-
-					await db.update(aiJobs).set({ status: 'completed', result }).where(eq(aiJobs.id, job.id));
-					job.status = 'completed';
-					job.result = result;
+						await db.update(aiJobs).set({ result, completedAt: new Date() }).where(eq(aiJobs.id, job.id));
+						job.status = 'completed';
+						job.result = result;
+					} else {
+						// Another concurrent request completed it; fetch the finalized result
+						const [fresh] = await db.select().from(aiJobs).where(eq(aiJobs.id, job.id)).limit(1);
+						if (fresh) {
+							job.status = fresh.status;
+							job.result = fresh.result;
+						}
+					}
 				}
 			} else if (['CREATE_TASK_FAILED', 'GENERATE_AUDIO_FAILED', 'CALLBACK_EXCEPTION', 'SENSITIVE_WORD_ERROR'].includes(data.status)) {
 				const errorMessage = data.errorMessage || data.status;
-				await db.update(aiJobs).set({ status: 'failed', errorMessage }).where(eq(aiJobs.id, job.id));
+				await db.update(aiJobs).set({ status: 'failed', errorMessage, completedAt: new Date() }).where(eq(aiJobs.id, job.id));
 				job.status = 'failed';
 				job.errorMessage = errorMessage;
 			}

@@ -3,50 +3,17 @@ import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db/index.js';
 import { follows, music, playlists } from '$lib/server/db/schema.js';
 import { and, count, desc, eq } from 'drizzle-orm';
-import { DEMO_ARTIST_PROFILES_BY_ID } from '$lib/constants/demo-artists.js';
 import { findPublicArtist } from '$lib/server/artists.js';
+import { randomUUID } from 'node:crypto';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const artistId = params.id;
   const session = await locals.auth();
 
-  const demoArtist = DEMO_ARTIST_PROFILES_BY_ID.get(artistId);
-  if (demoArtist) {
-    return {
-      artist: {
-        id: demoArtist.id,
-        bio: demoArtist.bio,
-        verifiedAt: demoArtist.verifiedAt,
-        userId: demoArtist.id,
-        userName: demoArtist.name,
-        userImage: demoArtist.avatarUrl,
-        followersCount: demoArtist.followersCount,
-        isFollowing: false,
-        isDemoProfile: true,
-        isOwnProfile: false,
-      },
-      tracks: demoArtist.tracks.map((track) => ({
-        ...track,
-        tags: [],
-        imageUrl: demoArtist.avatarUrl,
-        createdAt: demoArtist.verifiedAt,
-        prompt: track.title,
-        videoUrl: null as string | null,
-        lyrics: null as string | null,
-        durationMs: null as number | null,
-        isInstrumental: false,
-      })),
-      publicPlaylists: demoArtist.publicPlaylists.map((playlist) => ({
-        ...playlist,
-        updatedAt: demoArtist.verifiedAt,
-      })),
-    };
-  }
-
   const artist = await findPublicArtist(artistId);
 
   if (!artist) {
-    throw error(404, 'Artist not found');
+    throw error(404, 'Artista no encontrado');
   }
 
   const [followersResult, followState] = await Promise.all([
@@ -120,22 +87,18 @@ export const actions: Actions = {
     try {
       const session = await locals.auth();
       if (!session?.user?.id) {
-        return fail(401, { error: 'Authentication required', action: 'toggleFollow' });
+        return fail(401, { error: 'Debes iniciar sesión para seguir artistas', action: 'toggleFollow' });
       }
 
       const artistId = params.id;
-      if (DEMO_ARTIST_PROFILES_BY_ID.has(artistId)) {
-        return fail(400, { error: 'Demo artists use local follow state only.', action: 'toggleFollow' });
-      }
-
       const artist = await findPublicArtist(artistId);
 
       if (!artist) {
-        return fail(404, { error: 'Artist not found', action: 'toggleFollow' });
+        return fail(404, { error: 'Artista no encontrado', action: 'toggleFollow' });
       }
 
       if (artist.userId === session.user.id) {
-        return fail(400, { error: 'You cannot follow your own profile', action: 'toggleFollow' });
+        return fail(400, { error: 'No puedes seguir tu propio perfil', action: 'toggleFollow' });
       }
 
       const [existingFollow] = await db
@@ -144,13 +107,17 @@ export const actions: Actions = {
         .where(and(eq(follows.followerId, session.user.id), eq(follows.followingId, artist.userId)))
         .limit(1);
 
+      let nextFollowing = false;
       if (existingFollow) {
         await db.delete(follows).where(eq(follows.id, existingFollow.id));
+        nextFollowing = false;
       } else {
         await db.insert(follows).values({
+          id: randomUUID(),
           followerId: session.user.id,
           followingId: artist.userId,
         });
+        nextFollowing = true;
       }
 
       const [followersResult] = await db
@@ -161,12 +128,12 @@ export const actions: Actions = {
       return {
         success: true,
         action: 'toggleFollow',
-        isFollowing: !existingFollow,
+        isFollowing: nextFollowing,
         followersCount: followersResult?.count ?? 0,
       };
     } catch (error) {
       console.warn('Follow toggle failed:', error);
-      return fail(503, { error: 'Follow feature is unavailable in this local database.', action: 'toggleFollow' });
+      return fail(500, { error: 'Error al actualizar seguimiento', action: 'toggleFollow' });
     }
   }
 };

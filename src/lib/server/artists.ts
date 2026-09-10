@@ -12,7 +12,7 @@ export type PublicArtistRecord = {
 	stageName: string | null;
 };
 
-/** Public artist pages always use artist_profile. Verification lives on artist by userId. */
+/** Public artist pages always use artist_profile or user record. */
 export async function findPublicArtist(artistId: string): Promise<PublicArtistRecord | null> {
 	const [row] = await db
 		.select({
@@ -30,7 +30,34 @@ export async function findPublicArtist(artistId: string): Promise<PublicArtistRe
 		.where(or(eq(artistProfiles.id, artistId), eq(artistProfiles.userId, artistId)))
 		.limit(1);
 
-	return row ?? null;
+	if (row) return row;
+
+	// Fallback: check if artistId is a user who created songs
+	const [userRow] = await db
+		.select({
+			id: users.id,
+			userName: users.name,
+			userImage: users.image,
+			verifiedAt: artists.verifiedAt,
+		})
+		.from(users)
+		.leftJoin(artists, eq(artists.userId, users.id))
+		.where(eq(users.id, artistId))
+		.limit(1);
+
+	if (userRow) {
+		return {
+			id: userRow.id,
+			bio: null,
+			stageName: userRow.userName,
+			userId: userRow.id,
+			userName: userRow.userName,
+			userImage: userRow.userImage,
+			verifiedAt: userRow.verifiedAt,
+		};
+	}
+
+	return null;
 }
 
 export async function getOrCreateArtistProfile(userId: string): Promise<{ id: string }> {

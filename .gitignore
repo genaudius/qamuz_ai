@@ -35,3 +35,5 @@ vite.config.ts.timestamp-*
 # Screenshots
 /screenshots
 .env*
+scratch_deploy/
+deploy.tar.gz

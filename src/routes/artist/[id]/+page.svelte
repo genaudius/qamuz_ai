@@ -4,8 +4,8 @@
   import { getContext, onMount } from 'svelte';
   import type { ActionData, PageData } from './$types';
   import type { GlobalMusicState } from '$lib/stores/music.svelte.js';
-  import { DEMO_ARTIST_PROFILES } from '$lib/constants/demo-artists.js';
   import TrackOptionsMenu from '$lib/components/TrackOptionsMenu.svelte';
+  import { toast } from 'svelte-sonner';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   const musicState = getContext<GlobalMusicState>('musicState');
@@ -15,28 +15,10 @@
   let followError = $state('');
   let isFollowSubmitting = $state(false);
 
-  const followStorageKey = `qamuz:artist-follow:${data.artist.id}`;
-
   onMount(() => {
-    if (data.artist.isDemoProfile) {
-      const storedValue = localStorage.getItem(followStorageKey);
-      isFollowing = storedValue === '1';
-      if (isFollowing) {
-        followerCount = (data.artist.followersCount || 0) + 1;
-      }
-      return;
-    }
-
     isFollowing = data.artist.isFollowing || false;
     followerCount = data.artist.followersCount || 0;
   });
-
-  function toggleFollow() {
-    const nextValue = !isFollowing;
-    isFollowing = nextValue;
-    localStorage.setItem(followStorageKey, nextValue ? '1' : '0');
-    followerCount = Math.max(0, (data.artist.followersCount || 0) + (nextValue ? 1 : 0));
-  }
 
   function formatCompactNumber(value: number) {
     return new Intl.NumberFormat('en-US', {
@@ -127,12 +109,18 @@
       followerCount = form.followersCount;
       data.artist.isFollowing = form.isFollowing;
       data.artist.followersCount = form.followersCount;
+      if (form.isFollowing) {
+        toast.success(`Ahora sigues a ${data.artist.stageName || data.artist.userName}`);
+      } else {
+        toast.success(`Has dejado de seguir a ${data.artist.stageName || data.artist.userName}`);
+      }
       return;
     }
 
     if (form.error && form.action === 'toggleFollow') {
       isFollowSubmitting = false;
       followError = form.error;
+      toast.error(form.error);
     }
   });
 </script>
@@ -189,14 +177,6 @@
             >
               Edit profile
             </a>
-          {:else if data.artist.isDemoProfile}
-            <button
-              type="button"
-              class={`inline-flex min-w-32 items-center justify-center rounded-full px-6 py-3 text-sm font-extrabold transition-all ${isFollowing ? 'bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/16' : 'bg-qamuz-btn text-black hover:scale-105'}`}
-              onclick={toggleFollow}
-            >
-              {isFollowing ? 'Following' : 'Follow'}
-            </button>
           {:else}
             <form
               method="POST"
@@ -211,15 +191,32 @@
             >
               <button
                 type="submit"
-                class={`inline-flex min-w-32 items-center justify-center rounded-full px-6 py-3 text-sm font-extrabold transition-all ${isFollowing ? 'bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/16' : 'bg-qamuz-btn text-black hover:scale-105'}`}
+                class={`group inline-flex min-w-36 items-center justify-center rounded-full px-6 py-3 text-sm font-extrabold transition-all ${
+                  isFollowing
+                    ? 'bg-white/10 text-white ring-1 ring-white/20 hover:bg-red-500/20 hover:text-red-300 hover:ring-red-500/40 cursor-pointer'
+                    : 'bg-qamuz-btn text-black hover:scale-105 cursor-pointer'
+                }`}
                 disabled={isFollowSubmitting || !page.data.session?.user?.id}
+                title={isFollowing ? 'Dejar de seguir y quitar de mi lista' : 'Seguir a este artista'}
               >
                 {#if !page.data.session?.user?.id}
-                  Sign in to follow
+                  Inicia sesión para seguir
                 {:else if isFollowSubmitting}
-                  Saving...
+                  Guardando...
+                {:else if isFollowing}
+                  <span class="group-hover:hidden flex items-center gap-1.5">
+                    <span>✓</span>
+                    <span>Siguiendo</span>
+                  </span>
+                  <span class="hidden group-hover:inline-flex items-center gap-1.5 text-red-300">
+                    <span>✕</span>
+                    <span>Dejar de seguir</span>
+                  </span>
                 {:else}
-                  {isFollowing ? 'Following' : 'Follow'}
+                  <span class="flex items-center gap-1.5">
+                    <span>+</span>
+                    <span>Seguir</span>
+                  </span>
                 {/if}
               </button>
             </form>
