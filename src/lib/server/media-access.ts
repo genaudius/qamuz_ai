@@ -11,9 +11,11 @@ export function isMusicUuid(id: string): boolean {
 
 export function canStreamMusic(
 	record: { userId: string; isPublic: boolean },
-	viewerId?: string | null
+	viewerId?: string | null,
+	isAdmin?: boolean
 ): boolean {
 	if (record.isPublic) return true;
+	if (isAdmin) return true;
 	return Boolean(viewerId && viewerId === record.userId);
 }
 

@@ -28,7 +28,8 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		if (!track) {
 			return json({ error: 'No encontré esa canción' }, { status: 404 });
 		}
-		if (!canStreamMusic(track, session?.user?.id)) {
+		const isAdmin = Boolean((session?.user as any)?.isAdmin || session?.user?.role === 'admin');
+		if (!canStreamMusic(track, session?.user?.id, isAdmin)) {
 			return json({ error: 'No puedes registrar esta vista' }, { status: 403 });
 		}
 

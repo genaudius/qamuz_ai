@@ -27,7 +27,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			.limit(1);
 
 		if (!record) throw error(404, 'Music not found');
-		if (!canStreamMusic(record, session?.user?.id)) {
+		const isAdmin = Boolean((session?.user as any)?.isAdmin || session?.user?.role === 'admin');
+		if (!canStreamMusic(record, session?.user?.id, isAdmin)) {
 			throw error(session?.user?.id ? 403 : 401, 'Authentication required');
 		}
 

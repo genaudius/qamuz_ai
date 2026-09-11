@@ -23,6 +23,8 @@
     isPublic?: boolean | null;
     userId?: string | null;
     artistId?: string | null;
+    lyrics?: string | null;
+    tags?: string[] | null;
   };
 
   let {

@@ -119,12 +119,21 @@ export class GlobalMusicState {
             audio.load();
         }
 
-        try {
-            await audio.play();
-            this.isPlaying = true;
-        } catch (e) {
-            console.error("Playback failed:", e);
-            this.isPlaying = false;
+        const tryPlay = async () => {
+            try {
+                await audio.play();
+                this.isPlaying = true;
+            } catch (e) {
+                console.error("Playback failed:", e);
+                this.isPlaying = false;
+            }
+        };
+
+        if (audio.readyState >= 2) {
+            await tryPlay();
+        } else {
+            audio.addEventListener("canplay", () => void tryPlay(), { once: true });
+            await tryPlay();
         }
     }
     
@@ -142,12 +151,21 @@ export class GlobalMusicState {
             return;
         }
 
-        try {
-            await audio.play();
-            this.isPlaying = true;
-        } catch (e) {
-            console.error("Playback failed:", e);
-            this.isPlaying = false;
+        const tryPlay = async () => {
+            try {
+                await audio.play();
+                this.isPlaying = true;
+            } catch (e) {
+                console.error("Playback failed:", e);
+                this.isPlaying = false;
+            }
+        };
+
+        if (audio.readyState >= 2) {
+            await tryPlay();
+        } else {
+            audio.addEventListener("canplay", () => void tryPlay(), { once: true });
+            await tryPlay();
         }
     }
     

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { getContext, onMount } from "svelte";
+  import { getContext, onMount, onDestroy } from "svelte";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
   import { musicState as sharedMusicState } from "$lib/stores/music-state.js";
   import { notice } from "$lib/ui/notice.js";
@@ -270,13 +270,6 @@
       if (musicState.currentTrack?.id === musicId) {
         if (!pageAudio.src) {
           await musicState.playTrack(musicState.currentTrack);
-        } else if (!musicState.isPlaying) {
-          try {
-            await pageAudio.play();
-            musicState.isPlaying = true;
-          } catch {
-            // autoplay blocked
-          }
         }
         return;
       }
@@ -357,6 +350,51 @@
     }
     if (musicState.isPlaying && video.paused) void video.play().catch(() => undefined);
     if (!musicState.isPlaying && !video.paused) video.pause();
+  });
+
+  $effect(() => {
+    if (!pageAudio) return;
+    musicState.audioElement = pageAudio;
+    pageAudio.volume = musicState.volume;
+  });
+
+  $effect(() => {
+    if (!pageAudio || !track?.url) return;
+    const absolute = new URL(track.url, window.location.origin).href;
+    if (pageAudio.src !== absolute) {
+      pageAudio.src = track.url;
+      pageAudio.load();
+    }
+  });
+
+  $effect(() => {
+    if (!pageAudio || !track) return;
+    if (musicState.isPlaying && pageAudio.paused) {
+      const tryPlay = () =>
+        pageAudio!
+          .play()
+          .then(() => {
+            musicState.isPlaying = true;
+          })
+          .catch((e) => {
+            console.warn("Karaoke autoplay / play prevented:", e);
+            musicState.isPlaying = false;
+          });
+
+      if (pageAudio.readyState >= 2) {
+        void tryPlay();
+      } else {
+        pageAudio.addEventListener("canplay", () => void tryPlay(), { once: true });
+      }
+    } else if (!musicState.isPlaying && !pageAudio.paused) {
+      pageAudio.pause();
+    }
+  });
+
+  onDestroy(() => {
+    if (musicState.audioElement === pageAudio) {
+      musicState.audioElement = null;
+    }
   });
 
   onMount(() => {
@@ -498,6 +536,12 @@
     }
   }
 
+  function handleAudioError() {
+    const err = pageAudio?.error;
+    console.error("Karaoke audio error:", err?.code, err?.message, pageAudio?.src);
+    musicState.isPlaying = false;
+  }
+
   async function togglePlay() {
     await musicState.togglePlay();
   }
@@ -505,13 +549,15 @@
 
 <audio
   bind:this={pageAudio}
-  preload="metadata"
-  crossorigin="anonymous"
+  preload="auto"
   ontimeupdate={syncFromAudio}
   onloadedmetadata={syncFromAudio}
+  ondurationchange={syncFromAudio}
+  oncanplay={syncFromAudio}
   onplay={() => (musicState.isPlaying = true)}
   onpause={() => (musicState.isPlaying = false)}
   onended={() => (musicState.isPlaying = false)}
+  onerror={handleAudioError}
 ></audio>
 
 <div class="page" class:comments-open={commentsOpen}>

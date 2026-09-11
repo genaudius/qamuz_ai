@@ -32,7 +32,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		if (!track) {
 			return json({ error: 'No encontré esa canción' }, { status: 404 });
 		}
-		if (!canStreamMusic(track, session?.user?.id)) {
+		const isAdmin = Boolean((session?.user as any)?.isAdmin || session?.user?.role === 'admin');
+		if (!canStreamMusic(track, session?.user?.id, isAdmin)) {
 			return json({ error: 'No puedes ver estos comentarios' }, { status: 403 });
 		}
 

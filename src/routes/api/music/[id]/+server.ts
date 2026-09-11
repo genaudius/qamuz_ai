@@ -46,7 +46,8 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 			throw error(404, 'Music not found');
 		}
 
-		if (!canStreamMusic(musicRecord, session?.user?.id)) {
+		const isAdmin = Boolean((session?.user as any)?.isAdmin || session?.user?.role === 'admin');
+		if (!canStreamMusic(musicRecord, session?.user?.id, isAdmin)) {
 			throw error(session?.user?.id ? 403 : 401, session?.user?.id
 				? 'Access denied - this track is private'
 				: 'Authentication required');

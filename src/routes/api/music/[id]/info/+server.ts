@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			artistName: users.name
 		})
 		.from(music)
-		.innerJoin(users, eq(users.id, music.userId))
+		.leftJoin(users, eq(users.id, music.userId))
 		.where(eq(music.id, musicId))
 		.limit(1);
 
@@ -40,7 +40,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(404, 'Music not found');
 	}
 
-	if (!canStreamMusic(record, session?.user?.id)) {
+	const isAdmin = Boolean((session?.user as any)?.isAdmin || session?.user?.role === 'admin');
+	if (!canStreamMusic(record, session?.user?.id, isAdmin)) {
 		throw error(session?.user?.id ? 403 : 401, session?.user?.id
 			? 'This track is private'
 			: 'Authentication required');
