@@ -6,7 +6,7 @@ import { CreditCostCalculator } from '$lib/server/ai/cost-calculator.js';
 import { PriorityQueueService } from '$lib/server/ai/queue.js';
 import { db } from '$lib/server/db/index.js';
 import { aiJobs } from '$lib/server/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 import { getLocalMusicConfig } from '$lib/ai/providers/local-acestep.js';
 import { getGenerationRateLimitPayload } from '$lib/server/file-upload-rate-limiting.js';
@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			const taskId = (job.payload as any).taskId;
 			const data = await getKieMusicStatus(taskId);
 			
-			if (data.status === 'SUCCESS') {
+			if (data.status === 'SUCCESS' || data.status === 'COMPLETED') {
 				const ready = data.tracks?.filter((track: any) => Boolean(resolveKieAudioUrl(track))) || [];
 				if (ready.length > 0) {
 					// Atomically lock job status to prevent concurrent polling duplicate inserts
