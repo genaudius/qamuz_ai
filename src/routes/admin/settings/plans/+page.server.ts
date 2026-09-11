@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ url }) => {
       id: pricingPlans.id,
       name: pricingPlans.name,
       tier: pricingPlans.tier,
+      stripePriceId: pricingPlans.stripePriceId,
       priceAmount: pricingPlans.priceAmount,
       currency: pricingPlans.currency,
       billingInterval: pricingPlans.billingInterval,

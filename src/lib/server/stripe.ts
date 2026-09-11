@@ -264,6 +264,7 @@ export class StripeService {
 		cancelUrl,
 	}: CreateCheckoutSessionParams): Promise<Stripe.Checkout.Session> {
 		try {
+			const cleanPriceId = priceId.trim();
 			const customerId = await this.getOrCreateCustomer(userId);
 			const stripe = await getStripe();
 
@@ -272,22 +273,118 @@ export class StripeService {
 				customer: customerId,
 				line_items: [
 					{
-						price: priceId,
+						price: cleanPriceId,
 						quantity: 1,
 					},
 				],
 				mode: 'subscription',
 				return_url: successUrl,
-				// automatic_tax: { enabled: true }, // Disabled for development - enable when business address is configured
 				metadata: {
 					userId,
+					priceId: cleanPriceId,
 				},
+				subscription_data: {
+					metadata: {
+						userId,
+						priceId: cleanPriceId,
+					}
+				}
 			});
 
 			return session;
 		} catch (error) {
 			console.error('Error creating checkout session:', error);
 			throw new Error('Failed to create checkout session');
+		}
+	}
+
+	static async syncSubscriptionFromSession(checkoutSession: Stripe.Checkout.Session): Promise<boolean> {
+		try {
+			if (checkoutSession.mode !== 'subscription' || checkoutSession.status !== 'complete') {
+				return false;
+			}
+
+			const subscriptionId = typeof checkoutSession.subscription === 'string'
+				? checkoutSession.subscription
+				: checkoutSession.subscription?.id;
+
+			if (!subscriptionId) return false;
+
+			const stripe = await getStripe();
+			const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+			if (!subscription) return false;
+
+			let userId = checkoutSession.metadata?.userId || subscription.metadata?.userId;
+			if (!userId && checkoutSession.customer) {
+				const customerId = typeof checkoutSession.customer === 'string'
+					? checkoutSession.customer
+					: checkoutSession.customer.id;
+				const customer = await stripe.customers.retrieve(customerId);
+				if (!customer.deleted) {
+					userId = customer.metadata?.userId;
+				}
+			}
+
+			if (!userId) {
+				console.warn('Cannot sync subscription: userId not found on session or customer');
+				return false;
+			}
+
+			const priceId = subscription.items.data[0]?.price.id;
+			if (!priceId) return false;
+
+			const [plan] = await db
+				.select()
+				.from(pricingPlans)
+				.where(eq(pricingPlans.stripePriceId, priceId.trim()))
+				.limit(1);
+
+			if (!plan) {
+				console.warn(`Cannot sync subscription: plan with stripePriceId ${priceId} not found in DB`);
+				return false;
+			}
+
+			const start = (subscription as any).current_period_start
+				? new Date((subscription as any).current_period_start * 1000)
+				: new Date();
+			const end = (subscription as any).current_period_end
+				? new Date((subscription as any).current_period_end * 1000)
+				: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+			await db.insert(subscriptions).values({
+				userId,
+				stripeSubscriptionId: subscription.id,
+				stripePriceId: priceId.trim(),
+				planTier: plan.tier,
+				status: subscription.status as any,
+				currentPeriodStart: start,
+				currentPeriodEnd: end,
+				cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+				canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+				endedAt: subscription.ended_at ? new Date(subscription.ended_at * 1000) : null,
+			}).onConflictDoUpdate({
+				target: subscriptions.stripeSubscriptionId,
+				set: {
+					status: subscription.status as any,
+					stripePriceId: priceId.trim(),
+					planTier: plan.tier,
+					currentPeriodStart: start,
+					currentPeriodEnd: end,
+					cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+					updatedAt: new Date(),
+				}
+			});
+
+			await db.update(users).set({
+				subscriptionStatus: subscription.status as any,
+				planTier: plan.tier,
+			}).where(eq(users.id, userId));
+
+			console.log(`[STRIPE] Instant synced subscription ${subscription.id} for user ${userId}, tier: ${plan.tier}`);
+			return true;
+		} catch (err) {
+			console.error('[STRIPE] Error syncing subscription from session:', err);
+			return false;
 		}
 	}
 
@@ -359,16 +456,17 @@ export class StripeService {
 				throw new Error('Customer was deleted');
 			}
 
-			const userId = customer.metadata?.userId;
+			const userId = subscription.metadata?.userId || customer.metadata?.userId;
 			if (!userId) {
-				throw new Error('User ID not found in customer metadata');
+				throw new Error('User ID not found in subscription or customer metadata');
 			}
 
 			// Get plan details from Stripe price
-			const priceId = subscription.items.data[0]?.price.id;
-			if (!priceId) {
+			const rawPriceId = subscription.items.data[0]?.price.id;
+			if (!rawPriceId) {
 				throw new Error('Price ID not found in subscription');
 			}
+			const priceId = rawPriceId.trim();
 
 			const [plan] = await db
 				.select()
@@ -494,13 +592,14 @@ export class StripeService {
 				throw new Error('Customer was deleted');
 			}
 
-			const userId = customer.metadata?.userId;
+			const userId = subscription.metadata?.userId || customer.metadata?.userId;
 			if (!userId) {
-				throw new Error('User ID not found in customer metadata');
+				throw new Error('User ID not found in subscription or customer metadata');
 			}
 
 			// Get plan details for tier update and change tracking
-			const priceId = subscription.items.data[0]?.price.id;
+			const rawPriceId = subscription.items.data[0]?.price.id;
+			const priceId = rawPriceId ? rawPriceId.trim() : null;
 			let planTier = null;
 			let newPlanData = {};
 			

@@ -276,11 +276,12 @@ export async function getPricingPlanByTier(tier: 'free' | 'starter' | 'pro' | 'a
 // Helper function to validate if a price ID exists in our pricing plans
 export async function isValidPriceId(priceId: string): Promise<boolean> {
 	try {
+		const cleanPriceId = (priceId || '').trim();
 		const [plan] = await db
 			.select({ id: pricingPlans.id })
 			.from(pricingPlans)
 			.where(and(
-				eq(pricingPlans.stripePriceId, priceId),
+				eq(pricingPlans.stripePriceId, cleanPriceId),
 				eq(pricingPlans.isActive, true)
 			))
 			.limit(1);

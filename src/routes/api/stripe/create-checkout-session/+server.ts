@@ -18,9 +18,11 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 			return error(400, 'Price ID is required');
 		}
 
+		const cleanPriceId = priceId.trim();
+
 		// Validate that the price ID exists in our pricing plans database
 		// This prevents users from passing arbitrary Stripe price IDs and supports both monthly and yearly plans
-		const isValid = await isValidPriceId(priceId);
+		const isValid = await isValidPriceId(cleanPriceId);
 		if (!isValid) {
 			return error(400, 'Invalid price ID');
 		}
@@ -31,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 
 		const checkoutSession = await StripeService.createCheckoutSession({
 			userId: session.user.id,
-			priceId,
+			priceId: cleanPriceId,
 			successUrl,
 			cancelUrl,
 		});

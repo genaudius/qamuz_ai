@@ -1,6 +1,6 @@
 import { json, error, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getStripe } from '$lib/server/stripe.js';
+import { getStripe, StripeService } from '$lib/server/stripe.js';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
@@ -32,6 +32,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			const sessionUserId = customer.metadata?.userId;
 			if (sessionUserId !== session.user.id) {
 				return error(403, 'Access denied');
+			}
+		}
+
+		// If checkout is complete, immediately sync the subscription and activate the user's plan in DB
+		if (checkoutSession.status === 'complete') {
+			try {
+				await StripeService.syncSubscriptionFromSession(checkoutSession);
+			} catch (syncErr) {
+				console.warn('Session status sync error (non-fatal):', syncErr);
 			}
 		}
 

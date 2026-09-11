@@ -301,26 +301,17 @@ export class PriorityQueueService {
 						})
 					);
 
-					// Distinct covers per clip (Kie often reuses one imageUrl for both).
-					const providerUrls = savedTracks
-						.map((track) => track.imageUrl)
-						.filter((url): url is string => Boolean(url));
-					const sharedProviderArt =
-						savedTracks.length > 1 &&
-						providerUrls.length === savedTracks.length &&
-						new Set(providerUrls).size === 1;
-
+					// Use provider cover art if present; only generate via Forge if art is completely missing
 					await Promise.all(
 						savedTracks.map(async (track, index) => {
-							const forceNew = sharedProviderArt || !track.imageUrl;
+							if (track.imageUrl) return;
 							const coverSource = {
 								...result,
-								imageUrl: forceNew ? undefined : track.imageUrl,
 								title: track.title,
 								lyrics: track.lyrics
 							};
 							const imageUrl = await generateMusicCover(coverSource, lockedJob, {
-								forceNew,
+								forceNew: false,
 								variantIndex: index,
 								title: track.title
 							});
@@ -348,31 +339,17 @@ export class PriorityQueueService {
 						tracks: savedTracks
 					};
 
-					// Karaoke timings — primary first; siblings in background so the job returns faster.
+					// Karaoke timings — run completely in the background so the job finishes immediately!
 					try {
 						const { prefetchAlignedLyrics } = await import('$lib/server/music/align-lyrics.js');
 						const taskId =
 							typeof result.providerTaskId === 'string' ? result.providerTaskId : undefined;
-						if (primary?.musicId) {
-							await prefetchAlignedLyrics(primary.musicId, {
+						for (const track of savedTracks) {
+							void prefetchAlignedLyrics(track.musicId, {
 								taskId,
-								audioId: primary.providerAudioId
-							});
-							const [alignedRow] = await db
-								.select({ alignedLyrics: music.alignedLyrics })
-								.from(music)
-								.where(eq(music.id, primary.musicId))
-								.limit(1);
-							if (alignedRow?.alignedLyrics) {
-								result.alignedLyrics = alignedRow.alignedLyrics;
-							}
-						}
-						for (const sibling of savedTracks.slice(1)) {
-							void prefetchAlignedLyrics(sibling.musicId, {
-								taskId,
-								audioId: sibling.providerAudioId
+								audioId: track.providerAudioId
 							}).catch((alignErr) =>
-								console.warn(`[QUEUE] Aligned lyrics prefetch failed for ${sibling.musicId}:`, alignErr)
+								console.warn(`[QUEUE] Aligned lyrics prefetch failed for ${track.musicId}:`, alignErr)
 							);
 						}
 					} catch (alignErr) {

@@ -44,12 +44,12 @@ export const actions: Actions = {
 
     const data = await request.formData()
     
-    const name = data.get('name')?.toString()
-    const tier = data.get('tier')?.toString()
-    const stripePriceId = data.get('stripePriceId')?.toString()
-    const priceAmount = data.get('priceAmount')?.toString()
-    const currency = data.get('currency')?.toString() || 'usd'
-    const billingInterval = data.get('billingInterval')?.toString()
+    const name = data.get('name')?.toString()?.trim()
+    const tier = data.get('tier')?.toString()?.trim()
+    const stripePriceId = data.get('stripePriceId')?.toString()?.trim()
+    const priceAmount = data.get('priceAmount')?.toString()?.trim()
+    const currency = data.get('currency')?.toString()?.trim() || 'usd'
+    const billingInterval = data.get('billingInterval')?.toString()?.trim()
     const textGenerationLimit = data.get('textGenerationLimit')?.toString()
     const imageGenerationLimit = data.get('imageGenerationLimit')?.toString()
     const videoGenerationLimit = data.get('videoGenerationLimit')?.toString()

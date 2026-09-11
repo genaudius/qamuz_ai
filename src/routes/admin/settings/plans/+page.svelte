@@ -197,6 +197,7 @@
               <Table.Head>Plan Name</Table.Head>
               <Table.Head>Tier</Table.Head>
               <Table.Head>Price</Table.Head>
+              <Table.Head>Stripe Price ID</Table.Head>
               <Table.Head>Text Limit</Table.Head>
               <Table.Head>Image Limit</Table.Head>
               <Table.Head>Video Limit</Table.Head>
@@ -223,6 +224,21 @@
                       {formatBillingInterval(plan.billingInterval)}
                     </div>
                   </div>
+                </Table.Cell>
+                <Table.Cell>
+                  {#if plan.tier === 'free'}
+                    <span class="text-xs text-muted-foreground font-mono">free (default)</span>
+                  {:else if plan.stripePriceId && plan.stripePriceId.startsWith('price_')}
+                    <code class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
+                      {plan.stripePriceId}
+                    </code>
+                  {:else if plan.stripePriceId}
+                    <code class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-mono" title="Placeholder ID - edit plan to paste real Stripe Price ID">
+                      {plan.stripePriceId}
+                    </code>
+                  {:else}
+                    <span class="text-xs text-destructive font-medium">Not configured</span>
+                  {/if}
                 </Table.Cell>
                 <Table.Cell>
                   {formatLimit(plan.textGenerationLimit)}

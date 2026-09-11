@@ -236,7 +236,7 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
 
     const MAX_WAIT = 600_000;
     const POLL_MS = 1_000;
-    const SECOND_TRACK_GRACE_MS = 90_000;
+    const SECOND_TRACK_GRACE_MS = 10_000;
     const deadline = Date.now() + MAX_WAIT;
     let tracks: KieSunoTrack[] = [];
     let firstReadyAt: number | null = null;
@@ -257,13 +257,19 @@ async function generateMusic(params: MusicGenerationParams): Promise<AIMusicResp
             firstReadyAt = Date.now();
         }
 
-        // Prefer both Kie clips (normal Suno generate = 2 songs billed).
+        // Both clips ready
         if (ready.length >= 2) {
             tracks = ready.slice(0, 2);
             break;
         }
 
-        // Safety: if the second clip never appears, keep the first rather than hanging.
+        // If Kie marked task as finished/success and we have at least 1 ready track, finish immediately
+        if (ready.length >= 1 && (data.status === 'SUCCESS' || data.status === 'COMPLETED')) {
+            tracks = ready;
+            break;
+        }
+
+        // Safety: if the second clip doesn't arrive within 10s of first clip, continue with what we have
         if (firstReadyAt != null && Date.now() - firstReadyAt >= SECOND_TRACK_GRACE_MS && ready.length >= 1) {
             console.warn(`[Suno] Only ${ready.length} clip(s) ready after grace; continuing with what Kie returned.`);
             tracks = ready;

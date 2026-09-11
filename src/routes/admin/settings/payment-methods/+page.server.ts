@@ -43,10 +43,10 @@ export const actions: Actions = {
 
     const data = await request.formData()
 
-    const environment = data.get('environment')?.toString()
-    const stripePublishableKey = data.get('stripePublishableKey')?.toString()
-    const stripeSecretKey = data.get('stripeSecretKey')?.toString()
-    const stripeWebhookSecret = data.get('stripeWebhookSecret')?.toString()
+    const environment = data.get('environment')?.toString()?.trim() || 'test'
+    const stripePublishableKey = data.get('stripePublishableKey')?.toString()?.trim() || ''
+    const stripeSecretKey = data.get('stripeSecretKey')?.toString()?.trim() || ''
+    const stripeWebhookSecret = data.get('stripeWebhookSecret')?.toString()?.trim() || ''
 
     // Basic validation
     if (!environment || !['test', 'live'].includes(environment)) {
@@ -62,9 +62,13 @@ export const actions: Actions = {
       })
     }
 
-    if (stripeSecretKey && !stripeSecretKey.startsWith(environment === 'test' ? 'sk_test_' : 'sk_live_')) {
+    if (
+      stripeSecretKey &&
+      !stripeSecretKey.startsWith(environment === 'test' ? 'sk_test_' : 'sk_live_') &&
+      !stripeSecretKey.startsWith(environment === 'test' ? 'rk_test_' : 'rk_live_')
+    ) {
       return fail(400, {
-        error: `Secret key must start with ${environment === 'test' ? 'sk_test_' : 'sk_live_'}`
+        error: `Secret key must start with ${environment === 'test' ? 'sk_test_ or rk_test_' : 'sk_live_ or rk_live_'}`
       })
     }
 
