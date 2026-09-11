@@ -7,6 +7,9 @@
   import Pause from "@lucide/svelte/icons/pause";
   import SkipBack from "@lucide/svelte/icons/skip-back";
   import SkipForward from "@lucide/svelte/icons/skip-forward";
+  import Shuffle from "@lucide/svelte/icons/shuffle";
+  import Repeat from "@lucide/svelte/icons/repeat";
+  import Repeat1 from "@lucide/svelte/icons/repeat-1";
   import ImageIcon from "@lucide/svelte/icons/image";
   import Maximize2 from "@lucide/svelte/icons/maximize-2";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
@@ -163,9 +166,12 @@
     }
   }
 
-  function handleEnded() {
-    musicState.isPlaying = false;
+  async function handleEnded() {
     musicState.currentTime = usableDuration() || musicState.currentTime;
+    const hasNext = await musicState.nextTrack(true);
+    if (!hasNext) {
+      musicState.isPlaying = false;
+    }
   }
 
   function handleAudioError() {
@@ -316,14 +322,28 @@
     <div
       class="flex flex-col items-center justify-center flex-1 min-w-0 max-w-2xl px-1 md:px-4 gap-0.5 md:gap-1.5"
     >
-      <div class="flex items-center gap-3 md:gap-6">
+      <div class="flex items-center gap-2 md:gap-4">
+        <Button.Root
+          variant="ghost"
+          size="icon"
+          class="hidden sm:inline-flex h-8 w-8 rounded-full transition-colors {musicState.isShuffle ? 'text-[#3ae0d5] bg-[#3ae0d5]/15' : 'text-[#a0a0a0] hover:text-white'}"
+          aria-label="Reproducción aleatoria"
+          title={musicState.isShuffle ? "Desactivar aleatorio" : "Activar aleatorio"}
+          onclick={() => musicState.toggleShuffle()}
+        >
+          <Shuffle class="h-4 w-4" />
+        </Button.Root>
+
         <Button.Root
           variant="ghost"
           size="icon"
           class="h-8 w-8 text-[#a0a0a0] hover:text-white rounded-full"
+          aria-label="Canción anterior"
+          onclick={() => void musicState.prevTrack()}
         >
           <SkipBack class="h-5 w-5 fill-current" />
         </Button.Root>
+
         <Button.Root
           variant="ghost"
           size="icon"
@@ -336,35 +356,30 @@
             <Play class="h-5 w-5 fill-current ml-1" />
           {/if}
         </Button.Root>
+
         <Button.Root
           variant="ghost"
           size="icon"
           class="h-8 w-8 text-[#a0a0a0] hover:text-white rounded-full"
+          aria-label="Siguiente canción"
+          onclick={() => void musicState.nextTrack()}
         >
           <SkipForward class="h-5 w-5 fill-current" />
         </Button.Root>
+
         <Button.Root
           variant="ghost"
           size="icon"
-          class="hidden sm:inline-flex h-8 w-8 text-[#a0a0a0] hover:text-white rounded-full ml-1 md:ml-2"
+          class="hidden sm:inline-flex h-8 w-8 rounded-full transition-colors {musicState.repeatMode !== 'off' ? 'text-[#3ae0d5] bg-[#3ae0d5]/15' : 'text-[#a0a0a0] hover:text-white'}"
+          aria-label="Repetir"
+          title={musicState.repeatMode === 'one' ? 'Repitiendo una canción' : musicState.repeatMode === 'all' ? 'Repitiendo todo' : 'Repetición desactivada'}
+          onclick={() => musicState.toggleRepeat()}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="h-4 w-4"
-            ><path d="m17 2 4 4-4 4" /><path
-              d="M3 11v-1a4 4 0 0 1 4-4h14"
-            /><path d="m7 22-4-4 4-4" /><path
-              d="M21 13v1a4 4 0 0 1-4 4H3"
-            /></svg
-          >
+          {#if musicState.repeatMode === 'one'}
+            <Repeat1 class="h-4 w-4" />
+          {:else}
+            <Repeat class="h-4 w-4" />
+          {/if}
         </Button.Root>
       </div>
 
@@ -482,31 +497,6 @@
             /></svg
           >
         </Button.Root>
-        <button
-          type="button"
-          class="h-9 w-9 hover:text-white rounded-full inline-flex items-center justify-center"
-          aria-label="Agregar a playlist"
-          title="Agregar a playlist"
-          onclick={() => (playlistOpen = true)}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="h-4.5 w-4.5"
-            ><line x1="21" x2="3" y1="6" y2="6" /><line
-              x1="21"
-              x2="9"
-              y1="12"
-              y2="12"
-            /><line x1="21" x2="7" y1="18" y2="18" /><path d="M3 16v5" /><path
-              d="M5 18H1"
         <button
           type="button"
           class="h-9 w-9 hover:text-white rounded-full inline-flex items-center justify-center"

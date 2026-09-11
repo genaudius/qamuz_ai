@@ -83,3 +83,81 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		return json({ error: 'No pude agregar la canción a la playlist' }, { status: 500 });
 	}
 };
+
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
+	const session = await locals.auth();
+	if (!session?.user?.id) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	try {
+		const playlistId = params.id;
+		const body = (await request.json()) as { orderedMusicIds?: string[] };
+		const orderedMusicIds = Array.isArray(body?.orderedMusicIds) ? body.orderedMusicIds : [];
+
+		if (!playlistId || !orderedMusicIds.length) {
+			return json({ error: 'Faltan parámetros requeridos' }, { status: 400 });
+		}
+
+		const [playlist] = await db
+			.select({ id: playlists.id })
+			.from(playlists)
+			.where(and(eq(playlists.id, playlistId), eq(playlists.userId, session.user.id)));
+		if (!playlist) {
+			return json({ error: 'Playlist no encontrada o no autorizada' }, { status: 404 });
+		}
+
+		await db.transaction(async (tx) => {
+			for (let i = 0; i < orderedMusicIds.length; i++) {
+				const musicId = orderedMusicIds[i];
+				await tx
+					.update(playlistItems)
+					.set({ position: i })
+					.where(and(eq(playlistItems.playlistId, playlistId), eq(playlistItems.musicId, musicId)));
+			}
+			await tx.update(playlists).set({ updatedAt: new Date() }).where(eq(playlists.id, playlistId));
+		});
+
+		return json({ ok: true });
+	} catch (error) {
+		console.error('Reorder playlist items error:', error);
+		return json({ error: 'No pude reordenar la playlist' }, { status: 500 });
+	}
+};
+
+export const DELETE: RequestHandler = async ({ params, request, locals }) => {
+	const session = await locals.auth();
+	if (!session?.user?.id) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	try {
+		const playlistId = params.id;
+		const body = (await request.json()) as { musicId?: string };
+		const musicId = (body?.musicId ?? '').trim();
+
+		if (!playlistId || !musicId) {
+			return json({ error: 'Faltan parámetros requeridos' }, { status: 400 });
+		}
+
+		const [playlist] = await db
+			.select({ id: playlists.id })
+			.from(playlists)
+			.where(and(eq(playlists.id, playlistId), eq(playlists.userId, session.user.id)));
+		if (!playlist) {
+			return json({ error: 'Playlist no encontrada o no autorizada' }, { status: 404 });
+		}
+
+		await db
+			.delete(playlistItems)
+			.where(and(eq(playlistItems.playlistId, playlistId), eq(playlistItems.musicId, musicId)));
+
+		await db.update(playlists).set({ updatedAt: new Date() }).where(eq(playlists.id, playlistId));
+
+		return json({ ok: true });
+	} catch (error) {
+		console.error('Delete playlist item error:', error);
+		return json({ error: 'No pude eliminar la canción de la playlist' }, { status: 500 });
+	}
+};
+

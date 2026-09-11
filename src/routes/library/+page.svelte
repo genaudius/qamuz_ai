@@ -1,11 +1,15 @@
 <script lang="ts">
   import LibraryPanel from "$lib/components/LibraryPanel.svelte";
+  import AddToPlaylistDialog from "$lib/components/AddToPlaylistDialog.svelte";
+  import ListMusic from "@lucide/svelte/icons/list-music";
+  import Plus from "@lucide/svelte/icons/plus";
   import { onMount } from "svelte";
   import { toast } from "svelte-sonner";
   
   let { data } = $props();
 
-  let activeTab = $state<'songs' | 'artists'>('songs');
+  let activeTab = $state<'songs' | 'playlists' | 'artists'>('songs');
+  let createPlaylistOpen = $state(false);
   let followedArtists = $state<Array<{
     id: string;
     userId: string;
@@ -14,6 +18,14 @@
     trackCount: number;
   }>>([]);
   let loadingArtists = $state(false);
+
+  let myPlaylists = $state<Array<{
+    id: string;
+    name: string;
+    updatedAt: string;
+    trackCount: number;
+  }>>([]);
+  let loadingPlaylists = $state(false);
 
   async function loadFollowedArtists() {
     loadingArtists = true;
@@ -27,6 +39,21 @@
       // ignore
     } finally {
       loadingArtists = false;
+    }
+  }
+
+  async function loadPlaylists() {
+    loadingPlaylists = true;
+    try {
+      const res = await fetch('/api/playlists');
+      if (res.ok) {
+        const payload = await res.json();
+        myPlaylists = Array.isArray(payload?.playlists) ? payload.playlists : [];
+      }
+    } catch {
+      // ignore
+    } finally {
+      loadingPlaylists = false;
     }
   }
 
@@ -50,6 +77,7 @@
 
   onMount(() => {
     void loadFollowedArtists();
+    void loadPlaylists();
   });
 </script>
 
@@ -61,7 +89,7 @@
   <div class="flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-8 h-[calc(100vh-6rem)]">
     <!-- Header Tabs -->
     <div class="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-zinc-800/80 flex-wrap">
-      <div class="flex items-center gap-2 bg-zinc-900/90 p-1 rounded-full border border-zinc-800">
+      <div class="flex items-center gap-2 bg-zinc-900/90 p-1 rounded-full border border-zinc-800 flex-wrap">
         <button
           type="button"
           onclick={() => (activeTab = 'songs')}
@@ -71,16 +99,94 @@
         </button>
         <button
           type="button"
+          onclick={() => (activeTab = 'playlists')}
+          class="px-4 py-1.5 rounded-full text-xs font-bold transition-all {activeTab === 'playlists' ? 'bg-qamuz-btn text-black shadow-md' : 'text-zinc-400 hover:text-white'}"
+        >
+          Mis Playlists ({myPlaylists.length})
+        </button>
+        <button
+          type="button"
           onclick={() => (activeTab = 'artists')}
           class="px-4 py-1.5 rounded-full text-xs font-bold transition-all {activeTab === 'artists' ? 'bg-qamuz-btn text-black shadow-md' : 'text-zinc-400 hover:text-white'}"
         >
           Artistas que sigo ({followedArtists.length})
         </button>
       </div>
+
+      {#if activeTab === 'playlists'}
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/15 transition-all shadow-sm"
+          onclick={() => (createPlaylistOpen = true)}
+        >
+          <Plus class="h-4 w-4" />
+          Nueva Playlist
+        </button>
+      {/if}
     </div>
 
     {#if activeTab === 'songs'}
       <LibraryPanel songs={data.songs} />
+    {:else if activeTab === 'playlists'}
+      <!-- Playlists View -->
+      <div class="space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-white">Tus Playlists</h2>
+          <p class="text-xs text-zinc-400 mt-1">Organiza tus canciones, cambia su orden y escúchalas en reproducción continua o aleatoria.</p>
+        </div>
+
+        {#if loadingPlaylists}
+          <div class="py-12 text-center text-zinc-400 text-sm">
+            Cargando playlists...
+          </div>
+        {:else if myPlaylists.length === 0}
+          <div class="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 p-10 text-center max-w-md mx-auto">
+            <div class="w-14 h-14 rounded-full bg-zinc-800/80 flex items-center justify-center mx-auto mb-4 text-2xl">
+              🎵
+            </div>
+            <h3 class="text-white font-bold text-base mb-1">Aún no tienes ninguna playlist</h3>
+            <p class="text-xs text-zinc-400 mb-5">
+              Crea tu primera lista para organizar tus creaciones favoritas y disfrutar de reproducción continua.
+            </p>
+            <button
+              type="button"
+              onclick={() => (createPlaylistOpen = true)}
+              class="inline-flex items-center gap-2 bg-qamuz-btn text-black font-extrabold text-xs px-5 py-2.5 rounded-full hover:scale-105 transition-all shadow-md"
+            >
+              <Plus class="h-4 w-4" />
+              Crear Playlist
+            </button>
+          </div>
+        {:else}
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {#each myPlaylists as pl}
+              <a
+                href={`/playlist/${pl.id}`}
+                class="spotify-card p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-900/90 transition-all flex flex-col justify-between gap-4 group"
+              >
+                <div class="flex items-start gap-4">
+                  <div class="w-14 h-14 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <ListMusic class="h-7 w-7 text-emerald-400" />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="font-bold text-base truncate text-white group-hover:text-qamuz-primary transition-colors">
+                      {pl.name}
+                    </h4>
+                    <span class="text-xs text-zinc-400 block mt-1">
+                      {pl.trackCount} {pl.trackCount === 1 ? 'canción' : 'canciones'}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500">
+                  <span>Abrir lista</span>
+                  <span class="text-white/40 group-hover:text-white transition-colors">➔</span>
+                </div>
+              </a>
+            {/each}
+          </div>
+        {/if}
+      </div>
     {:else}
       <!-- Followed Artists View -->
       <div class="space-y-6">
@@ -156,3 +262,8 @@
     {/if}
   </div>
 </div>
+
+<AddToPlaylistDialog
+  bind:open={createPlaylistOpen}
+  onclose={() => void loadPlaylists()}
+/>

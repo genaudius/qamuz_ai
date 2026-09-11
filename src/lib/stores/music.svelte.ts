@@ -24,6 +24,9 @@ export interface MusicTrack {
 export class GlobalMusicState {
     currentTrack = $state<MusicTrack | null>(null);
     queue = $state<MusicTrack[]>([]);
+    isShuffle = $state<boolean>(false);
+    repeatMode = $state<"off" | "all" | "one">("off");
+    private playedHistory = $state<string[]>([]);
     
     // Page state to share with Header
     activeAudioMode = $state<"tts" | "stt" | "voice_changer" | "music" | "sound_effects">("music");
@@ -224,6 +227,118 @@ export class GlobalMusicState {
         this.currentTime = next;
         if (this.audioElement && Number.isFinite(next)) {
             this.audioElement.currentTime = next;
+        }
+    }
+
+    async nextTrack(autoTrigger = false): Promise<boolean> {
+        if (!this.queue.length) {
+            if (autoTrigger) this.isPlaying = false;
+            return false;
+        }
+
+        if (this.repeatMode === "one" && this.currentTrack) {
+            this.currentTime = 0;
+            if (this.audioElement) {
+                this.audioElement.currentTime = 0;
+                await this.audioElement.play().catch(console.error);
+            }
+            this.isPlaying = true;
+            return true;
+        }
+
+        const currentIndex = this.currentTrack
+            ? this.queue.findIndex((t) => t.id === this.currentTrack?.id)
+            : -1;
+
+        if (this.isShuffle && this.queue.length > 1) {
+            const candidates = this.queue.filter((t) => t.id !== this.currentTrack?.id);
+            const unplayed = candidates.filter((t) => !this.playedHistory.includes(t.id));
+            const pool = unplayed.length > 0 ? unplayed : candidates;
+            const randomIndex = Math.floor(Math.random() * pool.length);
+            const chosen = pool[randomIndex];
+            if (chosen) {
+                this.playedHistory = [...this.playedHistory.slice(-20), chosen.id];
+                await this.playTrack(chosen);
+                return true;
+            }
+        }
+
+        let nextIndex = currentIndex + 1;
+        if (nextIndex >= this.queue.length) {
+            if (this.repeatMode === "all") {
+                nextIndex = 0;
+            } else {
+                if (autoTrigger) {
+                    this.isPlaying = false;
+                    this.currentTime = 0;
+                }
+                return false;
+            }
+        }
+
+        const target = this.queue[nextIndex];
+        if (target) {
+            this.playedHistory = [...this.playedHistory.slice(-20), target.id];
+            await this.playTrack(target);
+            return true;
+        }
+        return false;
+    }
+
+    async prevTrack(): Promise<void> {
+        if (!this.queue.length) return;
+
+        if (this.currentTime > 3) {
+            this.seek(0);
+            return;
+        }
+
+        const currentIndex = this.currentTrack
+            ? this.queue.findIndex((t) => t.id === this.currentTrack?.id)
+            : -1;
+
+        let prevIndex = currentIndex - 1;
+        if (prevIndex < 0) {
+            prevIndex = this.repeatMode === "all" ? this.queue.length - 1 : 0;
+        }
+
+        const target = this.queue[prevIndex];
+        if (target) {
+            this.playedHistory = [...this.playedHistory.slice(-20), target.id];
+            await this.playTrack(target);
+        }
+    }
+
+    toggleShuffle(): boolean {
+        this.isShuffle = !this.isShuffle;
+        this.playedHistory = this.currentTrack ? [this.currentTrack.id] : [];
+        return this.isShuffle;
+    }
+
+    toggleRepeat(): "off" | "all" | "one" {
+        if (this.repeatMode === "off") this.repeatMode = "all";
+        else if (this.repeatMode === "all") this.repeatMode = "one";
+        else this.repeatMode = "off";
+        return this.repeatMode;
+    }
+
+    reorderQueue(newQueue: MusicTrack[]) {
+        this.queue = [...newQueue];
+    }
+
+    async playQueue(tracks: MusicTrack[], startIndex = 0, shuffle = false) {
+        if (!tracks.length) return;
+        this.queue = [...tracks];
+        this.isShuffle = shuffle;
+        if (shuffle && tracks.length > 1) {
+            const randomIndex = Math.floor(Math.random() * tracks.length);
+            const track = tracks[randomIndex];
+            this.playedHistory = [track.id];
+            await this.playTrack(track);
+        } else {
+            const index = Math.max(0, Math.min(startIndex, tracks.length - 1));
+            this.playedHistory = [tracks[index].id];
+            await this.playTrack(tracks[index]);
         }
     }
 }

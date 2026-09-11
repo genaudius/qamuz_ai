@@ -20,6 +20,9 @@
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import Play from "@lucide/svelte/icons/play";
   import Pause from "@lucide/svelte/icons/pause";
+  import SkipBack from "@lucide/svelte/icons/skip-back";
+  import SkipForward from "@lucide/svelte/icons/skip-forward";
+  import Shuffle from "@lucide/svelte/icons/shuffle";
   import Send from "@lucide/svelte/icons/send";
   import AudioLines from "@lucide/svelte/icons/audio-lines";
   import Upload from "@lucide/svelte/icons/upload";
@@ -555,6 +558,18 @@
           <span>{track.isPublic ? "Pública" : "Publicar"}</span>
         </button>
       {/if}
+      <button
+        type="button"
+        class="rail-btn"
+        class:on={ctxMusic.isShuffle}
+        onclick={() => ctxMusic.toggleShuffle()}
+        aria-label="Modo aleatorio"
+      >
+        <div class="rail-icon-wrap" class:liked={ctxMusic.isShuffle}>
+          <Shuffle class="h-5 w-5" />
+        </div>
+        <span>{ctxMusic.isShuffle ? "Aleatorio" : "En orden"}</span>
+      </button>
     </div>
 
     <!-- Zona inferior: Metadatos, Líricas karaoke dinámicas y Barra de transporte -->
@@ -613,18 +628,36 @@
 
       <!-- Barra de transporte Shorts -->
       <div class="transport">
-        <button
-          type="button"
-          class="play-btn"
-          aria-label={ctxMusic.isPlaying ? "Pausar" : "Reproducir"}
-          onclick={() => void ctxMusic.togglePlay()}
-        >
-          {#if ctxMusic.isPlaying}
-            <Pause class="h-5 w-5" />
-          {:else}
-            <Play class="h-5 w-5 ml-0.5" />
-          {/if}
-        </button>
+        <div class="transport-controls">
+          <button
+            type="button"
+            class="skip-btn"
+            aria-label="Canción anterior"
+            onclick={() => void ctxMusic.prevTrack()}
+          >
+            <SkipBack class="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            class="play-btn"
+            aria-label={ctxMusic.isPlaying ? "Pausar" : "Reproducir"}
+            onclick={() => void ctxMusic.togglePlay()}
+          >
+            {#if ctxMusic.isPlaying}
+              <Pause class="h-5 w-5" />
+            {:else}
+              <Play class="h-5 w-5 ml-0.5" />
+            {/if}
+          </button>
+          <button
+            type="button"
+            class="skip-btn"
+            aria-label="Siguiente canción"
+            onclick={() => void ctxMusic.nextTrack()}
+          >
+            <SkipForward class="h-4 w-4" />
+          </button>
+        </div>
         <div class="seek-wrap">
           <div
             class="progress"
@@ -1257,8 +1290,34 @@
   .transport {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     margin-top: 4px;
+  }
+
+  .transport-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+
+  .skip-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(12px);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+
+  .skip-btn:active {
+    transform: scale(0.9);
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .play-btn {
