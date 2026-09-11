@@ -104,7 +104,10 @@ export function isKieGenerateOnly(): boolean {
 function assertKieGenerateOnlyPath(path: string): void {
 	if (!isKieGenerateOnly()) return;
 	const clean = path.split('?')[0];
-	const allowed = clean === '/generate' || clean.startsWith('/generate/record-info');
+	const allowed =
+		clean === '/generate' ||
+		clean.startsWith('/generate/record-info') ||
+		clean.startsWith('/generate/get-timestamped-lyrics');
 	if (!allowed) {
 		throw new KieApiError(
 			`Kie is generate-only. Blocked ${clean}. Use GenAudius workers or OpenRouter for other tools.`,

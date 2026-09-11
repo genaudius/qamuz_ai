@@ -301,28 +301,41 @@ export function buildStructuredTimedLyrics(
 		});
 	}
 
+function getLineSyllableWeight(text: string): number {
+	const cleaned = text.trim().toLowerCase().replace(/\[[^\]]+\]/g, '').trim();
+	const words = cleaned.split(/\s+/).filter(Boolean);
+	if (words.length === 0) return 1.5;
+	const vowelMatches = cleaned.match(/[aeiouyáéíóúüàèìòùâêîôûãõäëïöü]+/gi);
+	const syllables = vowelMatches ? vowelMatches.length : words.length * 2;
+	return Math.max(1.5, words.length * 0.75 + syllables * 0.25);
+}
+
 	const blocks = groupIntoSections(parsed);
 	const totalDur = duration > 0 ? duration : Math.max(sungRows.length * 3.8, 60);
 
-	// Latin/tropical & AI-generated songs (Suno/Kie) have an opening instrumental
-	// groove (requinto, brass, drums) lasting 13-20s before the first sung vocal.
-	// Providing a realistic lead-in prevents lyrics from activating prematurely.
-	const hasIntroBlock = blocks.some((b) => b.key === 'intro' || b.key === 'instrumental');
-	const leadIn = hasIntroBlock
-		? Math.min(22, Math.max(14, totalDur * 0.095))
-		: Math.min(20, Math.max(13, totalDur * 0.085));
-	const trail = Math.min(10, Math.max(5, totalDur * 0.05));
-	const usable = Math.max(totalDur - leadIn - trail, sungRows.length * 2.8);
+	// Check if the FIRST block is explicitly an intro or instrumental
+	const hasFirstBlockIntro =
+		blocks.length > 0 &&
+		(blocks[0].key === 'intro' || blocks[0].key === 'instrumental');
 
-	// Weight sections linearly by sung lines count so verses don't get artificially
-	// compressed compared to choruses.
+	const leadIn = hasFirstBlockIntro
+		? Math.min(15, Math.max(6, totalDur * 0.075))
+		: Math.min(5.5, Math.max(2.2, totalDur * 0.035));
+
+	const trail = Math.min(8, Math.max(3, totalDur * 0.04));
+	const usable = Math.max(totalDur - leadIn - trail, sungRows.length * 2.2);
+
+	// Weight sections by total syllables and lines
 	const weights = blocks.map((block) => {
 		const base = SECTION_WEIGHT[block.key] ?? 1.0;
 		if (block.lines.length === 0) {
-			return base * 1.5; // pure instrumental interlude / solo
+			return base * 1.5;
 		}
-		// Linear scaling per line ensures consistent, natural singing pace (3.5-4.5s/line)
-		return base * block.lines.length;
+		const blockSyllables = block.lines.reduce(
+			(sum, line) => sum + getLineSyllableWeight(line.text),
+			0
+		);
+		return base * blockSyllables;
 	});
 	const weightSum = weights.reduce((a, b) => a + b, 0) || 1;
 
@@ -339,23 +352,29 @@ export function buildStructuredTimedLyrics(
 		// Musical breathing room at the start and end of each section
 		const isIntroOrInst = block.key === 'intro' || block.key === 'instrumental';
 		const sungStartPad = isIntroOrInst
-			? Math.min(slice * 0.4, 6)
+			? Math.min(slice * 0.35, 5)
 			: block.key === 'outro'
-				? Math.min(slice * 0.1, 2)
-				: Math.min(slice * 0.08, 2.5);
+				? Math.min(slice * 0.1, 1.8)
+				: Math.min(slice * 0.06, 1.8);
 		const sungEndPad =
 			block.key === 'outro' || block.key === 'ending'
-				? Math.min(slice * 0.35, 8)
-				: Math.min(slice * 0.08, 2.5);
+				? Math.min(slice * 0.3, 6)
+				: Math.min(slice * 0.06, 1.8);
 
-		const singSpan = Math.max(slice - sungStartPad - sungEndPad, block.lines.length * 1.8);
+		const singSpan = Math.max(slice - sungStartPad - sungEndPad, block.lines.length * 1.6);
 		const sectionStart = cursor + sungStartPad;
-		const lineSlot = singSpan / Math.max(block.lines.length, 1);
 
+		// Proportionally distribute line slots according to each line's actual syllables & words
+		const lineWeights = block.lines.map((l) => getLineSyllableWeight(l.text));
+		const totalBlockWeight = lineWeights.reduce((a, b) => a + b, 0) || 1;
+
+		let lineCursor = sectionStart;
 		block.lines.forEach((line, li) => {
-			const start = sectionStart + li * lineSlot;
-			// Leave a 0.4s breathing pause between consecutive lines
-			const end = start + Math.max(lineSlot - 0.4, 1.6);
+			const rawSlot = (lineWeights[li] / totalBlockWeight) * singSpan;
+			const lineSlot = Math.max(1.4, rawSlot);
+			const start = lineCursor;
+			const end = start + Math.max(lineSlot - 0.25, 1.2);
+
 			timed.push({
 				text: line.text,
 				start,
@@ -363,6 +382,8 @@ export function buildStructuredTimedLyrics(
 				timed: false,
 				section: block.label
 			});
+
+			lineCursor += lineSlot;
 		});
 
 		cursor += slice;
@@ -377,11 +398,9 @@ export function buildTimedLyrics(raw: string, durationSec: number): TimedLyricLi
 }
 
 /**
- * Kie/STT onset marks often fire slightly before the perceived vocal.
- * Subtract this from the playhead when resolving the active line so lyrics
- * don't appear ahead of the voice.
+ * Low latency anticipation for natural vocal synchronization.
  */
-export const LYRIC_VOICE_LAG_SEC = 0.45;
+export const LYRIC_VOICE_LAG_SEC = 0.02;
 
 /** Active lyric index for a playhead time (seconds). */
 export function activeLyricIndex(
@@ -391,18 +410,18 @@ export function activeLyricIndex(
 ): number {
 	if (lines.length === 0) return -1;
 	const raw = Number.isFinite(timeSec) ? timeSec : 0;
-	const lag = Number.isFinite(lagSec) ? Math.max(0, lagSec) : 0;
+	const lag = Number.isFinite(lagSec) ? lagSec : 0.02;
 	const t = raw - lag;
 
-	// Before first sung word → no active lyric (intro / instrumental).
-	if (t < lines[0].start - 0.05) return -1;
+	// Before first sung line
+	if (t < lines[0].start - 0.15) return -1;
 
 	let lo = 0;
 	let hi = lines.length - 1;
 	let best = 0;
 	while (lo <= hi) {
 		const mid = (lo + hi) >> 1;
-		if (lines[mid].start <= t) {
+		if (lines[mid].start <= t + 0.12) {
 			best = mid;
 			lo = mid + 1;
 		} else {
@@ -410,15 +429,6 @@ export function activeLyricIndex(
 		}
 	}
 
-	const line = lines[best];
-	if (line.end != null && t > line.end + 0.35 && best < lines.length - 1) {
-		// Between lines (short instrumental break) — keep last until next is close,
-		// unless gap is large.
-		const next = lines[best + 1];
-		if (next && t < next.start - 0.4) {
-			return best;
-		}
-	}
 	return best;
 }
 

@@ -301,8 +301,8 @@ export async function alignMusicLyrics(
 		console.warn(`[align-lyrics] Local forced-align failed for ${musicId}:`, err);
 	}
 
-	// 3) Optional Kie timestamped lyrics — blocked when Kie is generate-only
-	if ((allowPaid || isKieTimestampedLyricsEnabled()) && !isKieGenerateOnly()) {
+	// 3) Optional Kie timestamped lyrics (get-timestamped-lyrics is generate-path safe)
+	if (allowPaid || isKieTimestampedLyricsEnabled()) {
 		try {
 			const kieLines = await alignViaKie(musicId, {
 				taskId: options.taskId,
