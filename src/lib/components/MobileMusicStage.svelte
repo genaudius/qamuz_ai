@@ -451,20 +451,45 @@
         {/if}
       {:else if track.imageUrl}
         <div class="cover-stage">
-          <img
-            class="cover-art"
-            src={track.imageUrl}
-            alt=""
-            decoding="async"
-            fetchpriority="high"
-            draggable="false"
-          />
+          <!-- Fondo ambiental difuminado para llenar la pantalla sin distorsión ni pérdida de calidad -->
+          <div class="ambient-backdrop" aria-hidden="true">
+            <img
+              class="ambient-img"
+              src={track.imageUrl}
+              alt=""
+              decoding="async"
+              draggable="false"
+            />
+            <div class="ambient-darken"></div>
+          </div>
+
+          <!-- Cuadro central con encuadre cuadrado y brillo gloss verdoso resplandeciente a color vino -->
+          <div class="central-frame-wrap">
+            <div class="gloss-frame">
+              <div class="gloss-frame-inner">
+                <img
+                  class="cover-art-square"
+                  src={track.imageUrl}
+                  alt={track.title || "Carátula de música"}
+                  decoding="async"
+                  fetchpriority="high"
+                  draggable="false"
+                />
+                <div class="gloss-sheen" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
         </div>
       {:else}
         <div class="cover-stage placeholder-stage">
-          <div class="placeholder-content">
-            <span class="placeholder-brand">QAMUZ AI</span>
-            <p class="placeholder-title">{track.title || "Generación Musical"}</p>
+          <div class="central-frame-wrap">
+            <div class="gloss-frame">
+              <div class="gloss-frame-inner placeholder-inner">
+                <span class="placeholder-brand">QAMUZ AI</span>
+                <p class="placeholder-title">{track.title || "Generación Musical"}</p>
+                <div class="gloss-sheen" aria-hidden="true"></div>
+              </div>
+            </div>
           </div>
         </div>
       {/if}
@@ -741,41 +766,168 @@
     object-fit: cover;
   }
 
-  /* Full bleed cover stage estilo YouTube Shorts: la imagen llena 100% el fondo */
+  /* Contenedor del escenario para imágenes con atmósfera ambiental */
   .cover-stage {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
-  .cover-art {
+  /* Fondo ambiental desenfocado: llena la pantalla con atmósfera luminosa de la carátula sin perder nitidez */
+  .ambient-backdrop {
+    position: absolute;
+    inset: -30px;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .ambient-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     object-position: center;
-    image-rendering: auto;
+    filter: blur(52px) brightness(0.22) saturate(1.4);
+    transform: scale(1.25);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    transform: translateZ(0);
-    filter: brightness(0.92) contrast(1.05);
   }
 
-  .placeholder-stage {
+  .ambient-darken {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 40%,
+      rgba(0, 0, 0, 0.25) 0%,
+      rgba(0, 0, 0, 0.65) 60%,
+      rgba(0, 0, 0, 0.94) 100%
+    );
+  }
+
+  /* Encuadre central: posiciona la imagen en el centro visual superior dejando aire a los controles inferiores y riel derecho */
+  .central-frame-wrap {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at center, #1b262c 0%, #080d11 100%);
+    padding-top: calc(54px + env(safe-area-inset-top));
+    padding-bottom: calc(230px + env(safe-area-inset-bottom));
+    padding-left: 16px;
+    padding-right: 32px;
+    box-sizing: border-box;
   }
 
-  .placeholder-content {
+  /* Cuadro cuadrado más grande con diseño verdoso gloss resplandeciente a color vino */
+  .gloss-frame {
+    position: relative;
+    width: min(82vw, 340px);
+    aspect-ratio: 1 / 1;
+    max-height: min(82vw, 340px);
+    border-radius: 28px;
+    padding: 3px;
+    background: linear-gradient(
+      135deg,
+      #00ffaa 0%,
+      #00e599 18%,
+      #10b981 32%,
+      #2dd4bf 42%,
+      #4a044e 60%,
+      #701a75 72%,
+      #831843 84%,
+      #be123c 100%
+    );
+    box-shadow:
+      -8px -8px 28px -4px rgba(0, 255, 170, 0.42),
+      10px 12px 38px -4px rgba(190, 18, 60, 0.58),
+      0 24px 60px rgba(0, 0, 0, 0.9),
+      0 0 50px -10px rgba(16, 185, 129, 0.3),
+      inset 0 1.5px 2px rgba(255, 255, 255, 0.65),
+      inset 0 -1.5px 3px rgba(0, 0, 0, 0.6);
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    text-align: center;
+    justify-content: center;
+    animation: gloss-resplandor 5s infinite alternate ease-in-out;
+  }
+
+  @keyframes gloss-resplandor {
+    0% {
+      box-shadow:
+        -8px -8px 26px -4px rgba(0, 255, 170, 0.36),
+        10px 12px 34px -4px rgba(190, 18, 60, 0.5),
+        0 20px 50px rgba(0, 0, 0, 0.85),
+        0 0 38px -8px rgba(16, 185, 129, 0.25),
+        inset 0 1.5px 2px rgba(255, 255, 255, 0.6);
+      transform: scale(1);
+    }
+    100% {
+      box-shadow:
+        -10px -10px 38px -2px rgba(0, 255, 170, 0.56),
+        14px 16px 46px -2px rgba(225, 29, 72, 0.74),
+        0 28px 70px rgba(0, 0, 0, 0.95),
+        0 0 60px -5px rgba(16, 185, 129, 0.42),
+        inset 0 2px 3px rgba(255, 255, 255, 0.85);
+      transform: scale(1.012);
+    }
+  }
+
+  .gloss-frame-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 25px;
+    overflow: hidden;
+    background: #0d0f12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cover-art-square {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 25px;
+    display: block;
+    image-rendering: auto;
+    filter: contrast(1.04) brightness(0.98);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  /* Capa de brillo y reflejo especular tipo gloss */
+  .gloss-sheen {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 25px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.08) 26%,
+      transparent 48%,
+      rgba(190, 18, 60, 0.14) 80%,
+      rgba(0, 255, 170, 0.1) 100%
+    );
+    box-shadow:
+      inset 0 0 16px rgba(0, 0, 0, 0.35),
+      inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  }
+
+  .placeholder-inner {
+    flex-direction: column;
+    gap: 12px;
     padding: 24px;
+    text-align: center;
+    background: radial-gradient(circle at center, #1b262c 0%, #080d11 100%);
   }
 
   .placeholder-brand {
