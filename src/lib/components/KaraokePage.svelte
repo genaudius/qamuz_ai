@@ -24,13 +24,40 @@
   import UserRound from "@lucide/svelte/icons/user-round";
   import ListPlus from "@lucide/svelte/icons/list-plus";
   import MessageCircle from "@lucide/svelte/icons/message-circle";
+  import Sparkles from "@lucide/svelte/icons/sparkles";
   import AddToPlaylistDialog from "$lib/components/AddToPlaylistDialog.svelte";
+  import { fanLimitState } from "$lib/stores/fan-limit.svelte.js";
 
   let {
-    musicId
+    musicId,
+    isKaraokeUnlimited = false
   }: {
     musicId: string;
+    isKaraokeUnlimited?: boolean;
   } = $props();
+
+  const MAX_KARAOKE_PREVIEW = 30;
+  let previewLimitNotified = $state(false);
+
+  function enforcePreviewLimit() {
+    if (isKaraokeUnlimited) return false;
+    if (playhead >= MAX_KARAOKE_PREVIEW) {
+      if (pageAudio) {
+        pageAudio.pause();
+        pageAudio.currentTime = MAX_KARAOKE_PREVIEW;
+      }
+      playhead = MAX_KARAOKE_PREVIEW;
+      musicState.pauseTrack();
+      if (!previewLimitNotified) {
+        previewLimitNotified = true;
+        fanLimitState.openModal(
+          "Has alcanzado el límite de 30 segundos de vista previa en Karaoke. Suscríbete al Plan Fan Unlimited por solo $8 USD/mes para cantar temas completos sin límites."
+        );
+      }
+      return true;
+    }
+    return false;
+  }
 
   const musicState = getContext<GlobalMusicState>("musicState") ?? sharedMusicState;
 
@@ -410,11 +437,15 @@
       const audio = musicState.audioElement;
       if (audio) {
         const t = audio.currentTime;
-        if (Number.isFinite(t)) playhead = t;
+        if (Number.isFinite(t)) {
+          playhead = t;
+          enforcePreviewLimit();
+        }
         const d = audio.duration;
         if (Number.isFinite(d) && d > 0) audioDuration = d;
       } else if (Number.isFinite(musicState.currentTime)) {
         playhead = musicState.currentTime;
+        enforcePreviewLimit();
       }
       raf = requestAnimationFrame(tick);
     };
@@ -501,6 +532,18 @@
   function seekToLine(index: number) {
     const line = timedLines[index];
     if (!line || !Number.isFinite(line.start)) return;
+    if (!isKaraokeUnlimited && line.start > MAX_KARAOKE_PREVIEW) {
+      if (pageAudio) {
+        pageAudio.pause();
+        pageAudio.currentTime = MAX_KARAOKE_PREVIEW;
+      }
+      playhead = MAX_KARAOKE_PREVIEW;
+      musicState.pauseTrack();
+      fanLimitState.openModal(
+        "Esta estrofa supera los 30 segundos de vista previa de Karaoke. ¡Suscríbete al Plan Fan Unlimited por solo $8 USD/mes para cantar la canción entera!"
+      );
+      return;
+    }
     playhead = line.start;
     musicState.seek(line.start);
     if (!musicState.isPlaying) void musicState.togglePlay();
@@ -511,6 +554,18 @@
     const rect = event.currentTarget.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
     const next = ratio * duration;
+    if (!isKaraokeUnlimited && next > MAX_KARAOKE_PREVIEW) {
+      if (pageAudio) {
+        pageAudio.pause();
+        pageAudio.currentTime = MAX_KARAOKE_PREVIEW;
+      }
+      playhead = MAX_KARAOKE_PREVIEW;
+      musicState.pauseTrack();
+      fanLimitState.openModal(
+        "La vista previa de Karaoke para cuentas gratuitas está limitada a 30 segundos. ¡Suscríbete al Plan Fan Unlimited por solo $8 USD/mes para desbloquear la canción completa!"
+      );
+      return;
+    }
     playhead = next;
     musicState.seek(next);
   }
@@ -529,6 +584,7 @@
     if (Number.isFinite(audio.currentTime)) {
       playhead = audio.currentTime;
       musicState.currentTime = audio.currentTime;
+      enforcePreviewLimit();
     }
     if (Number.isFinite(audio.duration) && audio.duration > 0) {
       audioDuration = audio.duration;
@@ -582,6 +638,18 @@
       <span>{formatCount(playsCount)}</span>
       <span class="stats-label">vistas</span>
     </div>
+    {#if !isKaraokeUnlimited}
+      <button
+        type="button"
+        onclick={() => fanLimitState.openModal("Suscríbete al Plan Fan Unlimited por solo $8 USD/mes para disfrutar de Karaoke ilimitado sin cortes.")}
+        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold hover:bg-amber-500/25 transition cursor-pointer shrink-0"
+        title="Haz clic para desbloquear Karaoke completo"
+      >
+        <Sparkles class="w-3.5 h-3.5 animate-pulse text-amber-400" />
+        <span>Vista Previa: 30s</span>
+        <span class="text-[10px] bg-amber-500 text-black font-bold px-1.5 py-0.5 rounded-md ml-1">Desbloquear</span>
+      </button>
+    {/if}
   </header>
 
   <div class="stage">

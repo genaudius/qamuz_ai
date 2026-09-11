@@ -4,4 +4,4 @@
   let { data } = $props();
 </script>
 
-<KaraokePage musicId={data.musicId} />
+<KaraokePage musicId={data.musicId} isKaraokeUnlimited={data.isKaraokeUnlimited} />
