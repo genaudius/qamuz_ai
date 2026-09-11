@@ -293,6 +293,7 @@
   let customGenres = $state<string[]>(["Deep House", "Sad", "Tender", "Viola"]);
   let isGeneratingLyrics = $state(false);
   let isEnhancingStyle = $state(false);
+  let expandedLyricsTrackId = $state<string | null>(null);
 
   async function generateCustomLyrics() {
     const seed =
@@ -1063,7 +1064,9 @@
                                   imageUrl: feedTrack.imageUrl,
                                   videoUrl: feedTrack.videoUrl,
                                   lyrics: feedTrack.lyrics,
-                                  durationMs: feedTrack.durationMs ?? 0
+                                  durationMs: feedTrack.durationMs ?? 0,
+                                  userId: data?.session?.user?.id,
+                                  artistId: data?.session?.user?.id
                                 });
                               }}
                             >
@@ -1074,11 +1077,21 @@
                           <!-- Info -->
                           <div class="flex-1 min-w-0">
                             <h4 class="font-medium text-sm truncate">{feedTrack.title}</h4>
-                            <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                            <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
                               <span>Generated</span>
                               {#if feedTrack.durationMs}
                                 <span>•</span>
                                 <span>{formatTime(feedTrack.durationMs / 1000)}</span>
+                              {/if}
+                              {#if feedTrack.lyrics}
+                                <span>•</span>
+                                <button
+                                  type="button"
+                                  class="text-[11px] text-teal-400 hover:text-teal-300 transition-colors font-medium cursor-pointer"
+                                  onclick={() => expandedLyricsTrackId = expandedLyricsTrackId === feedTrack.id ? null : feedTrack.id}
+                                >
+                                  {expandedLyricsTrackId === feedTrack.id ? "Ocultar letra" : "Ver letra"}
+                                </button>
                               {/if}
                             </div>
                           </div>
@@ -1090,12 +1103,24 @@
                               title: feedTrack.title,
                               prompt: feedTrack.title,
                               videoUrl: feedTrack.videoUrl,
-                              imageUrl: feedTrack.imageUrl
+                              imageUrl: feedTrack.imageUrl,
+                              lyrics: feedTrack.lyrics,
+                              userId: data?.session?.user?.id,
+                              artistId: data?.session?.user?.id
                             }}
                             side="top"
                             buttonClass="text-muted-foreground hover:text-foreground"
                           />
                         </div>
+
+                        {#if expandedLyricsTrackId === feedTrack.id && feedTrack.lyrics}
+                          <div class="mt-1 w-full rounded-xl border border-white/10 bg-black/40 p-3.5 text-xs text-zinc-300 whitespace-pre-line leading-relaxed max-h-56 overflow-y-auto custom-scrollbar shadow-inner">
+                            <p class="font-semibold text-teal-400 mb-1.5 flex items-center gap-1.5">
+                              <span>Letra de la canción</span>
+                            </p>
+                            {feedTrack.lyrics}
+                          </div>
+                        {/if}
                       {/each}
                     {/if}
                   </div>

@@ -19,10 +19,11 @@
   const musicState = getContext<GlobalMusicState>("musicState") ?? sharedMusicState;
   const currentUserId = $derived(page.data?.session?.user?.id);
   const currentUserRole = $derived(page.data?.session?.user?.role);
+  const isCurrentUserAdmin = $derived(Boolean(page.data?.session?.user?.isAdmin || currentUserRole === "admin"));
 
   function isSongOwner(song: any) {
     if (!currentUserId) return false;
-    if (currentUserRole === "admin") return true;
+    if (isCurrentUserAdmin) return true;
     if (song.userId) return song.userId === currentUserId;
     if (song.artistId) return song.artistId === currentUserId;
     return true;
@@ -174,6 +175,10 @@
       videoUrl: song.videoUrl || undefined,
       durationMs: song.durationMs || 0,
       genre: song.genre ?? null,
+      tags: song.tags ?? [],
+      userId: song.userId || currentUserId,
+      artistId: song.userId || song.artistId || currentUserId,
+      lyrics: song.lyrics || undefined,
       isPublic
     });
   }

@@ -49,14 +49,26 @@
 
   const currentUserId = $derived(page.data?.session?.user?.id);
   const currentUserRole = $derived(page.data?.session?.user?.role);
+  const isCurrentUserAdmin = $derived(Boolean(page.data?.session?.user?.isAdmin || currentUserRole === "admin"));
+
+  const isDifferentOwner = $derived(
+    Boolean(
+      fetchedOwnerId &&
+      currentUserId &&
+      fetchedOwnerId !== currentUserId &&
+      !isCurrentUserAdmin
+    )
+  );
 
   const isOwner = $derived(
     Boolean(
       currentUserId &&
-      (currentUserRole === "admin" ||
+      !isDifferentOwner &&
+      (isCurrentUserAdmin ||
        (song.userId && song.userId === currentUserId) ||
        (song.artistId && song.artistId === currentUserId) ||
-       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+       (fetchedOwnerId && fetchedOwnerId === currentUserId) ||
+       (!song.userId && !song.artistId && !fetchedOwnerId))
     )
   );
 
@@ -77,6 +89,10 @@
       videoUrl: song.videoUrl || undefined,
       durationMs: song.durationMs || 0,
       genre: song.genre ?? null,
+      tags: song.tags ?? [],
+      userId: song.userId || fetchedOwnerId || (isOwner ? currentUserId : undefined),
+      artistId: song.artistId || song.userId || fetchedOwnerId || (isOwner ? currentUserId : undefined),
+      lyrics: song.lyrics || undefined,
       isPublic: typeof song.isPublic === "boolean" ? song.isPublic : undefined
     };
   }
@@ -87,7 +103,7 @@
       notice.error("No se puede publicar", "Esta canción aún no está lista.");
       return;
     }
-    if (!isOwner) {
+    if (isDifferentOwner) {
       notice.error("Acceso denegado", "Solo el artista creador puede publicar o editar esta canción.");
       return;
     }

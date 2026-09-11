@@ -44,14 +44,26 @@
   const track = $derived(musicState.currentTrack);
   const currentUserId = $derived(page.data?.session?.user?.id);
   const currentUserRole = $derived(page.data?.session?.user?.role);
+  const isCurrentUserAdmin = $derived(Boolean(page.data?.session?.user?.isAdmin || currentUserRole === "admin"));
+
+  const isDifferentOwner = $derived(
+    Boolean(
+      fetchedOwnerId &&
+      currentUserId &&
+      fetchedOwnerId !== currentUserId &&
+      !isCurrentUserAdmin
+    )
+  );
 
   const isOwner = $derived(
     Boolean(
       currentUserId &&
-      (currentUserRole === "admin" ||
+      !isDifferentOwner &&
+      (isCurrentUserAdmin ||
        (track?.userId && track.userId === currentUserId) ||
        (track?.artistId && track.artistId === currentUserId) ||
-       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+       (fetchedOwnerId && fetchedOwnerId === currentUserId) ||
+       (!track?.userId && !track?.artistId && !fetchedOwnerId))
     )
   );
 
@@ -237,7 +249,7 @@
 
   function openPublish() {
     if (!track?.id) return;
-    if (!isOwner) {
+    if (isDifferentOwner) {
       notice.error("Acceso denegado", "Solo el artista creador puede publicar esta canción.");
       return;
     }

@@ -65,6 +65,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 							const audioUrl = resolveKieAudioUrl(track)!;
 							const durationMs = Math.round(Number(track.duration || 210) * 1000);
 							
+							const lyricsText = track.prompt || track.lyrics || null;
+							const genreText = (job.payload as any).style || (job.payload as any).genre || null;
+
 							const [inserted] = await db.insert(music).values({
 								id: randomUUID(),
 								filename: `kie-${track.id || Date.now()}-${index}.mp3`,
@@ -79,7 +82,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 								imageUrl: track.imageUrl,
 								videoUrl: track.videoUrl,
 								title: track.title || `Generated Track ${index + 1}`,
-								isInstrumental: (job.payload as any).instrumental || false
+								isInstrumental: (job.payload as any).instrumental || false,
+								lyrics: lyricsText,
+								genre: genreText
 							}).returning({ id: music.id });
 
 							return {
@@ -87,7 +92,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 								title: track.title || `Generated Track ${index + 1}`,
 								imageUrl: track.imageUrl,
 								videoUrl: track.videoUrl,
-								lyrics: track.prompt,
+								lyrics: lyricsText,
 								durationMs: durationMs,
 								url: audioUrl
 							};

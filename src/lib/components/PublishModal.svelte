@@ -28,16 +28,19 @@
   const publishTrack = $derived(musicState.publishTarget || musicState.currentTrack);
   const currentUserId = $derived(page.data?.session?.user?.id);
   const currentUserRole = $derived(page.data?.session?.user?.role);
+  const isCurrentUserAdmin = $derived(Boolean(page.data?.session?.user?.isAdmin || currentUserRole === "admin"));
 
-  const isOwner = $derived(
+  // Track is definitely owned by someone else ONLY if we confirmed another owner's ID and current user is not admin
+  const isDifferentOwner = $derived(
     Boolean(
+      fetchedOwnerId &&
       currentUserId &&
-      (currentUserRole === "admin" ||
-       (publishTrack?.userId && publishTrack.userId === currentUserId) ||
-       (publishTrack?.artistId && publishTrack.artistId === currentUserId) ||
-       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+      fetchedOwnerId !== currentUserId &&
+      !isCurrentUserAdmin
     )
   );
+
+  const isOwner = $derived(Boolean(currentUserId && !isDifferentOwner));
 
   async function refreshPublishStatus() {
     if (!publishTrack?.id) {
@@ -53,6 +56,15 @@
         alreadyPublic = Boolean(info?.isPublic);
         if (info?.userId || info?.artistId) {
           fetchedOwnerId = info.userId || info.artistId;
+        }
+        if (info?.title && !title) {
+          title = info.title;
+        }
+        if (info?.genre && !genre) {
+          genre = info.genre;
+        }
+        if (Array.isArray(info?.tags) && info.tags.length > 0 && !tagsInput) {
+          tagsInput = info.tags.join(", ");
         }
         if (publishTrack.id) {
           musicState.markTrackPublic(publishTrack.id, alreadyPublic);
@@ -90,7 +102,7 @@
 
   async function handleUnpublish() {
     if (!publishTrack?.id || isSubmitting) return;
-    if (!isOwner) {
+    if (isDifferentOwner) {
       submitError = "Solo el creador puede despublicar esta canción.";
       notice.error("Acceso denegado", submitError);
       return;
@@ -131,7 +143,7 @@
       submitError = "No pude identificar la canción.";
       return;
     }
-    if (!isOwner) {
+    if (isDifferentOwner) {
       submitError = "Solo el creador puede publicar o editar esta canción.";
       notice.error("Acceso denegado", submitError);
       return;
@@ -251,7 +263,7 @@
       </div>
 
       <div class="overflow-y-auto flex-1 p-4 sm:px-7 sm:py-5 flex flex-col gap-4 sm:gap-5">
-        {#if !isOwner && !checkingStatus}
+        {#if isDifferentOwner}
           <div
             class="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3 text-xs sm:text-sm text-amber-200"
           >
@@ -300,7 +312,7 @@
               type="text"
               bind:value={title}
               maxlength="50"
-              disabled={!isOwner}
+              disabled={isDifferentOwner || isSubmitting}
               class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors pr-14 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span class="absolute right-3.5 text-[11px] font-mono text-[#666]">
@@ -318,7 +330,7 @@
               bind:value={genre}
               maxlength="40"
               placeholder="ej. Bachata"
-              disabled={!isOwner}
+              disabled={isDifferentOwner || isSubmitting}
               class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
@@ -331,7 +343,7 @@
               bind:value={tagsInput}
               maxlength="180"
               placeholder="romántica, guitarra, tropical"
-              disabled={!isOwner}
+              disabled={isDifferentOwner || isSubmitting}
               class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <p class="text-[11px] text-[#8a8a8a]">Separados por coma, hasta 12.</p>
@@ -403,12 +415,12 @@
       <div class="p-4 sm:p-6 border-t border-white/10 bg-[#1a1a1a] shrink-0 sticky bottom-0 z-10 flex flex-col gap-2 shadow-2xl">
         <button
           onclick={handlePublish}
-          disabled={isSubmitting || !isOwner}
+          disabled={isSubmitting || isDifferentOwner}
           class="w-full bg-[#3ae0d5] hover:bg-[#3ae0d5]/90 text-black font-extrabold text-sm sm:text-base py-3 rounded-xl transition-all shadow-md transform hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           {#if isSubmitting}
             Guardando…
-          {:else if !isOwner}
+          {:else if isDifferentOwner}
             Solo lectura
           {:else if alreadyPublic}
             Actualizar publicación
@@ -416,11 +428,11 @@
             Publicar canción
           {/if}
         </button>
-        {#if alreadyPublic && isOwner}
+        {#if alreadyPublic && !isDifferentOwner}
           <button
             type="button"
             onclick={handleUnpublish}
-            disabled={isSubmitting || !isOwner}
+            disabled={isSubmitting || isDifferentOwner}
             class="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs sm:text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Despublicar

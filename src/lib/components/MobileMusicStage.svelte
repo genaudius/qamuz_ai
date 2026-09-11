@@ -63,15 +63,27 @@
   const track = $derived(ctxMusic.currentTrack);
   const currentUserId = $derived(page.data?.session?.user?.id);
   const currentUserRole = $derived(page.data?.session?.user?.role);
+  const isCurrentUserAdmin = $derived(Boolean(page.data?.session?.user?.isAdmin || currentUserRole === "admin"));
   let fetchedOwnerId = $state<string | null>(null);
+
+  const isDifferentOwner = $derived(
+    Boolean(
+      fetchedOwnerId &&
+      currentUserId &&
+      fetchedOwnerId !== currentUserId &&
+      !isCurrentUserAdmin
+    )
+  );
 
   const isOwner = $derived(
     Boolean(
       currentUserId &&
-      (currentUserRole === "admin" ||
+      !isDifferentOwner &&
+      (isCurrentUserAdmin ||
        (track?.userId && track.userId === currentUserId) ||
        (track?.artistId && track.artistId === currentUserId) ||
-       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+       (fetchedOwnerId && fetchedOwnerId === currentUserId) ||
+       (!track?.userId && !track?.artistId && !fetchedOwnerId))
     )
   );
 
@@ -494,7 +506,7 @@
         <AudioLines class="h-6 w-6" />
         <span>Stems</span>
       </button>
-      {#if isOwner}
+      {#if !isDifferentOwner}
         <button type="button" class="rail-btn" onclick={() => ctxMusic.openPublishModal(track)} aria-label="Publicar">
           <Upload class="h-6 w-6" />
           <span>{track.isPublic ? "Pública" : "Publicar"}</span>
