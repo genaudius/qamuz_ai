@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// - Artists or Producers who are verified (isVerifiedArtist === true)
 	const isAllowed = Boolean(
 		user.isAdmin ||
-		((user.userType === 'artist' || user.userType === 'producer') && user.isVerifiedArtist === true)
+		((user.userType === 'artist' || user.userType === 'producer' || user.userType === 'producer_artist') && user.isVerifiedArtist === true)
 	);
 
 	return {

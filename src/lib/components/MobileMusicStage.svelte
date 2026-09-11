@@ -452,13 +452,6 @@
       {:else if track.imageUrl}
         <div class="cover-stage">
           <img
-            class="cover-blur"
-            src={track.imageUrl}
-            alt=""
-            aria-hidden="true"
-            draggable="false"
-          />
-          <img
             class="cover-art"
             src={track.imageUrl}
             alt=""
@@ -468,58 +461,89 @@
           />
         </div>
       {:else}
-        <div class="cover-stage">
-          <div class="cover-art placeholder">QAMUZ</div>
+        <div class="cover-stage placeholder-stage">
+          <div class="placeholder-content">
+            <span class="placeholder-brand">QAMUZ AI</span>
+            <p class="placeholder-title">{track.title || "Generación Musical"}</p>
+          </div>
         </div>
       {/if}
       <div class="media-fade"></div>
     </div>
 
-    <button type="button" class="close" aria-label="Cerrar" onclick={closeStage}>
-      <ChevronDown class="h-6 w-6" />
-    </button>
+    <!-- Header superior estilo Shorts -->
+    <div class="stage-top-bar">
+      <button type="button" class="top-icon-btn" aria-label="Cerrar reproductor" onclick={closeStage}>
+        <ChevronDown class="h-6 w-6" />
+      </button>
+      <div class="stage-badge">
+        <span class="live-indicator"></span>
+        <span class="stage-badge-text">NOW PLAYING</span>
+      </div>
+    </div>
 
+    <!-- Rail lateral derecho estilo YouTube Shorts -->
     <div class="rail">
       <button type="button" class="rail-btn" class:on={liked} onclick={() => void toggleLike()} aria-label="Me gusta">
-        <Heart class="h-7 w-7" fill={liked ? "currentColor" : "none"} />
-        <span>{likesCount || ""}</span>
+        <div class="rail-icon-wrap" class:liked={liked}>
+          <Heart class="h-6 w-6" fill={liked ? "currentColor" : "none"} />
+        </div>
+        <span>{likesCount || "Me gusta"}</span>
       </button>
       <button type="button" class="rail-btn" onclick={() => (sheet = "comments")} aria-label="Comentarios">
-        <MessageCircle class="h-7 w-7" />
-        <span>{comments.length || ""}</span>
+        <div class="rail-icon-wrap">
+          <MessageCircle class="h-6 w-6" />
+        </div>
+        <span>{comments.length || "Comentar"}</span>
       </button>
       <button type="button" class="rail-btn" onclick={() => void shareTrack()} aria-label="Compartir">
-        <Share2 class="h-7 w-7" />
+        <div class="rail-icon-wrap">
+          <Share2 class="h-6 w-6" />
+        </div>
         <span>Share</span>
       </button>
       {#if isOwner}
         <button type="button" class="rail-btn" onclick={() => (sheet = "edit")} aria-label="Editar título">
-          <Pencil class="h-6 w-6" />
+          <div class="rail-icon-wrap">
+            <Pencil class="h-5 w-5" />
+          </div>
           <span>Título</span>
         </button>
         <button type="button" class="rail-btn" onclick={() => (sheet = "tags")} aria-label="Tags">
-          <Tags class="h-6 w-6" />
+          <div class="rail-icon-wrap">
+            <Tags class="h-5 w-5" />
+          </div>
           <span>Tags</span>
         </button>
       {/if}
       <button type="button" class="rail-btn" onclick={extractStemsToEditor} aria-label="Extraer stems">
-        <AudioLines class="h-6 w-6" />
+        <div class="rail-icon-wrap">
+          <AudioLines class="h-5 w-5" />
+        </div>
         <span>Stems</span>
       </button>
       {#if !isDifferentOwner}
         <button type="button" class="rail-btn" onclick={() => ctxMusic.openPublishModal(track)} aria-label="Publicar">
-          <Upload class="h-6 w-6" />
+          <div class="rail-icon-wrap">
+            <Upload class="h-5 w-5" />
+          </div>
           <span>{track.isPublic ? "Pública" : "Publicar"}</span>
         </button>
       {/if}
     </div>
 
+    <!-- Zona inferior: Metadatos, Líricas karaoke dinámicas y Barra de transporte -->
     <div class="bottom">
       <div class="meta">
-        <h2>{track.title}</h2>
-        {#if track.artist}
-          <p class="artist">@{track.artist}</p>
-        {/if}
+        <div class="creator-row">
+          {#if track.artist}
+            <span class="artist-badge">@{track.artist}</span>
+          {/if}
+          {#if track.genre}
+            <span class="genre-pill">{track.genre}</span>
+          {/if}
+        </div>
+        <h2 class="track-title">{track.title}</h2>
         {#if (track.tags || []).length}
           <div class="tags">
             {#each track.tags || [] as tag}
@@ -529,6 +553,7 @@
         {/if}
       </div>
 
+      <!-- Letras sincronizadas estilo subtítulos de Shorts -->
       <div class="lyrics-viewport" bind:this={lyricsHost} aria-live="polite">
         {#if activeSection && activeLine < 0}
           <p class="lyric-section">{activeSection}</p>
@@ -550,7 +575,7 @@
             {/each}
           </div>
         {:else}
-          <p class="lyric-empty">Sin letras — disfruta el groove</p>
+          <p class="lyric-empty">Disfruta la música en QAMUZ AI</p>
         {/if}
         {#if alignedSource === "pending"}
           <p class="lyric-sync-hint">Calibrando voz…</p>
@@ -561,10 +586,11 @@
         {/if}
       </div>
 
+      <!-- Barra de transporte Shorts -->
       <div class="transport">
         <button
           type="button"
-          class="play"
+          class="play-btn"
           aria-label={ctxMusic.isPlaying ? "Pausar" : "Reproducir"}
           onclick={() => void ctxMusic.togglePlay()}
         >
@@ -684,7 +710,7 @@
     position: fixed;
     inset: 0;
     z-index: 80;
-    background: #050505;
+    background: #000;
     color: #fff;
     overflow: hidden;
     overscroll-behavior: none;
@@ -703,7 +729,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    background: #111;
+    background: #000;
   }
 
   .stage.cinematic .media-el {
@@ -715,51 +741,56 @@
     object-fit: cover;
   }
 
-  /* Don't stretch a ~512px cover to full-bleed — keep it crisp. */
+  /* Full bleed cover stage estilo YouTube Shorts: la imagen llena 100% el fondo */
   .cover-stage {
     position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
-    padding: calc(72px + env(safe-area-inset-top)) 24px 34vh;
-  }
-
-  .cover-blur {
-    position: absolute;
-    inset: -18%;
-    width: 136%;
-    height: 136%;
-    object-fit: cover;
-    filter: blur(42px) saturate(1.25) brightness(0.48);
-    transform: scale(1.08);
-    pointer-events: none;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
   }
 
   .cover-art {
-    position: relative;
-    z-index: 1;
-    width: min(78vw, 360px);
-    max-width: 100%;
-    aspect-ratio: 1;
-    height: auto;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    border-radius: 22px;
-    box-shadow:
-      0 28px 70px rgba(0, 0, 0, 0.62),
-      0 0 0 1px rgba(255, 255, 255, 0.08);
+    object-position: center;
     image-rendering: auto;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     transform: translateZ(0);
+    filter: brightness(0.92) contrast(1.05);
   }
 
-  .placeholder {
-    display: grid;
-    place-items: center;
-    font-weight: 800;
-    letter-spacing: 0.2em;
+  .placeholder-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, #1b262c 0%, #080d11 100%);
+  }
+
+  .placeholder-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .placeholder-brand {
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: 0.25em;
     color: #3ae0d5;
-    background: linear-gradient(145deg, #1a2224, #0c1011);
+    text-shadow: 0 0 24px rgba(58, 224, 213, 0.4);
+  }
+
+  .placeholder-title {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 260px;
   }
 
   .media-fade,
@@ -769,131 +800,231 @@
     pointer-events: none;
   }
 
-  .stage.cover-mode .media-fade {
-    background: linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.45) 0%,
-      rgba(0, 0, 0, 0.08) 32%,
-      rgba(0, 0, 0, 0.2) 52%,
-      rgba(0, 0, 0, 0.92) 100%
-    );
-  }
-
+  /* Gradiente cinematográfico Shorts: protege la barra superior y crea fondo oscuro de alto contraste abajo */
+  .stage.cover-mode .media-fade,
   .media-fade {
     background: linear-gradient(
       180deg,
-      rgba(0, 0, 0, 0.35) 0%,
-      rgba(0, 0, 0, 0.05) 28%,
-      rgba(0, 0, 0, 0.15) 55%,
-      rgba(0, 0, 0, 0.88) 100%
+      rgba(0, 0, 0, 0.72) 0%,
+      rgba(0, 0, 0, 0.25) 12%,
+      rgba(0, 0, 0, 0.04) 30%,
+      rgba(0, 0, 0, 0.15) 50%,
+      rgba(0, 0, 0, 0.65) 68%,
+      rgba(0, 0, 0, 0.92) 86%,
+      rgba(0, 0, 0, 0.98) 100%
     );
   }
 
   .cine-vignette {
-    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.65) 100%);
   }
 
   .cine-grain {
     position: absolute;
     inset: 0;
-    opacity: 0.08;
+    opacity: 0.06;
     pointer-events: none;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  .close {
+  /* Barra superior estilo YouTube Shorts */
+  .stage-top-bar {
     position: absolute;
-    top: calc(10px + env(safe-area-inset-top));
-    left: 12px;
-    z-index: 5;
-    width: 40px;
-    height: 40px;
+    top: calc(12px + env(safe-area-inset-top));
+    left: 14px;
+    right: 14px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: auto;
+  }
+
+  .top-icon-btn {
+    width: 42px;
+    height: 42px;
     border-radius: 999px;
-    border: 0;
-    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: #fff;
     display: grid;
     place-items: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
   }
 
+  .top-icon-btn:active {
+    transform: scale(0.92);
+    background: rgba(0, 0, 0, 0.65);
+  }
+
+  .stage-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .live-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #3ae0d5;
+    box-shadow: 0 0 8px #3ae0d5;
+    animation: pulse-glow 2s infinite ease-in-out;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  .stage-badge-text {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Rail vertical derecho estilo Shorts */
   .rail {
     position: absolute;
-    right: 10px;
-    bottom: calc(150px + env(safe-area-inset-bottom));
-    z-index: 5;
+    right: 12px;
+    bottom: calc(130px + env(safe-area-inset-bottom));
+    z-index: 10;
     display: flex;
     flex-direction: column;
-    gap: 11px;
+    gap: 14px;
     align-items: center;
-    max-height: calc(100dvh - 220px);
+    max-height: calc(100dvh - 200px);
     overflow-y: auto;
     scrollbar-width: none;
+    pointer-events: auto;
   }
 
   .rail-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     border: 0;
     background: transparent;
     color: #fff;
     font-size: 11px;
     font-weight: 600;
-    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .rail-btn:active {
+    transform: scale(0.92);
+  }
+
+  .rail-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .rail-icon-wrap.liked {
+    color: #ff3366;
+    background: rgba(255, 51, 102, 0.2);
+    border-color: rgba(255, 51, 102, 0.4);
   }
 
   .rail-btn.on {
-    color: #ff5d7a;
+    color: #ff3366;
   }
 
+  /* Zona inferior con metadatos y controles */
   .bottom {
     position: absolute;
     left: 0;
-    right: 64px;
+    right: 76px;
     bottom: 0;
-    z-index: 4;
-    padding: 0 16px calc(18px + env(safe-area-inset-bottom));
+    z-index: 10;
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    pointer-events: auto;
   }
 
-  .meta h2 {
+  .creator-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+
+  .artist-badge {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+  }
+
+  .genre-pill {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(58, 224, 213, 0.18);
+    border: 1px solid rgba(58, 224, 213, 0.35);
+    color: #3ae0d5;
+    backdrop-filter: blur(8px);
+  }
+
+  .meta h2.track-title {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     font-weight: 800;
     line-height: 1.2;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
-  }
-
-  .artist {
-    margin: 2px 0 0;
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 0.85rem;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85);
+    color: #fff;
+    letter-spacing: -0.01em;
   }
 
   .tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 6px;
+    margin-top: 4px;
   }
 
   .tags span {
     font-size: 11px;
     color: #3ae0d5;
     font-weight: 600;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
   }
 
   .lyrics-viewport {
     position: relative;
-    height: 148px;
+    height: 100px;
     overflow: hidden;
     isolation: isolate;
     contain: layout paint;
-    mask-image: linear-gradient(180deg, transparent, #000 16%, #000 82%, transparent);
-    -webkit-mask-image: linear-gradient(180deg, transparent, #000 16%, #000 82%, transparent);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 20%, #000 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 20%, #000 80%, transparent 100%);
   }
 
   .lyrics-engine {
@@ -914,28 +1045,25 @@
     height: 34px;
     display: flex;
     align-items: center;
-    opacity: 0.45;
-    font-size: 1.02rem;
+    opacity: 0.4;
+    font-size: 0.98rem;
     font-weight: 650;
     line-height: 1.25;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
-    color: rgba(255, 255, 255, 0.72);
-    transition:
-      opacity 0.3s ease,
-      color 0.3s ease,
-      filter 0.3s ease,
-      font-size 0.3s ease;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+    color: rgba(255, 255, 255, 0.75);
+    transition: opacity 0.3s ease, color 0.3s ease, font-size 0.3s ease;
   }
 
   .lyric-line.active {
     opacity: 1;
     color: #fff;
-    font-size: 1.18rem;
-    filter: drop-shadow(0 0 12px rgba(58, 224, 213, 0.35));
+    font-size: 1.15rem;
+    font-weight: 800;
+    filter: drop-shadow(0 0 12px rgba(58, 224, 213, 0.45));
   }
 
   .lyric-line.passed {
-    opacity: 0.28;
+    opacity: 0.22;
     color: rgba(255, 255, 255, 0.4);
   }
 
@@ -945,21 +1073,22 @@
     inset: 0;
     display: grid;
     place-items: center;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.6);
     font-style: italic;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
   }
 
   .lyric-section {
     position: absolute;
-    top: 8px;
+    top: 4px;
     left: 0;
     z-index: 2;
     margin: 0;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: rgba(58, 224, 213, 0.85);
+    color: rgba(58, 224, 213, 0.9);
     font-weight: 700;
   }
 
@@ -969,18 +1098,20 @@
     bottom: 2px;
     margin: 0;
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.4);
   }
 
+  /* Controles de transporte estilo Shorts */
   .transport {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    margin-top: 4px;
   }
 
-  .play {
-    width: 40px;
-    height: 40px;
+  .play-btn {
+    width: 44px;
+    height: 44px;
     border-radius: 999px;
     border: 0;
     background: #3ae0d5;
@@ -988,6 +1119,13 @@
     display: grid;
     place-items: center;
     flex: none;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(58, 224, 213, 0.4);
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+
+  .play-btn:active {
+    transform: scale(0.92);
   }
 
   .seek-wrap {
@@ -995,12 +1133,12 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
   }
 
   .progress {
     position: relative;
-    height: 18px;
+    height: 20px;
     display: flex;
     align-items: center;
     touch-action: none;
@@ -1012,17 +1150,18 @@
     position: absolute;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 5px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.28);
   }
 
   .fill {
     position: absolute;
     left: 0;
-    height: 4px;
+    height: 5px;
     border-radius: 999px;
     background: #3ae0d5;
+    box-shadow: 0 0 10px rgba(58, 224, 213, 0.5);
     pointer-events: none;
   }
 
@@ -1034,7 +1173,7 @@
     margin-left: -7px;
     border-radius: 999px;
     background: #fff;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
     transform: translateY(-50%);
     pointer-events: none;
   }
@@ -1042,8 +1181,9 @@
   .times {
     display: flex;
     justify-content: space-between;
-    font-size: 0.68rem;
-    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
     font-variant-numeric: tabular-nums;
   }
 

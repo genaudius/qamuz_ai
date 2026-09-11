@@ -20,14 +20,14 @@
   let reloadNonce = $state(0);
 
   // Gatekeeper state for unverified users
-  let verificationRole = $state<"artist" | "producer">("artist");
+  let verificationRole = $state<"artist" | "producer" | "producer_artist">("artist");
   let stageName = $state("");
   let portfolio = $state("");
   let isSubmitting = $state(false);
   let currentStatus = $state("none");
 
   $effect(() => {
-    verificationRole = data.userProfile.userType === "producer" ? "producer" : "artist";
+    verificationRole = data.userProfile.userType === "producer_artist" ? "producer_artist" : data.userProfile.userType === "producer" ? "producer" : "artist";
     stageName = data.userProfile.artistName || data.userProfile.name || "";
     currentStatus = data.userProfile.verificationStatus;
   });
@@ -355,7 +355,7 @@
             Solicitar Verificación Profesional
           </p>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <button
               type="button"
               onclick={() => (verificationRole = "artist")}
@@ -377,6 +377,18 @@
               <div>
                 <span class="text-xs block">Productor Musical</span>
                 <span class="text-[10px] text-neutral-400">Beats & producción</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onclick={() => (verificationRole = "producer_artist")}
+              class="flex items-center gap-2.5 p-3 rounded-xl border text-left transition cursor-pointer {verificationRole === 'producer_artist' ? 'bg-cyan-600/20 border-cyan-500 text-white font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200'}"
+            >
+              <Music class="w-4 h-4 text-cyan-400 shrink-0" />
+              <div>
+                <span class="text-xs block">Productor & Artista</span>
+                <span class="text-[10px] text-neutral-400">Produce & canta</span>
               </div>
             </button>
           </div>

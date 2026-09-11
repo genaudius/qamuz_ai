@@ -207,7 +207,12 @@
 
                 <!-- Rol -->
                 <Table.Cell>
-                  {#if req.userType === "producer"}
+                  {#if req.userType === "producer_artist"}
+                    <Badge variant="outline" class="border-cyan-500/40 text-cyan-300 bg-cyan-950/20 text-xs flex items-center gap-1 w-fit">
+                      <Sliders class="w-3 h-3 text-cyan-400" />
+                      Productor & Artista
+                    </Badge>
+                  {:else if req.userType === "producer"}
                     <Badge variant="outline" class="border-purple-500/40 text-purple-300 bg-purple-950/20 text-xs flex items-center gap-1 w-fit">
                       <Sliders class="w-3 h-3" />
                       Productor

@@ -180,7 +180,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			userRecord?.isAdmin ||
 			userRecord?.isVerifiedArtist ||
 			userRecord?.userType === 'artist' ||
-			userRecord?.userType === 'producer'
+			userRecord?.userType === 'producer' ||
+			userRecord?.userType === 'producer_artist'
 		);
 
 		if (!isPrivileged && userRecord?.userType === 'fan') {

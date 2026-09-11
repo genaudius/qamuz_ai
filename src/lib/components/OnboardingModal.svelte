@@ -4,14 +4,14 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { getContext } from "svelte";
-  import { Mic2, Sliders, Headphones, CheckCircle2, ShieldCheck, Sparkles, AlertCircle } from "@lucide/svelte";
+  import { Mic2, Sliders, Headphones, CheckCircle2, ShieldCheck, Sparkles, AlertCircle, Disc3 } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
   const sessionCtx = getContext<() => any>("session");
   const session = $derived(sessionCtx?.());
   
   let open = $state(false);
-  let userType = $state<"artist" | "producer" | "fan">("fan");
+  let userType = $state<"artist" | "producer" | "producer_artist" | "fan">("fan");
   let fullName = $state("");
   let username = $state("");
   let artistName = $state("");
@@ -24,6 +24,12 @@
   $effect(() => {
     const user = session?.user;
     if (user) {
+      // Para el Admin NO aplican estos roles ni el modal de onboarding
+      if (user.isAdmin || (user as any).role === "admin") {
+        open = false;
+        return;
+      }
+
       // Check if userType or professionalRole is missing/uninitialized
       const needsOnboarding = !user.userType && (user.professionalRole === null || user.professionalRole === undefined);
       if (needsOnboarding) {
@@ -56,6 +62,11 @@
       return;
     }
 
+    if (userType === "producer_artist" && !artistName.trim()) {
+      errorMessage = "Por favor ingresa tu Nombre Artístico / de Productor.";
+      return;
+    }
+
     isSubmitting = true;
     try {
       const res = await fetch("/api/user/onboarding", {
@@ -67,7 +78,7 @@
           userType,
           artistName: artistName.trim(),
           portfolioUrl: portfolioUrl.trim(),
-          requestVerification: (userType === "artist" || userType === "producer") ? requestVerification : false
+          requestVerification: userType !== "fan" ? requestVerification : false
         })
       });
 
@@ -91,7 +102,7 @@
 </script>
 
 <Dialog.Root bind:open={open}>
-  <Dialog.Content class="sm:max-w-[560px] max-h-[92vh] overflow-y-auto bg-neutral-950/95 border-neutral-800 text-neutral-100 shadow-2xl backdrop-blur-xl p-6">
+  <Dialog.Content class="sm:max-w-[620px] max-h-[92vh] overflow-y-auto bg-neutral-950/95 border-neutral-800 text-neutral-100 shadow-2xl backdrop-blur-xl p-6">
     <Dialog.Header class="space-y-2 text-left">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary w-fit">
         <Sparkles class="w-3.5 h-3.5" />
@@ -117,14 +128,14 @@
       <Label class="text-xs font-semibold uppercase tracking-wider text-neutral-400">
         ¿Cuál es tu rol principal?
       </Label>
-      <div class="grid grid-cols-3 gap-2.5">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <!-- Artista -->
         <button
           type="button"
           onclick={() => (userType = "artist")}
-          class="flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all cursor-pointer relative {userType === 'artist' ? 'bg-primary/15 border-primary text-white shadow-lg shadow-primary/20' : 'bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}"
+          class="flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer relative {userType === 'artist' ? 'bg-primary/15 border-primary text-white shadow-lg shadow-primary/20' : 'bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}"
         >
-          <Mic2 class="w-6 h-6 mb-2 {userType === 'artist' ? 'text-primary' : 'text-neutral-400'}" />
+          <Mic2 class="w-5 h-5 mb-1.5 {userType === 'artist' ? 'text-primary' : 'text-neutral-400'}" />
           <span class="text-xs font-bold leading-tight">Artista</span>
           <span class="text-[10px] text-neutral-400 mt-0.5">Crear & Publicar</span>
         </button>
@@ -133,20 +144,31 @@
         <button
           type="button"
           onclick={() => (userType = "producer")}
-          class="flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all cursor-pointer relative {userType === 'producer' ? 'bg-purple-600/15 border-purple-500 text-white shadow-lg shadow-purple-500/20' : 'bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}"
+          class="flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer relative {userType === 'producer' ? 'bg-purple-600/15 border-purple-500 text-white shadow-lg shadow-purple-500/20' : 'bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}"
         >
-          <Sliders class="w-6 h-6 mb-2 {userType === 'producer' ? 'text-purple-400' : 'text-neutral-400'}" />
+          <Sliders class="w-5 h-5 mb-1.5 {userType === 'producer' ? 'text-purple-400' : 'text-neutral-400'}" />
           <span class="text-xs font-bold leading-tight">Productor</span>
           <span class="text-[10px] text-neutral-400 mt-0.5">DAW & Mezcla</span>
+        </button>
+
+        <!-- Productor y Artista -->
+        <button
+          type="button"
+          onclick={() => (userType = "producer_artist")}
+          class="flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer relative {userType === 'producer_artist' ? 'bg-cyan-600/15 border-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}"
+        >
+          <Disc3 class="w-5 h-5 mb-1.5 {userType === 'producer_artist' ? 'text-cyan-400' : 'text-neutral-400'}" />
+          <span class="text-xs font-bold leading-tight">Productor & Artista</span>
+          <span class="text-[10px] text-neutral-400 mt-0.5">Produce & Canta</span>
         </button>
 
         <!-- Fan -->
         <button
           type="button"
           onclick={() => (userType = "fan")}
-          class="flex flex-col items-center justify-center p-3.5 rounded-xl border text-center transition-all cursor-pointer relative {userType === 'fan' ? 'bg-emerald-600/15 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}"
+          class="flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer relative {userType === 'fan' ? 'bg-emerald-600/15 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-neutral-900/60 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}"
         >
-          <Headphones class="w-6 h-6 mb-2 {userType === 'fan' ? 'text-emerald-400' : 'text-neutral-400'}" />
+          <Headphones class="w-5 h-5 mb-1.5 {userType === 'fan' ? 'text-emerald-400' : 'text-neutral-400'}" />
           <span class="text-xs font-bold leading-tight">Fanático / Fan</span>
           <span class="text-[10px] text-neutral-400 mt-0.5">Escuchar & Apoyar</span>
         </button>
@@ -274,6 +296,49 @@
             </span>
             <span class="text-neutral-400 block mt-0.5 text-[11px]">
               Te otorga acceso autorizado al DAW Studio para producir directamente en el sistema.
+            </span>
+          </Label>
+        </div>
+      {:else if userType === "producer_artist"}
+        <div class="space-y-1.5 p-3 rounded-xl bg-cyan-600/5 border border-cyan-500/20">
+          <Label for="prodArtistName" class="text-xs font-semibold text-cyan-400">
+            Nombre Artístico & de Productor *
+          </Label>
+          <Input
+            id="prodArtistName"
+            bind:value={artistName}
+            placeholder="Ej. Alpha Beats & Sounds"
+            class="bg-neutral-900 border-neutral-800 text-sm"
+          />
+          <p class="text-[11px] text-neutral-400">
+            Crédito para cantar, componer, publicar temas y producir en el DAW Studio.
+          </p>
+        </div>
+
+        <div class="space-y-1.5">
+          <Label for="portfolioProdArt" class="text-xs text-neutral-300">Muestras de Audio / Redes / Portafolio (Opcional)</Label>
+          <Input
+            id="portfolioProdArt"
+            bind:value={portfolioUrl}
+            placeholder="https://..."
+            class="bg-neutral-900 border-neutral-800 text-sm"
+          />
+        </div>
+
+        <div class="flex items-start gap-2.5 p-3 rounded-xl bg-neutral-900/80 border border-neutral-800">
+          <input
+            type="checkbox"
+            id="reqVerifProdArt"
+            bind:checked={requestVerification}
+            class="w-4 h-4 mt-0.5 rounded border-neutral-700 text-cyan-500 bg-neutral-950 focus:ring-cyan-500"
+          />
+          <Label for="reqVerifProdArt" class="text-xs leading-snug cursor-pointer font-normal text-neutral-200">
+            <span class="font-semibold text-white flex items-center gap-1.5">
+              <ShieldCheck class="w-4 h-4 text-cyan-400 inline" />
+              Solicitar Verificación Oficial de Productor y Artista
+            </span>
+            <span class="text-neutral-400 block mt-0.5 text-[11px]">
+              Te otorga verificación doble y acceso autorizado al DAW Studio profesional.
             </span>
           </Label>
         </div>

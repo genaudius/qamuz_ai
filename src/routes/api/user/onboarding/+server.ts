@@ -20,7 +20,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const portfolioUrl = (body.portfolioUrl ?? '').trim();
 		const requestVerification = Boolean(body.requestVerification);
 
-		if (!['artist', 'producer', 'fan'].includes(userType)) {
+		if (!['artist', 'producer', 'producer_artist', 'fan'].includes(userType)) {
 			return json({ error: 'Tipo de usuario no válido' }, { status: 400 });
 		}
 
@@ -30,6 +30,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (userType === 'producer' && !artistName) {
 			return json({ error: 'El nombre como productor es obligatorio para productores' }, { status: 400 });
+		}
+
+		if (userType === 'producer_artist' && !artistName) {
+			return json({ error: 'El nombre artístico/productor es obligatorio' }, { status: 400 });
 		}
 
 		// Calculate verification status:
@@ -49,7 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		let verificationRequestedAt: Date | null = null;
 
 		if (!isVerified) {
-			if (requestVerification && (userType === 'artist' || userType === 'producer')) {
+			if (requestVerification && (userType === 'artist' || userType === 'producer' || userType === 'producer_artist')) {
 				verificationStatus = 'pending';
 				verificationRequestedAt = new Date();
 			}
@@ -63,7 +67,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				username: username || undefined,
 				userType,
 				artistName: artistName || null,
-				professionalRole: userType === 'fan' ? 'none' : userType === 'producer' ? 'producer' : 'artist',
+				professionalRole: userType === 'fan' ? 'none' : userType === 'producer' ? 'producer' : userType === 'producer_artist' ? 'producer_artist' : 'artist',
 				portfolioUrl: portfolioUrl || null,
 				isVerifiedArtist: isVerified,
 				verificationStatus,
@@ -72,8 +76,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			})
 			.where(eq(users.id, session.user.id));
 
-		// If artist or producer, ensure public artistProfile exists
-		if (userType === 'artist' || userType === 'producer') {
+		// If artist, producer or producer_artist, ensure public artistProfile exists
+		if (userType === 'artist' || userType === 'producer' || userType === 'producer_artist') {
 			const [existingProfile] = await db
 				.select({ id: artistProfiles.id })
 				.from(artistProfiles)
@@ -93,7 +97,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					id: randomUUID(),
 					userId: session.user.id,
 					stageName: artistName,
-					bio: userType === 'producer' ? 'Productor Musical en QAMUZ AI' : 'Artista en QAMUZ AI'
+					bio: userType === 'producer_artist' ? 'Productor y Artista en QAMUZ AI' : userType === 'producer' ? 'Productor Musical en QAMUZ AI' : 'Artista en QAMUZ AI'
 				});
 			}
 

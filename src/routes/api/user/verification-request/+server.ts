@@ -48,11 +48,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const requestedAt = new Date();
 
 		// Update user record
+		const finalRole = ['producer', 'producer_artist'].includes(role) ? role : 'artist';
 		await db
 			.update(users)
 			.set({
-				userType: role === 'producer' ? 'producer' : 'artist',
-				professionalRole: role === 'producer' ? 'producer' : 'artist',
+				userType: finalRole,
+				professionalRole: finalRole,
 				artistName: chosenArtistName,
 				portfolioUrl: portfolioUrl || user.portfolioUrl || null,
 				verificationStatus: 'pending',

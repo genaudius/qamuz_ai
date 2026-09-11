@@ -31,6 +31,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         user.isVerifiedArtist ||
         user.userType === "artist" ||
         user.userType === "producer" ||
+        user.userType === "producer_artist" ||
         user.hasUnlimitedFanAccess ||
         (user.planTier && user.planTier !== "free")
       ) {

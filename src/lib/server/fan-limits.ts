@@ -74,7 +74,7 @@ export async function checkFanArtistLimit(
 	}
 
 	// Non-fans (registered artists / producers) managing their own music or content
-	if (user.userType === 'artist' || user.userType === 'producer') {
+	if (user.userType === 'artist' || user.userType === 'producer' || user.userType === 'producer_artist') {
 		return {
 			allowed: true,
 			isUnlimited: true,
