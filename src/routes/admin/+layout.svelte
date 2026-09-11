@@ -32,6 +32,11 @@
       path: "/admin/users",
     },
     {
+      id: "verifications",
+      label: "Verificaciones",
+      path: "/admin/verifications",
+    },
+    {
       id: "payments",
       label: "Payments",
       path: "/admin/payments",

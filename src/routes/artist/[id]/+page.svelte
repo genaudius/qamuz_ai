@@ -6,6 +6,7 @@
   import type { GlobalMusicState } from '$lib/stores/music.svelte.js';
   import TrackOptionsMenu from '$lib/components/TrackOptionsMenu.svelte';
   import { toast } from 'svelte-sonner';
+  import { fanLimitState } from '$lib/stores/fan-limit.svelte.js';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
   const musicState = getContext<GlobalMusicState>('musicState');
@@ -182,7 +183,13 @@
               use:enhance={() => {
                 isFollowSubmitting = true;
                 followError = '';
-                return async ({ update }) => {
+                return async ({ result, update }) => {
+                  isFollowSubmitting = false;
+                  if (result.type === 'failure' && (result.data as any)?.error === 'FAN_ARTIST_LIMIT_REACHED') {
+                    const data = result.data as any;
+                    fanLimitState.openModal(data.message, data.limit, data.price);
+                    return;
+                  }
                   await update();
                 };
               }}

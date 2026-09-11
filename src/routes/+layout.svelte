@@ -27,6 +27,7 @@
   import OnboardingModal from "$lib/components/OnboardingModal.svelte";
   import AppNoticeDialog from "$lib/components/AppNoticeDialog.svelte";
   import PublishModal from "$lib/components/PublishModal.svelte";
+  import FanLimitModal from "$lib/components/FanLimitModal.svelte";
 
   let { children, data } = $props();
 
@@ -254,3 +255,4 @@
 <AppNoticeDialog />
 <PublishModal />
 <OnboardingModal />
+<FanLimitModal />

@@ -5,7 +5,7 @@ import { UsageTrackingService, UsageLimitError } from '$lib/server/usage-trackin
 import { CreditCostCalculator } from '$lib/server/ai/cost-calculator.js';
 import { PriorityQueueService } from '$lib/server/ai/queue.js';
 import { db } from '$lib/server/db/index.js';
-import { aiJobs } from '$lib/server/db/schema.js';
+import { aiJobs, users } from '$lib/server/db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
 import { getLocalMusicConfig } from '$lib/ai/providers/local-acestep.js';
@@ -163,6 +163,31 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const rateLimited = getGenerationRateLimitPayload('musicGeneration', session.user.id);
 		if (rateLimited) {
 			return json(rateLimited, { status: 429 });
+		}
+
+		// Check user role: Fans cannot generate music (only Artists, Producers and Admins can)
+		const [userRecord] = await db
+			.select({
+				isAdmin: users.isAdmin,
+				userType: users.userType,
+				isVerifiedArtist: users.isVerifiedArtist,
+			})
+			.from(users)
+			.where(eq(users.id, session.user.id))
+			.limit(1);
+
+		const isPrivileged = Boolean(
+			userRecord?.isAdmin ||
+			userRecord?.isVerifiedArtist ||
+			userRecord?.userType === 'artist' ||
+			userRecord?.userType === 'producer'
+		);
+
+		if (!isPrivileged && userRecord?.userType === 'fan') {
+			return json({
+				error: 'Los usuarios con perfil de Fan no tienen privilegios para crear música. Puedes crear imágenes y videos musicales, o solicitar verificación como Artista o Productor.',
+				code: 'FAN_MUSIC_CREATION_RESTRICTED'
+			}, { status: 403 });
 		}
 
 		const body = await request.json();

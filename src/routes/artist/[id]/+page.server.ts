@@ -5,6 +5,7 @@ import { artistProfiles, follows, music, playlists, users } from '$lib/server/db
 import { and, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { findPublicArtist } from '$lib/server/artists.js';
 import { randomUUID } from 'node:crypto';
+import { checkFanArtistLimit } from '$lib/server/fan-limits.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const artistId = params.id;
@@ -152,6 +153,17 @@ export const actions: Actions = {
         await db.delete(follows).where(eq(follows.id, existingFollow.id));
         nextFollowing = false;
       } else {
+        const limitCheck = await checkFanArtistLimit(session.user.id, artist.userId);
+        if (!limitCheck.allowed) {
+          return fail(403, {
+            error: 'FAN_ARTIST_LIMIT_REACHED',
+            message: 'Has alcanzado el límite gratuito de 5 artistas. Suscríbete a la Membresía Fan Ilimitado por $8/mes para seguir a más artistas.',
+            limit: limitCheck.limit,
+            price: limitCheck.price,
+            action: 'toggleFollow'
+          });
+        }
+
         await db.insert(follows).values({
           id: randomUUID(),
           followerId: session.user.id,

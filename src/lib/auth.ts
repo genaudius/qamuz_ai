@@ -136,6 +136,40 @@ async function createAuthInstance() {
           required: false,
           input: true,
         },
+        userType: {
+          type: 'string',
+          required: false,
+          defaultValue: 'fan',
+          input: true,
+        },
+        artistName: {
+          type: 'string',
+          required: false,
+          input: true,
+        },
+        username: {
+          type: 'string',
+          required: false,
+          input: true,
+        },
+        isVerifiedArtist: {
+          type: 'boolean',
+          required: false,
+          defaultValue: false,
+          input: false,
+        },
+        verificationStatus: {
+          type: 'string',
+          required: false,
+          defaultValue: 'none',
+          input: false,
+        },
+        hasUnlimitedFanAccess: {
+          type: 'boolean',
+          required: false,
+          defaultValue: false,
+          input: false,
+        },
       },
     },
     emailAndPassword: {

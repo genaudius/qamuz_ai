@@ -4,6 +4,7 @@ import { db } from '$lib/server/db/index.js';
 import { music, playlistItems, playlists } from '$lib/server/db/schema.js';
 import { and, eq, max } from 'drizzle-orm';
 import { isDemoModeRestricted, DEMO_MODE_MESSAGES } from '$lib/constants/demo-mode.js';
+import { checkFanArtistLimit } from '$lib/server/fan-limits.js';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const session = await locals.auth();
@@ -40,6 +41,19 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 		if (!track.isPublic && track.userId !== session.user.id) {
 			return json({ error: 'No puedes guardar esta canción' }, { status: 403 });
+		}
+
+		// Enforce Fan limit of 5 artists
+		if (track.userId && track.userId !== session.user.id) {
+			const limitCheck = await checkFanArtistLimit(session.user.id, track.userId);
+			if (!limitCheck.allowed) {
+				return json({
+					error: 'FAN_ARTIST_LIMIT_REACHED',
+					message: 'Has alcanzado el límite gratuito de 5 artistas. Suscríbete a la Membresía Fan Ilimitado por solo $8/mes para agregar canciones de más artistas.',
+					limit: limitCheck.limit,
+					price: limitCheck.price
+				}, { status: 403 });
+			}
 		}
 
 		const [last] = await db

@@ -5,6 +5,7 @@
   import { toast } from "svelte-sonner";
   import ListMusic from "@lucide/svelte/icons/list-music";
   import Plus from "@lucide/svelte/icons/plus";
+  import { fanLimitState } from "$lib/stores/fan-limit.svelte.js";
 
   type PlaylistRow = {
     id: string;
@@ -71,6 +72,11 @@
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
+        if (payload?.error === 'FAN_ARTIST_LIMIT_REACHED') {
+          open = false;
+          fanLimitState.openModal(payload?.message, payload?.limit, payload?.price);
+          return;
+        }
         toast.error(payload?.error || "No pude agregar la canción");
         return;
       }

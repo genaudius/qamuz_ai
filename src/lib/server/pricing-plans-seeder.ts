@@ -14,7 +14,7 @@ import { eq, and } from 'drizzle-orm';
 
 export interface PricingPlanSeed {
 	name: string;
-	tier: 'free' | 'starter' | 'pro' | 'advanced';
+	tier: 'free' | 'starter' | 'pro' | 'advanced' | 'fan';
 	stripePriceId: string;
 	priceAmount: number; // in cents
 	currency: string;
@@ -47,6 +47,27 @@ const pricingPlansData: PricingPlanSeed[] = [
 			'Limited rate limits',
 			'Community support',
 			'Basic chat history'
+		],
+		isActive: true,
+	},
+	// Fan Unlimited Plan ($8/month)
+	{
+		name: 'Fan Unlimited Pass',
+		tier: 'fan',
+		stripePriceId: 'price_fan_unlimited_monthly',
+		priceAmount: 800, // $8.00 USD
+		currency: 'usd',
+		billingInterval: 'month',
+		textGenerationLimit: 50,
+		imageGenerationLimit: 20,
+		videoGenerationLimit: 0,
+		audioGenerationLimit: 20,
+		features: [
+			'Artistas ilimitados para seguir',
+			'Playlists ilimitadas sin restricción de 5 artistas',
+			'Acceso prioritario a lanzamientos y estrenos',
+			'Audio HD sin interrupciones',
+			'Insignia de Fan VIP en comentarios y comunidad'
 		],
 		isActive: true,
 	},
@@ -263,7 +284,7 @@ export async function getPricingPlans(billingInterval?: 'month' | 'year') {
 }
 
 // Helper function to get a specific plan by tier
-export async function getPricingPlanByTier(tier: 'free' | 'starter' | 'pro' | 'advanced') {
+export async function getPricingPlanByTier(tier: 'free' | 'starter' | 'pro' | 'advanced' | 'fan') {
 	const [plan] = await db
 		.select()
 		.from(pricingPlans)

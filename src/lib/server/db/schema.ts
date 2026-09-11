@@ -37,6 +37,13 @@ export const users = pgTable("user", {
 		enum: ["artist", "producer", "musician", "label", "none"]
 	}),
 	portfolioUrl: text("portfolioUrl"),
+	userType: text("userType").default("fan"), // 'artist' | 'producer' | 'fan'
+	artistName: text("artistName"), // Stage name or producer alias
+	username: text("username"), // @handle
+	isVerifiedArtist: boolean("isVerifiedArtist").notNull().default(false),
+	verificationStatus: text("verificationStatus").notNull().default("none"), // 'none' | 'pending' | 'verified' | 'rejected'
+	verificationRequestedAt: timestamp("verificationRequestedAt", { mode: "date" }),
+	hasUnlimitedFanAccess: boolean("hasUnlimitedFanAccess").notNull().default(false),
 	creditsBalance: integer("creditsBalance").notNull().default(0),
 	createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
@@ -448,7 +455,7 @@ export const pricingPlans = pgTable("pricing_plan", {
 		.$defaultFn(() => randomUUID()),
 	name: text("name").notNull(),
 	tier: text("tier", { 
-		enum: ["free", "starter", "pro", "advanced"] 
+		enum: ["free", "starter", "pro", "advanced", "fan"] 
 	}).notNull(),
 	stripePriceId: text("stripePriceId").notNull().unique(),
 	priceAmount: integer("priceAmount").notNull(), // Price in cents
