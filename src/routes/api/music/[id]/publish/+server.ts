@@ -55,8 +55,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
       throw error(404, 'Track not found');
     }
 
-    if (track.userId !== session.user.id) {
-      throw error(403, 'Access denied');
+    const isOwner = track.userId === session.user.id || session.user.role === 'admin';
+    if (!isOwner) {
+      throw error(403, 'No tienes permiso para publicar canciones de otros artistas');
     }
 
     const [updated] = await db
@@ -100,8 +101,9 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     if (!track) {
       throw error(404, 'Track not found');
     }
-    if (track.userId !== session.user.id) {
-      throw error(403, 'Access denied');
+    const isOwner = track.userId === session.user.id || session.user.role === 'admin';
+    if (!isOwner) {
+      throw error(403, 'No tienes permiso para despublicar canciones de otros artistas');
     }
 
     const [updated] = await db

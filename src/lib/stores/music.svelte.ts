@@ -5,6 +5,7 @@ export interface MusicTrack {
     artist?: string;
     /** Owner user id — artist channel `/artist/[id]`. */
     artistId?: string;
+    userId?: string;
     imageUrl?: string;
     videoUrl?: string;
     lyrics?: string;
@@ -54,6 +55,8 @@ export class GlobalMusicState {
             !normalized.videoUrl ||
             !normalized.tags ||
             !normalized.genre ||
+            !normalized.artistId ||
+            !normalized.userId ||
             !normalized.timedLyrics?.length ||
             typeof normalized.playsCount !== "number" ||
             typeof normalized.likesCount !== "number";
@@ -67,6 +70,7 @@ export class GlobalMusicState {
                         title: normalized.title || info.title,
                         artist: normalized.artist || info.artist,
                         artistId: normalized.artistId || info.artistId || info.userId || undefined,
+                        userId: normalized.userId || info.userId || info.artistId || undefined,
                         imageUrl: normalized.imageUrl || info.imageUrl || undefined,
                         videoUrl: normalized.videoUrl || info.videoUrl || undefined,
                         lyrics: normalized.lyrics || info.lyrics || undefined,

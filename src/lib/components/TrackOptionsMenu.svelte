@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getContext } from "svelte";
+  import { page } from "$app/state";
   import { goto, invalidateAll } from "$app/navigation";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import AddToPlaylistDialog from "$lib/components/AddToPlaylistDialog.svelte";
@@ -20,6 +21,8 @@
     imageUrl?: string | null;
     durationMs?: number | null;
     isPublic?: boolean | null;
+    userId?: string | null;
+    artistId?: string | null;
   };
 
   let {
@@ -42,6 +45,20 @@
   let playlistOpen = $state(false);
   let liked = $state(false);
   let deleting = $state(false);
+  let fetchedOwnerId = $state<string | null>(null);
+
+  const currentUserId = $derived(page.data?.session?.user?.id);
+  const currentUserRole = $derived(page.data?.session?.user?.role);
+
+  const isOwner = $derived(
+    Boolean(
+      currentUserId &&
+      (currentUserRole === "admin" ||
+       (song.userId && song.userId === currentUserId) ||
+       (song.artistId && song.artistId === currentUserId) ||
+       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+    )
+  );
 
   const displayTitle = $derived(song.title || song.prompt || "Untitled track");
   const isRealTrack = $derived(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(song.id));
@@ -70,6 +87,10 @@
       notice.error("No se puede publicar", "Esta canción aún no está lista.");
       return;
     }
+    if (!isOwner) {
+      notice.error("Acceso denegado", "Solo el artista creador puede publicar o editar esta canción.");
+      return;
+    }
     let isPublic = typeof song.isPublic === "boolean" ? song.isPublic : undefined;
     if (typeof isPublic !== "boolean") {
       try {
@@ -77,6 +98,9 @@
         if (response.ok) {
           const info = await response.json();
           isPublic = Boolean(info?.isPublic);
+          if (info?.userId || info?.artistId) {
+            fetchedOwnerId = info.userId || info.artistId;
+          }
         }
       } catch {
         // Modal can still check.
@@ -93,6 +117,17 @@
 
   $effect(() => {
     if (!open || !isRealTrack) return;
+    if (!song.userId && !song.artistId && !fetchedOwnerId) {
+      void fetch(`/api/music/${song.id}/info`)
+        .then(async (response) => {
+          if (!response.ok) return;
+          const payload = await response.json().catch(() => null);
+          if (payload?.userId || payload?.artistId) {
+            fetchedOwnerId = payload.userId || payload.artistId;
+          }
+        })
+        .catch(() => undefined);
+    }
     void fetch(`/api/music/${song.id}/like`)
       .then(async (response) => {
         const payload = await response.json().catch(() => null);
@@ -203,6 +238,10 @@
 
   async function deleteTrack() {
     if (!isRealTrack || deleting) return;
+    if (!isOwner) {
+      notice.error("Acceso denegado", "Solo el artista creador puede eliminar esta canción.");
+      return;
+    }
     const ok = await appNotice.confirm({
       title: `¿Eliminar “${displayTitle}”?`,
       description: "Esta acción no se puede deshacer. Se borrará de tu biblioteca.",
@@ -300,14 +339,16 @@
       Agregar a la cola
     </DropdownMenu.Item>
     <DropdownMenu.Separator />
-    <DropdownMenu.Item
-      class="cursor-pointer"
-      onclick={() => {
-        void openPublish();
-      }}
-    >
-      Publicar
-    </DropdownMenu.Item>
+    {#if isOwner}
+      <DropdownMenu.Item
+        class="cursor-pointer"
+        onclick={() => {
+          void openPublish();
+        }}
+      >
+        Publicar
+      </DropdownMenu.Item>
+    {/if}
     <DropdownMenu.Item
       class="cursor-pointer"
       onclick={() => {
@@ -382,15 +423,17 @@
         Extraer stems
       </DropdownMenu.Item>
       <DropdownMenu.Separator />
-      <DropdownMenu.Item
-        class="cursor-pointer"
-        onclick={() => {
-          open = false;
-          void runMusicTool("align-lyrics", { refresh: true });
-        }}
-      >
-        Alinear letras (karaoke)
-      </DropdownMenu.Item>
+      {#if isOwner}
+        <DropdownMenu.Item
+          class="cursor-pointer"
+          onclick={() => {
+            open = false;
+            void runMusicTool("align-lyrics", { refresh: true });
+          }}
+        >
+          Alinear letras (karaoke)
+        </DropdownMenu.Item>
+      {/if}
       <DropdownMenu.Item
         class="cursor-pointer"
         onclick={() => {
@@ -425,15 +468,17 @@
       >
         Descargar
       </DropdownMenu.Item>
-      <DropdownMenu.Item
-        class="cursor-pointer text-destructive focus:bg-destructive/10"
-        onclick={() => {
-          open = false;
-          void deleteTrack();
-        }}
-      >
-        {deleting ? "Eliminando…" : "Eliminar"}
-      </DropdownMenu.Item>
+      {#if isOwner}
+        <DropdownMenu.Item
+          class="cursor-pointer text-destructive focus:bg-destructive/10"
+          onclick={() => {
+            open = false;
+            void deleteTrack();
+          }}
+        >
+          {deleting ? "Eliminando…" : "Eliminar"}
+        </DropdownMenu.Item>
+      {/if}
     {/if}
     {#if showClosePlayer}
       <DropdownMenu.Separator />

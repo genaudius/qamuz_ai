@@ -35,7 +35,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
 		const [track] = await db.select().from(music).where(eq(music.id, musicId));
 		if (!track) throw error(404, 'Track not found');
-		if (track.userId !== session.user.id) throw error(403, 'Access denied');
+		const isOwner = track.userId === session.user.id || session.user.role === 'admin';
+		if (!isOwner) throw error(403, 'No tienes permiso para editar canciones de otros artistas');
 
 		const nextTitle =
 			typeof payload.title === 'string' ? payload.title.trim() : track.title;

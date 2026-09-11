@@ -38,6 +38,7 @@ export const GET: RequestHandler = async ({ url }) => {
       playsCount: music.playsCount,
       likesCount: music.likesCount,
       artistId: users.id,
+      userId: users.id,
       artistName: users.name,
     })
     .from(music)

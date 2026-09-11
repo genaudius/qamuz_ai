@@ -54,6 +54,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       playsCount: music.playsCount,
       isInstrumental: music.isInstrumental,
       isPublic: music.isPublic,
+      userId: music.userId,
       position: playlistItems.position,
     })
     .from(playlistItems)

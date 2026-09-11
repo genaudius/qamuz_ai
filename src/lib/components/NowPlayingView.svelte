@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getContext, onMount } from "svelte";
+  import { page } from "$app/state";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
   import { musicState as sharedMusicState } from "$lib/stores/music-state.js";
   import { notice } from "$lib/ui/notice.js";
@@ -38,8 +39,21 @@
   let alignedSource = $state<
     "pending" | "local" | "kie" | "cached" | "stt" | "fallback" | "none"
   >("pending");
+  let fetchedOwnerId = $state<string | null>(null);
 
   const track = $derived(musicState.currentTrack);
+  const currentUserId = $derived(page.data?.session?.user?.id);
+  const currentUserRole = $derived(page.data?.session?.user?.role);
+
+  const isOwner = $derived(
+    Boolean(
+      currentUserId &&
+      (currentUserRole === "admin" ||
+       (track?.userId && track.userId === currentUserId) ||
+       (track?.artistId && track.artistId === currentUserId) ||
+       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+    )
+  );
 
   const duration = $derived.by(() => {
     if (audioDuration > 0) return audioDuration;
@@ -154,6 +168,18 @@
     if (!id) return;
     if (id !== lastTrackId) {
       lastTrackId = id;
+      fetchedOwnerId = null;
+      if (!track.userId && !track.artistId) {
+        void fetch(`/api/music/${id}/info`)
+          .then(async (response) => {
+            if (!response.ok) return;
+            const payload = await response.json().catch(() => null);
+            if (payload?.userId || payload?.artistId) {
+              fetchedOwnerId = payload.userId || payload.artistId;
+            }
+          })
+          .catch(() => undefined);
+      }
       playhead = musicState.audioElement?.currentTime || musicState.currentTime || 0;
       audioDuration = 0;
       comments = loadComments(id);
@@ -211,6 +237,10 @@
 
   function openPublish() {
     if (!track?.id) return;
+    if (!isOwner) {
+      notice.error("Acceso denegado", "Solo el artista creador puede publicar esta canción.");
+      return;
+    }
     if (track.isPublic) {
       notice.warning(
         "Esta canción ya está publicada",
@@ -298,7 +328,7 @@
         </div>
 
         <!-- Social actions -->
-        <div class="mt-4 w-full grid grid-cols-4 gap-2">
+        <div class="mt-4 w-full grid gap-2" class:grid-cols-4={isOwner} class:grid-cols-3={!isOwner}>
           <button
             type="button"
             class="action"
@@ -327,10 +357,12 @@
             <Share2 class="h-4 w-4" />
             <span>Share</span>
           </button>
-          <button type="button" class="action" aria-label="Publicar" onclick={openPublish}>
-            <Upload class="h-4 w-4" />
-            <span>{track.isPublic ? "Publicada" : "Publicar"}</span>
-          </button>
+          {#if isOwner}
+            <button type="button" class="action" aria-label="Publicar" onclick={openPublish}>
+              <Upload class="h-4 w-4" />
+              <span>{track.isPublic ? "Publicada" : "Publicar"}</span>
+            </button>
+          {/if}
         </div>
 
         {#if panel === "comments"}

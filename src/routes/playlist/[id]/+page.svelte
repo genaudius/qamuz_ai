@@ -167,7 +167,8 @@
                     genre: track.genre,
                     isInstrumental: track.isInstrumental,
                     videoUrl: track.videoUrl,
-                    imageUrl: track.imageUrl
+                    imageUrl: track.imageUrl,
+                    userId: track.userId
                   }}
                   buttonClass="opacity-100"
                 />

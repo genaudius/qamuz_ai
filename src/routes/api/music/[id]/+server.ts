@@ -169,9 +169,10 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			throw error(404, 'Music not found');
 		}
 
-		// Check authorization - user can only delete their own music
-		if (musicRecord.userId !== session.user.id) {
-			throw error(403, 'Access denied - you can only delete your own music');
+		// Check authorization - user can only delete their own music (or admin)
+		const isOwner = musicRecord.userId === session.user.id || session.user.role === 'admin';
+		if (!isOwner) {
+			throw error(403, 'No tienes permiso para eliminar canciones de otros artistas');
 		}
 
 		// Delete from storage if cloudPath exists

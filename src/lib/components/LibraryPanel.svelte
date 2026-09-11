@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getContext } from "svelte";
+  import { page } from "$app/state";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
   import { musicState as sharedMusicState } from "$lib/stores/music-state.js";
   import Play from "@lucide/svelte/icons/play";
@@ -16,6 +17,16 @@
   let { songs = [] } = $props<{ songs: any[] }>();
 
   const musicState = getContext<GlobalMusicState>("musicState") ?? sharedMusicState;
+  const currentUserId = $derived(page.data?.session?.user?.id);
+  const currentUserRole = $derived(page.data?.session?.user?.role);
+
+  function isSongOwner(song: any) {
+    if (!currentUserId) return false;
+    if (currentUserRole === "admin") return true;
+    if (song.userId) return song.userId === currentUserId;
+    if (song.artistId) return song.artistId === currentUserId;
+    return true;
+  }
 
   let likedById = $state<Record<string, boolean>>({});
   let likeFetchStarted = new Set<string>();
@@ -281,15 +292,17 @@
                 >
                   <Share2 class="h-[18px] w-[18px]" />
                 </button>
-                <button
-                  type="button"
-                  class="qbtn"
-                  title="Publicar"
-                  aria-label="Publicar"
-                  onclick={(e) => void publishSong(song, e)}
-                >
-                  <Send class="h-[18px] w-[18px]" />
-                </button>
+                {#if isSongOwner(song)}
+                  <button
+                    type="button"
+                    class="qbtn"
+                    title="Publicar"
+                    aria-label="Publicar"
+                    onclick={(e) => void publishSong(song, e)}
+                  >
+                    <Send class="h-[18px] w-[18px]" />
+                  </button>
+                {/if}
                 <TrackOptionsMenu
                   song={{
                     id: song.id,
@@ -300,7 +313,9 @@
                     videoUrl: song.videoUrl,
                     imageUrl: song.imageUrl,
                     durationMs: song.durationMs,
-                    isPublic: song.isPublic
+                    isPublic: song.isPublic,
+                    userId: song.userId,
+                    artistId: song.artistId
                   }}
                   buttonClass="qbtn-more"
                 />

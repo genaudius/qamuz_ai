@@ -51,6 +51,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		title: record.title || record.prompt || 'Untitled track',
 		artist: record.artistName || 'QAMUZ',
 		artistId: record.userId,
+		userId: record.userId,
 		url: `/api/music/${record.id}`,
 		imageUrl: record.imageUrl,
 		videoUrl: record.videoUrl,

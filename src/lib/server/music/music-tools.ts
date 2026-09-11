@@ -109,6 +109,10 @@ export async function runMusicTool(opts: {
 			};
 		case 'align-lyrics': {
 			if (!musicId) throw new Error('musicId is required');
+			const [rec] = await db.select({ userId: music.userId }).from(music).where(eq(music.id, musicId)).limit(1);
+			if (rec && rec.userId !== userId) {
+				throw new Error('Solo el artista creador puede alinear las letras de esta canción');
+			}
 			const result = await alignMusicLyrics(musicId, {
 				forceRefresh: body.refresh === true || body.refresh === '1',
 				allowPaidProviders: false

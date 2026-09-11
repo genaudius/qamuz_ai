@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getContext } from "svelte";
+  import { page } from "$app/state";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
   import { musicState as sharedMusicState } from "$lib/stores/music-state.js";
   import { appNotice } from "$lib/stores/app-notice.svelte.js";
@@ -22,16 +23,26 @@
   let submitSuccess = $state("");
   let alreadyPublic = $state(false);
   let checkingStatus = $state(false);
+  let fetchedOwnerId = $state<string | null>(null);
 
   const publishTrack = $derived(musicState.publishTarget || musicState.currentTrack);
+  const currentUserId = $derived(page.data?.session?.user?.id);
+  const currentUserRole = $derived(page.data?.session?.user?.role);
+
+  const isOwner = $derived(
+    Boolean(
+      currentUserId &&
+      (currentUserRole === "admin" ||
+       (publishTrack?.userId && publishTrack.userId === currentUserId) ||
+       (publishTrack?.artistId && publishTrack.artistId === currentUserId) ||
+       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+    )
+  );
 
   async function refreshPublishStatus() {
     if (!publishTrack?.id) {
       alreadyPublic = false;
-      return;
-    }
-    if (typeof publishTrack.isPublic === "boolean") {
-      alreadyPublic = publishTrack.isPublic;
+      fetchedOwnerId = null;
       return;
     }
     checkingStatus = true;
@@ -40,6 +51,9 @@
       if (response.ok) {
         const info = await response.json();
         alreadyPublic = Boolean(info?.isPublic);
+        if (info?.userId || info?.artistId) {
+          fetchedOwnerId = info.userId || info.artistId;
+        }
         if (publishTrack.id) {
           musicState.markTrackPublic(publishTrack.id, alreadyPublic);
         }
@@ -76,6 +90,11 @@
 
   async function handleUnpublish() {
     if (!publishTrack?.id || isSubmitting) return;
+    if (!isOwner) {
+      submitError = "Solo el creador puede despublicar esta canción.";
+      notice.error("Acceso denegado", submitError);
+      return;
+    }
     const ok = await appNotice.confirm({
       title: "¿Despublicar esta canción?",
       description: "Dejará de aparecer en el feed público. Podrás publicarla otra vez cuando quieras.",
@@ -110,6 +129,11 @@
   async function handlePublish() {
     if (!publishTrack?.id) {
       submitError = "No pude identificar la canción.";
+      return;
+    }
+    if (!isOwner) {
+      submitError = "Solo el creador puede publicar o editar esta canción.";
+      notice.error("Acceso denegado", submitError);
       return;
     }
 
@@ -227,6 +251,19 @@
       </div>
 
       <div class="overflow-y-auto flex-1 p-4 sm:px-7 sm:py-5 flex flex-col gap-4 sm:gap-5">
+        {#if !isOwner && !checkingStatus}
+          <div
+            class="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3 text-xs sm:text-sm text-amber-200"
+          >
+            <div>
+              <p class="font-semibold text-amber-100">Canción de otro artista</p>
+              <p class="mt-0.5 text-amber-200/80 text-xs">
+                Solo el creador original de esta canción tiene permiso para editar sus datos o publicarla.
+              </p>
+            </div>
+          </div>
+        {/if}
+
         {#if alreadyPublic}
           <div
             class="flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3.5 py-2.5 text-xs sm:text-sm text-amber-100"
@@ -263,7 +300,8 @@
               type="text"
               bind:value={title}
               maxlength="50"
-              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors pr-14"
+              disabled={!isOwner}
+              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors pr-14 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span class="absolute right-3.5 text-[11px] font-mono text-[#666]">
               {title.length} / 50
@@ -280,7 +318,8 @@
               bind:value={genre}
               maxlength="40"
               placeholder="ej. Bachata"
-              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors"
+              disabled={!isOwner}
+              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -292,7 +331,8 @@
               bind:value={tagsInput}
               maxlength="180"
               placeholder="romántica, guitarra, tropical"
-              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors"
+              disabled={!isOwner}
+              class="w-full bg-transparent border border-[#333] hover:border-[#555] focus:border-[#3ae0d5] focus:outline-none rounded-xl py-2.5 px-3.5 text-white text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <p class="text-[11px] text-[#8a8a8a]">Separados por coma, hasta 12.</p>
           </div>
@@ -363,23 +403,25 @@
       <div class="p-4 sm:p-6 border-t border-white/10 bg-[#1a1a1a] shrink-0 sticky bottom-0 z-10 flex flex-col gap-2 shadow-2xl">
         <button
           onclick={handlePublish}
-          disabled={isSubmitting}
-          class="w-full bg-[#3ae0d5] hover:bg-[#3ae0d5]/90 text-black font-extrabold text-sm sm:text-base py-3 rounded-xl transition-all shadow-md transform hover:scale-[1.01] active:scale-95 disabled:opacity-60 cursor-pointer"
+          disabled={isSubmitting || !isOwner}
+          class="w-full bg-[#3ae0d5] hover:bg-[#3ae0d5]/90 text-black font-extrabold text-sm sm:text-base py-3 rounded-xl transition-all shadow-md transform hover:scale-[1.01] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           {#if isSubmitting}
             Guardando…
+          {:else if !isOwner}
+            Solo lectura
           {:else if alreadyPublic}
             Actualizar publicación
           {:else}
             Publicar canción
           {/if}
         </button>
-        {#if alreadyPublic}
+        {#if alreadyPublic && isOwner}
           <button
             type="button"
             onclick={handleUnpublish}
-            disabled={isSubmitting}
-            class="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs sm:text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-60 cursor-pointer"
+            disabled={isSubmitting || !isOwner}
+            class="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs sm:text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Despublicar
           </button>

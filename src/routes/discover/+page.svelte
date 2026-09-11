@@ -18,6 +18,8 @@
     videoUrl?: string;
     lyrics?: string;
     genre?: string | null;
+    userId?: string;
+    artistId?: string;
   };
 
   let tracks = $state<DiscoverTrack[]>([]);
@@ -52,7 +54,9 @@
         url: track.url || `/api/music/${track.id}`,
         videoUrl: track.videoUrl || undefined,
         lyrics: track.lyrics || undefined,
-        genre: track.genre || null
+        genre: track.genre || null,
+        userId: track.userId || track.artistId,
+        artistId: track.artistId || track.userId
       }));
     } finally {
       loading = false;
@@ -176,7 +180,9 @@
                 title: track.title,
                 imageUrl: track.coverUrl,
                 videoUrl: track.videoUrl,
-                durationMs: track.durationMs
+                durationMs: track.durationMs,
+                userId: track.userId,
+                artistId: track.artistId
               }}
               buttonClass="bg-black/55 text-white opacity-100"
             />

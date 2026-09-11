@@ -23,6 +23,8 @@
     url: string;
     videoUrl?: string;
     lyrics?: string;
+    userId?: string;
+    artistId?: string;
   }
 
   interface HomeArtist {
@@ -75,6 +77,8 @@
             url: track.url || `/api/music/${track.id}`,
             videoUrl: track.videoUrl || undefined,
             lyrics: track.lyrics || undefined,
+            userId: track.userId || track.artistId,
+            artistId: track.artistId || track.userId,
           }));
         } else {
           hasLiveTracks = false;
@@ -301,6 +305,8 @@
                   imageUrl: track.coverUrl,
                   videoUrl: track.videoUrl,
                   durationMs: track.durationMs,
+                  userId: track.userId,
+                  artistId: track.artistId,
                 }}
                 buttonClass="bg-black/55 text-white opacity-100"
               />

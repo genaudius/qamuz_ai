@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getContext, onMount } from "svelte";
+  import { page } from "$app/state";
   import { musicState } from "$lib/stores/music-state.js";
   import type { GlobalMusicState } from "$lib/stores/music.svelte.js";
   import { toast } from "svelte-sonner";
@@ -60,6 +61,19 @@
   const LINE_STEP = 34;
 
   const track = $derived(ctxMusic.currentTrack);
+  const currentUserId = $derived(page.data?.session?.user?.id);
+  const currentUserRole = $derived(page.data?.session?.user?.role);
+  let fetchedOwnerId = $state<string | null>(null);
+
+  const isOwner = $derived(
+    Boolean(
+      currentUserId &&
+      (currentUserRole === "admin" ||
+       (track?.userId && track.userId === currentUserId) ||
+       (track?.artistId && track.artistId === currentUserId) ||
+       (fetchedOwnerId && fetchedOwnerId === currentUserId))
+    )
+  );
 
   const duration = $derived.by(() => {
     if (audioDuration > 0) return audioDuration;
@@ -149,6 +163,18 @@
     if (!id) return;
     if (id !== lastStageTrackId) {
       lastStageTrackId = id;
+      fetchedOwnerId = null;
+      if (!track.userId && !track.artistId) {
+        void fetch(`/api/music/${id}/info`)
+          .then(async (response) => {
+            if (!response.ok) return;
+            const payload = await response.json().catch(() => null);
+            if (payload?.userId || payload?.artistId) {
+              fetchedOwnerId = payload.userId || payload.artistId;
+            }
+          })
+          .catch(() => undefined);
+      }
       playhead = ctxMusic.audioElement?.currentTime || ctxMusic.currentTime || 0;
       audioDuration = 0;
       comments = loadComments(id);
@@ -293,6 +319,10 @@
 
   async function saveMeta(kind: "edit" | "tags") {
     if (!track?.id || saving) return;
+    if (!isOwner) {
+      toast.error("No tienes permisos para editar canciones de otros artistas");
+      return;
+    }
     saving = true;
     try {
       const tags = editTags
@@ -450,22 +480,26 @@
         <Share2 class="h-7 w-7" />
         <span>Share</span>
       </button>
-      <button type="button" class="rail-btn" onclick={() => (sheet = "edit")} aria-label="Editar título">
-        <Pencil class="h-6 w-6" />
-        <span>Título</span>
-      </button>
-      <button type="button" class="rail-btn" onclick={() => (sheet = "tags")} aria-label="Tags">
-        <Tags class="h-6 w-6" />
-        <span>Tags</span>
-      </button>
+      {#if isOwner}
+        <button type="button" class="rail-btn" onclick={() => (sheet = "edit")} aria-label="Editar título">
+          <Pencil class="h-6 w-6" />
+          <span>Título</span>
+        </button>
+        <button type="button" class="rail-btn" onclick={() => (sheet = "tags")} aria-label="Tags">
+          <Tags class="h-6 w-6" />
+          <span>Tags</span>
+        </button>
+      {/if}
       <button type="button" class="rail-btn" onclick={extractStemsToEditor} aria-label="Extraer stems">
         <AudioLines class="h-6 w-6" />
         <span>Stems</span>
       </button>
-      <button type="button" class="rail-btn" onclick={() => ctxMusic.openPublishModal(track)} aria-label="Publicar">
-        <Upload class="h-6 w-6" />
-        <span>{track.isPublic ? "Pública" : "Publicar"}</span>
-      </button>
+      {#if isOwner}
+        <button type="button" class="rail-btn" onclick={() => ctxMusic.openPublishModal(track)} aria-label="Publicar">
+          <Upload class="h-6 w-6" />
+          <span>{track.isPublic ? "Pública" : "Publicar"}</span>
+        </button>
+      {/if}
     </div>
 
     <div class="bottom">
@@ -607,7 +641,7 @@
               <p class="empty">Sé el primero en comentar</p>
             {/each}
           </div>
-        {:else if sheet === "edit"}
+        {:else if sheet === "edit" && isOwner}
           <label>
             Título
             <input bind:value={editTitle} maxlength="80" />
@@ -619,7 +653,7 @@
           <button type="button" class="primary" disabled={saving} onclick={() => void saveMeta("edit")}>
             Guardar
           </button>
-        {:else}
+        {:else if sheet === "tags" && isOwner}
           <label>
             Tags (separados por coma)
             <input bind:value={editTags} maxlength="160" placeholder="romantic, night, latin" />
