@@ -1,8 +1,8 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db/index.js';
-import { follows, music, playlists } from '$lib/server/db/schema.js';
-import { and, count, desc, eq } from 'drizzle-orm';
+import { artistProfiles, follows, music, playlists, users } from '$lib/server/db/schema.js';
+import { and, count, desc, eq, ne, sql } from 'drizzle-orm';
 import { findPublicArtist } from '$lib/server/artists.js';
 import { randomUUID } from 'node:crypto';
 
@@ -16,12 +16,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     throw error(404, 'Artista no encontrado');
   }
 
+  const isDemoProfile = Boolean(artist.userId?.startsWith('demo-'));
+  const isOwnProfile = session?.user?.id === artist.userId;
+
   const [followersResult, followState] = await Promise.all([
-    db
-      .select({ count: count() })
-      .from(follows)
-      .where(eq(follows.followingId, artist.userId)),
-    session?.user?.id
+    !isDemoProfile
+      ? db
+          .select({ count: count() })
+          .from(follows)
+          .where(eq(follows.followingId, artist.userId))
+      : Promise.resolve([]),
+    session?.user?.id && !isDemoProfile
       ? db
           .select({ id: follows.id })
           .from(follows)
@@ -30,7 +35,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       : Promise.resolve([]),
   ]);
 
-  const isOwnProfile = session?.user?.id === artist.userId;
   const trackFilter = isOwnProfile
     ? eq(music.userId, artist.userId)
     : and(eq(music.userId, artist.userId), eq(music.isPublic, true));
@@ -38,47 +42,79 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     ? eq(playlists.userId, artist.userId)
     : and(eq(playlists.userId, artist.userId), eq(playlists.isPublic, true));
 
-  const tracks = await db
-    .select({
-      id: music.id,
-      title: music.title,
-      prompt: music.prompt,
-      imageUrl: music.imageUrl,
-      videoUrl: music.videoUrl,
-      lyrics: music.lyrics,
-      durationMs: music.durationMs,
-      createdAt: music.createdAt,
-      playsCount: music.playsCount,
-      likesCount: music.likesCount,
-      isInstrumental: music.isInstrumental,
-    })
-    .from(music)
-    .where(trackFilter)
-    .orderBy(desc(music.createdAt))
-    .limit(60);
+  const [tracks, publicPlaylists, relatedArtistsRows] = await Promise.all([
+    !isDemoProfile
+      ? db
+          .select({
+            id: music.id,
+            title: music.title,
+            prompt: music.prompt,
+            imageUrl: music.imageUrl,
+            videoUrl: music.videoUrl,
+            lyrics: music.lyrics,
+            durationMs: music.durationMs,
+            createdAt: music.createdAt,
+            playsCount: music.playsCount,
+            likesCount: music.likesCount,
+            isInstrumental: music.isInstrumental,
+          })
+          .from(music)
+          .where(trackFilter)
+          .orderBy(desc(music.createdAt))
+          .limit(60)
+      : Promise.resolve([]),
 
-  const publicPlaylists = await db
-    .select({
-      id: playlists.id,
-      name: playlists.name,
-      description: playlists.description,
-      updatedAt: playlists.updatedAt,
-    })
-    .from(playlists)
-    .where(playlistFilter)
-    .orderBy(desc(playlists.updatedAt))
-    .limit(24);
+    !isDemoProfile
+      ? db
+          .select({
+            id: playlists.id,
+            name: playlists.name,
+            description: playlists.description,
+            updatedAt: playlists.updatedAt,
+          })
+          .from(playlists)
+          .where(playlistFilter)
+          .orderBy(desc(playlists.updatedAt))
+          .limit(24)
+      : Promise.resolve([]),
+
+    // Load real related artists from other users who have public music
+    db
+      .select({
+        profileId: artistProfiles.id,
+        userId: users.id,
+        stageName: artistProfiles.stageName,
+        userName: users.name,
+        avatarUrl: artistProfiles.avatarUrl,
+        userImage: users.image,
+      })
+      .from(users)
+      .leftJoin(artistProfiles, eq(artistProfiles.userId, users.id))
+      .where(and(
+        ne(users.id, artist.userId),
+        sql`EXISTS (SELECT 1 FROM ${music} WHERE ${music.userId} = ${users.id} AND ${music.isPublic} = true)`
+      ))
+      .limit(5)
+      .catch(() => []),
+  ]);
+
+  const relatedArtists = relatedArtistsRows.map((r) => ({
+    id: r.profileId || r.userId,
+    name: r.stageName || r.userName || 'Artista',
+    avatarUrl: r.avatarUrl || r.userImage || 'https://dummyimage.com/200x200/222/fff&text=Q',
+  }));
 
   return {
     artist: {
       ...artist,
       followersCount: followersResult[0]?.count ?? 0,
       isFollowing: followState.length > 0,
-      isDemoProfile: false,
+      isDemoProfile,
       isOwnProfile,
     },
     tracks,
     publicPlaylists,
+    relatedArtists,
   };
 };
 
@@ -95,6 +131,10 @@ export const actions: Actions = {
 
       if (!artist) {
         return fail(404, { error: 'Artista no encontrado', action: 'toggleFollow' });
+      }
+
+      if (artist.userId?.startsWith('demo-')) {
+        return fail(400, { error: 'No se puede seguir un perfil de demostración', action: 'toggleFollow' });
       }
 
       if (artist.userId === session.user.id) {

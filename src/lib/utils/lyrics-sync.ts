@@ -302,25 +302,27 @@ export function buildStructuredTimedLyrics(
 	}
 
 	const blocks = groupIntoSections(parsed);
-	const totalDur = duration > 0 ? duration : Math.max(sungRows.length * 3.2, 45);
+	const totalDur = duration > 0 ? duration : Math.max(sungRows.length * 3.8, 60);
 
-	// Typical Suno/Kie song: long cold intro before first vocal — pad aggressively
-	// so heuristic lyrics don't light up ahead of the voice.
-	const hasIntro = blocks.some((b) => b.key === 'intro' || b.key === 'instrumental');
-	const leadIn = hasIntro
-		? Math.min(8, Math.max(3, totalDur * 0.045))
-		: Math.min(24, Math.max(12, totalDur * 0.15));
-	const trail = Math.min(8, totalDur * 0.05);
-	const usable = Math.max(totalDur - leadIn - trail, sungRows.length * 1.4);
+	// Latin/tropical & AI-generated songs (Suno/Kie) have an opening instrumental
+	// groove (requinto, brass, drums) lasting 13-20s before the first sung vocal.
+	// Providing a realistic lead-in prevents lyrics from activating prematurely.
+	const hasIntroBlock = blocks.some((b) => b.key === 'intro' || b.key === 'instrumental');
+	const leadIn = hasIntroBlock
+		? Math.min(22, Math.max(14, totalDur * 0.095))
+		: Math.min(20, Math.max(13, totalDur * 0.085));
+	const trail = Math.min(10, Math.max(5, totalDur * 0.05));
+	const usable = Math.max(totalDur - leadIn - trail, sungRows.length * 2.8);
 
+	// Weight sections linearly by sung lines count so verses don't get artificially
+	// compressed compared to choruses.
 	const weights = blocks.map((block) => {
-		const base = SECTION_WEIGHT[block.key] ?? 1;
-		const lineFactor = Math.max(
-			block.lines.length,
-			block.key === 'intro' || block.key === 'instrumental' ? 1 : 0.5
-		);
-		if (block.lines.length === 0) return base * 0.85;
-		return base * Math.sqrt(lineFactor);
+		const base = SECTION_WEIGHT[block.key] ?? 1.0;
+		if (block.lines.length === 0) {
+			return base * 1.5; // pure instrumental interlude / solo
+		}
+		// Linear scaling per line ensures consistent, natural singing pace (3.5-4.5s/line)
+		return base * block.lines.length;
 	});
 	const weightSum = weights.reduce((a, b) => a + b, 0) || 1;
 
@@ -334,24 +336,26 @@ export function buildStructuredTimedLyrics(
 			return;
 		}
 
-		const sungStartPad =
-			block.key === 'intro' || block.key === 'instrumental'
-				? slice * 0.55
-				: block.key === 'outro'
-					? slice * 0.08
-					: slice * 0.04;
+		// Musical breathing room at the start and end of each section
+		const isIntroOrInst = block.key === 'intro' || block.key === 'instrumental';
+		const sungStartPad = isIntroOrInst
+			? Math.min(slice * 0.4, 6)
+			: block.key === 'outro'
+				? Math.min(slice * 0.1, 2)
+				: Math.min(slice * 0.08, 2.5);
 		const sungEndPad =
-			block.key === 'outro' || block.key === 'ending' ? slice * 0.35 : slice * 0.08;
-		const singSpan = Math.max(slice - sungStartPad - sungEndPad, block.lines.length * 0.9);
+			block.key === 'outro' || block.key === 'ending'
+				? Math.min(slice * 0.35, 8)
+				: Math.min(slice * 0.08, 2.5);
+
+		const singSpan = Math.max(slice - sungStartPad - sungEndPad, block.lines.length * 1.8);
 		const sectionStart = cursor + sungStartPad;
+		const lineSlot = singSpan / Math.max(block.lines.length, 1);
 
 		block.lines.forEach((line, li) => {
-			const t = (li + 0.12) / Math.max(block.lines.length, 1);
-			const start = sectionStart + t * singSpan;
-			const end =
-				li < block.lines.length - 1
-					? sectionStart + ((li + 1.12) / block.lines.length) * singSpan
-					: cursor + slice - sungEndPad * 0.4;
+			const start = sectionStart + li * lineSlot;
+			// Leave a 0.4s breathing pause between consecutive lines
+			const end = start + Math.max(lineSlot - 0.4, 1.6);
 			timed.push({
 				text: line.text,
 				start,

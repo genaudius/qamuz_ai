@@ -73,10 +73,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       return json({ error: 'ID de artista no proporcionado' }, { status: 400 });
     }
 
-    if (artistUserId === session.user.id) {
-      return json({ error: 'No puedes seguirte a ti mismo' }, { status: 400 });
-    }
-
     // Resolve target userId (artistUserId might be an artistProfile id or userId)
     let targetUserId = artistUserId;
     const [profile] = await db
@@ -87,6 +83,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     if (profile?.userId) {
       targetUserId = profile.userId;
+    }
+
+    if (targetUserId === session.user.id || artistUserId === session.user.id) {
+      return json({ error: 'No puedes seguir tu propio perfil de artista' }, { status: 400 });
+    }
+
+    if (targetUserId.startsWith('demo-')) {
+      return json({ error: 'No se puede seguir un perfil de demostración' }, { status: 400 });
     }
 
     const [existing] = await db

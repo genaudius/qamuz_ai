@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db/index.js';
 import { artistProfiles, artists, users } from '$lib/server/db/schema.js';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
+import { DEMO_ARTIST_PROFILES_BY_ID } from '$lib/constants/demo-artists.js';
 
 export type PublicArtistRecord = {
 	id: string;
@@ -14,6 +15,11 @@ export type PublicArtistRecord = {
 
 /** Public artist pages always use artist_profile or user record. */
 export async function findPublicArtist(artistId: string): Promise<PublicArtistRecord | null> {
+	if (!artistId?.trim()) return null;
+	const cleanId = artistId.trim();
+	const decoded = decodeURIComponent(cleanId);
+
+	// 1. Direct match on artistProfiles id or userId
 	const [row] = await db
 		.select({
 			id: artistProfiles.id,
@@ -27,12 +33,12 @@ export async function findPublicArtist(artistId: string): Promise<PublicArtistRe
 		.from(artistProfiles)
 		.innerJoin(users, eq(users.id, artistProfiles.userId))
 		.leftJoin(artists, eq(artists.userId, artistProfiles.userId))
-		.where(or(eq(artistProfiles.id, artistId), eq(artistProfiles.userId, artistId)))
+		.where(or(eq(artistProfiles.id, cleanId), eq(artistProfiles.userId, cleanId)))
 		.limit(1);
 
 	if (row) return row;
 
-	// Fallback: check if artistId is a user who created songs
+	// 2. Fallback: check if artistId matches a user's id directly
 	const [userRow] = await db
 		.select({
 			id: users.id,
@@ -42,7 +48,7 @@ export async function findPublicArtist(artistId: string): Promise<PublicArtistRe
 		})
 		.from(users)
 		.leftJoin(artists, eq(artists.userId, users.id))
-		.where(eq(users.id, artistId))
+		.where(eq(users.id, cleanId))
 		.limit(1);
 
 	if (userRow) {
@@ -54,6 +60,67 @@ export async function findPublicArtist(artistId: string): Promise<PublicArtistRe
 			userName: userRow.userName,
 			userImage: userRow.userImage,
 			verifiedAt: userRow.verifiedAt,
+		};
+	}
+
+	// 3. Fallback: search by stageName or username (case-insensitive)
+	const [nameMatch] = await db
+		.select({
+			id: artistProfiles.id,
+			bio: artistProfiles.bio,
+			stageName: artistProfiles.stageName,
+			userId: artistProfiles.userId,
+			userName: users.name,
+			userImage: users.image,
+			verifiedAt: artists.verifiedAt,
+		})
+		.from(artistProfiles)
+		.innerJoin(users, eq(users.id, artistProfiles.userId))
+		.leftJoin(artists, eq(artists.userId, artistProfiles.userId))
+		.where(or(
+			sql`LOWER(${artistProfiles.stageName}) = LOWER(${decoded})`,
+			sql`LOWER(${users.name}) = LOWER(${decoded})`
+		))
+		.limit(1);
+
+	if (nameMatch) return nameMatch;
+
+	// 4. Fallback: user without profile matched by name
+	const [userNameMatch] = await db
+		.select({
+			id: users.id,
+			userName: users.name,
+			userImage: users.image,
+			verifiedAt: artists.verifiedAt,
+		})
+		.from(users)
+		.leftJoin(artists, eq(artists.userId, users.id))
+		.where(sql`LOWER(${users.name}) = LOWER(${decoded})`)
+		.limit(1);
+
+	if (userNameMatch) {
+		return {
+			id: userNameMatch.id,
+			bio: null,
+			stageName: userNameMatch.userName,
+			userId: userNameMatch.id,
+			userName: userNameMatch.userName,
+			userImage: userNameMatch.userImage,
+			verifiedAt: userNameMatch.verifiedAt,
+		};
+	}
+
+	// 5. Graceful fallback for legacy demo artist slugs (prevent dead 404s)
+	const demo = DEMO_ARTIST_PROFILES_BY_ID.get(cleanId) || DEMO_ARTIST_PROFILES_BY_ID.get(decoded);
+	if (demo) {
+		return {
+			id: demo.id,
+			bio: demo.bio || null,
+			stageName: demo.name,
+			userId: `demo-${demo.id}`,
+			userName: demo.name,
+			userImage: demo.avatarUrl,
+			verifiedAt: demo.verified ? new Date() : null,
 		};
 	}
 

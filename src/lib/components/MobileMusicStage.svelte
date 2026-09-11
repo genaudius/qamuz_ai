@@ -21,6 +21,7 @@
   import Pause from "@lucide/svelte/icons/pause";
   import Send from "@lucide/svelte/icons/send";
   import AudioLines from "@lucide/svelte/icons/audio-lines";
+  import Upload from "@lucide/svelte/icons/upload";
 
   const ctxMusic = getContext<GlobalMusicState>("musicState") ?? musicState;
 
@@ -461,6 +462,10 @@
         <AudioLines class="h-6 w-6" />
         <span>Stems</span>
       </button>
+      <button type="button" class="rail-btn" onclick={() => ctxMusic.openPublishModal(track)} aria-label="Publicar">
+        <Upload class="h-6 w-6" />
+        <span>{track.isPublic ? "Pública" : "Publicar"}</span>
+      </button>
     </div>
 
     <div class="bottom">
@@ -768,12 +773,15 @@
   .rail {
     position: absolute;
     right: 10px;
-    bottom: calc(168px + env(safe-area-inset-bottom));
+    bottom: calc(150px + env(safe-area-inset-bottom));
     z-index: 5;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 11px;
     align-items: center;
+    max-height: calc(100dvh - 220px);
+    overflow-y: auto;
+    scrollbar-width: none;
   }
 
   .rail-btn {

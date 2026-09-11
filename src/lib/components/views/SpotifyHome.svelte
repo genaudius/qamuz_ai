@@ -143,8 +143,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ artistUserId: targetId, action: nextAction }),
       });
+      const payload = await res.json().catch(() => null);
       if (res.ok) {
-        const payload = await res.json();
         const nextState = Boolean(payload?.isFollowing);
         artists = artists.map((a) => (a.id === artist.id || a.userId === targetId) ? { ...a, isFollowing: nextState } : a);
         if (nextState) {
@@ -155,7 +155,7 @@
           toast.success(`Has dejado de seguir a ${artist.name}`);
         }
       } else {
-        toast.error("No se pudo actualizar el seguimiento");
+        toast.error(payload?.error || "No se pudo actualizar el seguimiento");
       }
     } catch {
       toast.error("Error de comunicación con el servidor");
@@ -423,7 +423,15 @@
               </div>
             </a>
 
-            {#if session?.user}
+            {#if artist.userId === session?.user?.id || artist.id === session?.user?.id}
+              <a
+                href={`/artist/${artist.id}`}
+                class="w-full text-xs font-bold py-1.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center justify-center gap-1.5 hover:bg-zinc-700 hover:text-white transition-all cursor-pointer"
+              >
+                <span>👤</span>
+                <span>Tu Perfil</span>
+              </a>
+            {:else if session?.user}
               <button
                 type="button"
                 onclick={() => toggleArtistFollow(artist)}
@@ -447,6 +455,13 @@
                   <span>+ Seguir</span>
                 {/if}
               </button>
+            {:else}
+              <a
+                href="/login"
+                class="w-full text-xs font-bold py-1.5 rounded-full bg-zinc-800/60 text-zinc-400 border border-zinc-700/60 hover:text-white hover:border-zinc-500 transition-all flex items-center justify-center gap-1 text-center cursor-pointer"
+              >
+                + Seguir
+              </a>
             {/if}
           </div>
         {/each}

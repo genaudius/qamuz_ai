@@ -67,9 +67,7 @@
         }))
   );
 
-  const relatedArtists = $derived(
-    DEMO_ARTIST_PROFILES.filter((artist) => artist.id !== data.artist.id).slice(0, 5)
-  );
+  const relatedArtists = $derived(data.relatedArtists || []);
 
   function playArtistTrack(track: PageData['tracks'][number]) {
     if (!musicState || data.artist.isDemoProfile) return;
@@ -361,26 +359,28 @@
       </aside>
     </section>
 
-    <section class="space-y-4">
-      <div>
-        <h2 class="text-3xl font-black tracking-tight">Fans also like</h2>
-        <p class="text-sm text-white/55">Related artists should come after the profile and catalog, not interrupt them.</p>
-      </div>
+    {#if relatedArtists.length > 0}
+      <section class="space-y-4">
+        <div>
+          <h2 class="text-3xl font-black tracking-tight">Artistas similares</h2>
+          <p class="text-sm text-white/55">Otros artistas de la comunidad de QAMUZ.</p>
+        </div>
 
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-        {#each relatedArtists as artist}
-          <a href={`/artist/${artist.id}`} class="spotify-card rounded-2xl p-3.5 text-center transition-transform hover:-translate-y-1">
-            <div class="mx-auto h-28 w-28 overflow-hidden rounded-full bg-zinc-900 shadow-lg">
-              <img src={artist.avatarUrl} alt={artist.name} class="h-full w-full object-cover" />
-            </div>
-            <div class="mt-3">
-              <div class="truncate text-sm font-bold text-white">{artist.name}</div>
-              <div class="text-xs text-white/48">Artist</div>
-            </div>
-          </a>
-        {/each}
-      </div>
-    </section>
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+          {#each relatedArtists as artist}
+            <a href={`/artist/${artist.id}`} class="spotify-card rounded-2xl p-3.5 text-center transition-transform hover:-translate-y-1">
+              <div class="mx-auto h-28 w-28 overflow-hidden rounded-full bg-zinc-900 shadow-lg">
+                <img src={artist.avatarUrl} alt={artist.name} class="h-full w-full object-cover" />
+              </div>
+              <div class="mt-3">
+                <div class="truncate text-sm font-bold text-white">{artist.name}</div>
+                <div class="text-xs text-white/48">Artista</div>
+              </div>
+            </a>
+          {/each}
+        </div>
+      </section>
+    {/if}
 
     <section class="space-y-4">
       <div>

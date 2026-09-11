@@ -507,22 +507,49 @@
               y2="12"
             /><line x1="21" x2="7" y1="18" y2="18" /><path d="M3 16v5" /><path
               d="M5 18H1"
+        <button
+          type="button"
+          class="h-9 w-9 hover:text-white rounded-full inline-flex items-center justify-center"
+          aria-label="Agregar a playlist"
+          title="Agregar a playlist"
+          onclick={() => (playlistOpen = true)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-4.5 w-4.5"
+            ><line x1="21" x2="3" y1="6" y2="6" /><line
+              x1="21"
+              x2="9"
+              y1="12"
+              y2="12"
+            /><line x1="21" x2="7" y1="18" y2="18" /><path d="M3 16v5" /><path
+              d="M5 18H1"
             /></svg
           >
         </button>
-        <TrackOptionsMenu
-          song={{
-            id: activeTrack.id,
-            title: activeTrack.title,
-            videoUrl: activeTrack.videoUrl,
-            imageUrl: activeTrack.imageUrl,
-            durationMs: activeTrack.durationMs
-          }}
-          side="top"
-          showClosePlayer
-          buttonClass="h-9 w-9 hover:text-white"
-        />
       </div>
+      <!-- Options Menu: always visible on mobile & desktop so actions like Publicar are never hidden -->
+      <TrackOptionsMenu
+        song={{
+          id: activeTrack.id,
+          title: activeTrack.title,
+          videoUrl: activeTrack.videoUrl,
+          imageUrl: activeTrack.imageUrl,
+          durationMs: activeTrack.durationMs,
+          isPublic: activeTrack.isPublic
+        }}
+        side="top"
+        showClosePlayer
+        buttonClass="h-9 w-9 hover:text-white"
+      />
       <Button.Root
         variant="ghost"
         size="icon"
