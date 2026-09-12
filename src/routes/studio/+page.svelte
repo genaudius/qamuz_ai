@@ -117,7 +117,9 @@
         return;
       }
       const method = String(msgData.method || "GET").toUpperCase();
+      const isMediaPath = path.startsWith("/api/music/") || path.startsWith("/api/music-tools/");
       const headers = new Headers();
+      if (isMediaPath) headers.set("X-Studio-Stream", "1");
       let body: BodyInit | undefined;
       if (msgData.file?.bytes) {
         const form = new FormData();

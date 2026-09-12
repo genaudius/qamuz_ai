@@ -61,11 +61,31 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 				.where(eq(music.id, musicId));
 		}
 
+		// Detect Studio proxy requests (embedded iframe or BFF) that cannot follow
+		// cross-origin redirects due to CORS restrictions on the CDN.
+		const isStudioProxy = request.headers.has('x-studio-proxy') || request.headers.has('x-studio-stream');
+
 		// Handle cloud storage files with presigned URLs
 		if (musicRecord.storageLocation === 'r2' && musicRecord.cloudPath) {
 			const presignedUrl = await storageService.getUrl(musicRecord.cloudPath);
 
-			// Redirect to presigned URL for direct R2 access
+			if (isStudioProxy) {
+				// Stream bytes server-side for studio to avoid CORS issues with R2 CDN
+				const r2Res = await fetch(presignedUrl);
+				if (!r2Res.ok) throw error(502, 'Could not fetch audio from storage');
+				const contentType = r2Res.headers.get('content-type') || musicRecord.mimeType || 'audio/mpeg';
+				return new Response(r2Res.body, {
+					status: 200,
+					headers: {
+						'Content-Type': contentType,
+						'Content-Length': r2Res.headers.get('content-length') || '',
+						'Cache-Control': 'private, max-age=300',
+						'Access-Control-Allow-Origin': '*'
+					}
+				});
+			}
+
+			// Redirect to presigned URL for direct R2 access (browser players, etc.)
 			return new Response(null, {
 				status: 302,
 				headers: {
@@ -77,6 +97,21 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
 
 		// Handle Kie external CDN links
 		if (musicRecord.storageLocation === 'kie' && musicRecord.cloudPath) {
+			if (isStudioProxy) {
+				// Stream bytes server-side for studio to avoid CORS issues
+				const kieRes = await fetch(musicRecord.cloudPath);
+				if (!kieRes.ok) throw error(502, 'Could not fetch audio from CDN');
+				const contentType = kieRes.headers.get('content-type') || 'audio/mpeg';
+				return new Response(kieRes.body, {
+					status: 200,
+					headers: {
+						'Content-Type': contentType,
+						'Content-Length': kieRes.headers.get('content-length') || '',
+						'Cache-Control': 'public, max-age=3600',
+						'Access-Control-Allow-Origin': '*'
+					}
+				});
+			}
 			return new Response(null, {
 				status: 302,
 				headers: {
