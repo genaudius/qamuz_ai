@@ -61,7 +61,7 @@
     error = "";
     let redirectingAfterSuccess = false;
     const redirectTo = authSanitizers.redirectUrl(
-      page.url.searchParams.get("callbackUrl")
+      page.url.searchParams.get("callbackUrl") || page.url.searchParams.get("redirectTo")
     );
 
     try {

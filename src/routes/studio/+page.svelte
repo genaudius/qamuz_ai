@@ -56,15 +56,19 @@
   function isStudioOrigin(origin: string) {
     try {
       const url = new URL(origin);
-      return (
+      const ok = (
         url.hostname === "localhost" ||
         url.hostname === "127.0.0.1" ||
         url.hostname === "qamuz.ai" ||
         url.hostname.endsWith(".qamuz.ai") ||
         url.hostname === "qamuz.studio" ||
-        url.hostname.endsWith(".qamuz.studio")
+        url.hostname.endsWith(".qamuz.studio") ||
+        url.hostname.endsWith(".vercel.app")
       );
-    } catch {
+      if (!ok) console.warn("[Studio Parent] Untrusted message origin:", origin);
+      return ok;
+    } catch (e) {
+      console.warn("[Studio Parent] Invalid origin URL:", origin, e);
       return false;
     }
   }
@@ -80,6 +84,7 @@
 
   function sendUserToStudio(source: MessageEventSource | null, origin: string) {
     if (!source || typeof (source as Window).postMessage !== "function") return;
+    console.log("[Studio Parent] Sending user data to Studio:", origin);
     (source as Window).postMessage(
       {
         type: "qamuz-studio:user",
@@ -95,7 +100,9 @@
 
   function sendSessionsToStudio(source: MessageEventSource | null, origin: string) {
     if (!source || typeof (source as Window).postMessage !== "function") return;
-    (source as Window).postMessage({ type: "qamuz-studio:sessions", sessions: readLocalSessions() }, origin);
+    const sessions = readLocalSessions();
+    console.log("[Studio Parent] Sending local sessions to Studio (" + sessions.length + "):", origin);
+    (source as Window).postMessage({ type: "qamuz-studio:sessions", sessions }, origin);
     sendUserToStudio(source, origin);
   }
 
@@ -104,19 +111,23 @@
     if (!msgData || msgData.type !== "qamuz-studio:api" || typeof msgData.id !== "string") return;
     const source = event.source as Window | null;
     const reply = (payload: Record<string, unknown>, transfer?: Transferable[]) => {
+      console.log(`[Studio Parent] Replying to API request ${msgData.id} (${payload.status ?? 0}):`, payload.error || "OK");
       source?.postMessage({ type: "qamuz-studio:api-result", id: msgData.id, ...payload }, event.origin, transfer);
     };
     try {
       if (!isStudioOrigin(event.origin)) {
+        console.warn("[Studio Parent] Rejected api origin:", event.origin);
         reply({ status: 403, error: "origin" });
         return;
       }
       const path = String(msgData.path || "");
       if (!path.startsWith("/api/")) {
+        console.warn("[Studio Parent] Rejected invalid path:", path);
         reply({ status: 400, error: "path" });
         return;
       }
       const method = String(msgData.method || "GET").toUpperCase();
+      console.log(`[Studio Parent] Proxying API: ${method} ${path}`);
       const isMediaPath = path.startsWith("/api/music/") || path.startsWith("/api/music-tools/");
       const headers = new Headers();
       if (isMediaPath) headers.set("X-Studio-Stream", "1");
@@ -138,12 +149,14 @@
       const response = await fetch(path, { method, headers, body, credentials: "same-origin" });
       const contentType = response.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
-        reply({ status: response.status, json: await response.json(), contentType });
+        const json = await response.json();
+        reply({ status: response.status, json, contentType });
         return;
       }
       const bytes = await response.arrayBuffer();
       reply({ status: response.status, bytes, contentType }, [bytes]);
     } catch (error) {
+      console.error("[Studio Parent] proxyStudioApi caught error:", error);
       reply({ status: 0, error: (error as Error).message });
     }
   }
