@@ -5,37 +5,67 @@ import { db } from '$lib/server/db/index.js';
 import { music } from '$lib/server/db/schema.js';
 import { genAudiusClient } from '$lib/ai/providers/genaudius-client.js';
 import { storageService } from '$lib/server/storage.js';
+import { sessionUser } from '$lib/server/master-jobs.js';
+import { getStemBytes, getStemJob, startStemJob } from '$lib/server/studio-stem-jobs.js';
 
 /**
- * Stem separation via GenAudius workers (Demucs). Kie vocal-removal is disabled (generate-only).
+ * Stem separation via GenAudius workers (Demucs).
+ *
+ * Two contracts share this route:
+ *  - Async (QAMUZ Studio DAW): POST { musicId, type: 'split_stem' } -> 202 { jobId };
+ *    poll GET ?jobId -> { status, stems:[{index,name}] }; fetch GET ?jobId&stem=N -> WAV bytes.
+ *  - Sync (legacy): POST { musicId, type?: 'separate_vocal' } -> { status:'completed', stems:[...] }.
  */
-export const POST: RequestHandler = async ({ request, locals }) => {
-	const session = await locals.auth();
-	if (!session?.user?.id) return json({ error: 'Authentication required' }, { status: 401 });
-	try {
-		const body = (await request.json()) as Record<string, unknown>;
-		const musicId = typeof body.musicId === 'string' ? body.musicId : undefined;
-		if (!musicId) return json({ error: 'musicId is required' }, { status: 400 });
 
+const ASYNC_MODES = new Set(['split_stem', 'split_stem_advanced']);
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const user = await sessionUser(locals);
+	if (!user) return json({ error: 'Authentication required' }, { status: 401 });
+
+	let body: Record<string, unknown> = {};
+	try {
+		body = (await request.json()) as Record<string, unknown>;
+	} catch {
+		body = {};
+	}
+
+	const musicId = typeof body.musicId === 'string' ? body.musicId : undefined;
+	if (!musicId) return json({ error: 'musicId is required' }, { status: 400 });
+
+	const mode =
+		typeof body.type === 'string'
+			? body.type
+			: typeof body.mode === 'string'
+				? body.mode
+				: 'separate_vocal';
+
+	// --- Async job contract (Studio DAW) ---
+	if (ASYNC_MODES.has(mode)) {
+		try {
+			const { jobId, reused } = await startStemJob(user.id, musicId, mode);
+			if (reused) {
+				// Another separation for this track is already running.
+				return json({ jobId, status: 'running' }, { status: 409 });
+			}
+			return json({ jobId, status: 'pending' }, { status: 202 });
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Stem separation failed';
+			const status = message.includes('not found') ? 404 : 502;
+			return json({ error: message, code: 'genaudius_stems_failed' }, { status });
+		}
+	}
+
+	// --- Legacy synchronous contract ---
+	try {
 		const [song] = await db
-			.select({
-				id: music.id,
-				cloudPath: music.cloudPath,
-				mimeType: music.mimeType
-			})
+			.select({ id: music.id, cloudPath: music.cloudPath, mimeType: music.mimeType })
 			.from(music)
-			.where(and(eq(music.id, musicId), eq(music.userId, session.user.id)))
+			.where(and(eq(music.id, musicId), eq(music.userId, user.id)))
 			.limit(1);
 		if (!song?.cloudPath) return json({ error: 'Music not found' }, { status: 404 });
 
 		const buffer = await storageService.download(song.cloudPath);
-		const mode =
-			typeof body.type === 'string'
-				? body.type
-				: typeof body.mode === 'string'
-					? body.mode
-					: 'separate_vocal';
-
 		const result = await genAudiusClient.separateStems({
 			audioBase64: buffer.toString('base64'),
 			mimeType: song.mimeType || 'audio/mpeg',
@@ -50,7 +80,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					mimeType: stem.mimeType || 'audio/wav',
 					filename: `${musicId}-${stem.name}.wav`
 				},
-				session.user.id,
+				user.id,
 				'audio',
 				'generated'
 			);
@@ -63,12 +93,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			});
 		}
 
-		return json({
-			source: 'genaudius',
-			status: 'completed',
-			engine: result.source,
-			stems
-		});
+		return json({ source: 'genaudius', status: 'completed', engine: result.source, stems });
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Stem separation failed';
 		const status = message.includes('not installed') ? 501 : 502;
@@ -76,9 +101,37 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 };
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ url, locals }) => {
+	const user = await sessionUser(locals);
+	if (!user) return json({ error: 'Authentication required' }, { status: 401 });
+
+	const jobId = url.searchParams.get('jobId');
+	if (!jobId) {
+		return json({
+			source: 'genaudius',
+			message: 'Stem jobs: POST { musicId, type: "split_stem" } then poll GET ?jobId.'
+		});
+	}
+
+	const job = getStemJob(jobId, user.id);
+	if (!job) return json({ error: 'Job not found' }, { status: 404 });
+
+	// Fetch raw bytes for one stem: GET ?jobId&stem=N
+	const stemParam = url.searchParams.get('stem');
+	if (stemParam !== null) {
+		const stemIndex = Number(stemParam);
+		if (!Number.isInteger(stemIndex)) return json({ error: 'Invalid stem index' }, { status: 400 });
+		const found = await getStemBytes(jobId, user.id, stemIndex);
+		if (!found) return json({ error: 'Stem not found' }, { status: 404 });
+		return new Response(new Uint8Array(found.bytes), {
+			headers: { 'Content-Type': found.mimeType || 'audio/wav', 'Cache-Control': 'private, max-age=3600' }
+		});
+	}
+
+	// Poll status
 	return json({
-		source: 'genaudius',
-		message: 'Stem jobs complete synchronously via GenAudius. Use POST with musicId.'
+		status: job.status,
+		error: job.error,
+		stems: job.stems.map((s) => ({ index: s.index, name: s.name }))
 	});
 };

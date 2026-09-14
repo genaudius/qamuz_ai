@@ -14,7 +14,10 @@
 
   // Keep the hostname identical to the Vite host used by Studio in local dev.
   const studioDevOrigin = "http://127.0.0.1:1420";
-  const studioProductionOrigin = "https://qamuz.studio";
+  // In production the Studio 2.0 build is served from the SaaS itself
+  // (static/qamuz-studio/, synced by scripts/sync-qamuz-studio.mjs), so it lives
+  // on the same origin as qamuz.ai — one domain, one deploy, shared session.
+  const studioProductionBase = "/qamuz-studio/";
   let studioFrame = $state<HTMLIFrameElement | null>(null);
   let studioMissing = $state(false);
   let reloadNonce = $state(0);
@@ -34,14 +37,17 @@
 
   function studioUrl(params: URLSearchParams) {
     if (dev) return `${studioDevOrigin}/?${params}`;
-    return `${studioProductionOrigin}/?${params}`;
+    // Same-origin path served by this SaaS (see studioProductionBase).
+    // Point at index.html explicitly so directory-index resolution is not relied upon.
+    return `${studioProductionBase}index.html?${params}`;
   }
 
   function studioParams() {
     const params = new URLSearchParams({
       embedded: "1",
       home: `${page.url.origin}/`,
-      plan: String(data.userProfile?.planTier ?? "free")
+      plan: String(data.userProfile?.planTier ?? "free"),
+      admin: data.userProfile?.isAdmin ? "1" : "0"
     });
     for (const key of ["session", "idea", "extractStems", "musicId", "genre", "instrumental", "autoPlan", "bpm", "imageUrl"]) {
       const value = page.url.searchParams.get(key);
@@ -91,7 +97,8 @@
         user: {
           name: data.userProfile?.name ?? "",
           email: data.userProfile?.email ?? "",
-          plan: data.userProfile?.planTier ?? "free"
+          plan: data.userProfile?.planTier ?? "free",
+          isAdmin: Boolean(data.userProfile?.isAdmin)
         }
       },
       origin

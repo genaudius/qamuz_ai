@@ -5,7 +5,7 @@ import { masterJobs } from '$lib/server/db/schema.js';
 import { desc, eq } from 'drizzle-orm';
 import { storageService } from '$lib/server/storage.js';
 import { randomUUID } from 'crypto';
-import { isPremiumTier, sessionUser } from '$lib/server/master-jobs.js';
+import { canUseMasterPro, sessionUser } from '$lib/server/master-jobs.js';
 
 function serializeJob(job: typeof masterJobs.$inferSelect) {
 	return {
@@ -45,7 +45,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const user = await sessionUser(locals);
 	if (!user) return json({ error: 'Authentication required' }, { status: 401 });
-	if (!isPremiumTier(user.planTier)) {
+	if (!canUseMasterPro(user)) {
 		return json({ error: 'QAMUZ MASTER PRO requires Premium (Pro or Advanced)' }, { status: 403 });
 	}
 

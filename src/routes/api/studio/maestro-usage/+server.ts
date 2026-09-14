@@ -13,13 +13,13 @@ function isAction(value: unknown): value is MaestroStudioAction {
 	return value === 'mix' || value === 'stems' || value === 'plan' || value === 'render' || value === 'edit';
 }
 
-async function walletFor(userId: string, planTier?: string | null) {
+async function walletFor(userId: string, planTier?: string | null, isAdmin?: boolean) {
 	const [row] = await db
-		.select({ creditsBalance: users.creditsBalance, planTier: users.planTier })
+		.select({ creditsBalance: users.creditsBalance, planTier: users.planTier, isAdmin: users.isAdmin })
 		.from(users)
 		.where(eq(users.id, userId))
 		.limit(1);
-	const unlimited = isPremiumTier(planTier ?? row?.planTier);
+	const unlimited = Boolean(isAdmin ?? row?.isAdmin) || isPremiumTier(planTier ?? row?.planTier);
 	const creditsBalance = row?.creditsBalance ?? 0;
 	return {
 		creditsBalance,
@@ -31,7 +31,7 @@ async function walletFor(userId: string, planTier?: string | null) {
 export const GET: RequestHandler = async ({ locals }) => {
 	const user = await sessionUser(locals);
 	if (!user) return json({ error: 'Authentication required' }, { status: 401 });
-	const wallet = await walletFor(user.id, user.planTier);
+	const wallet = await walletFor(user.id, user.planTier, user.isAdmin);
 	return json(wallet);
 };
 
@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const priced = CreditCostCalculator.getMaestroStudioCost(body.action);
-	const before = await walletFor(user.id, user.planTier);
+	const before = await walletFor(user.id, user.planTier, user.isAdmin);
 
 	if (before.unlimited) {
 		return json({
@@ -72,7 +72,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			`maestro:${body.action}`
 		);
 		await UsageTrackingService.commitTransaction(referenceId);
-		const after = await walletFor(user.id, user.planTier);
+		const after = await walletFor(user.id, user.planTier, user.isAdmin);
 		return json({
 			ok: true,
 			cost: priced.credits,
@@ -82,7 +82,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: `Consumí ${priced.credits} crédito${priced.credits === 1 ? '' : 's'}. Saldo: ${after.creditsBalance}.`
 		});
 	} catch (error) {
-		const after = await walletFor(user.id, user.planTier);
+		const after = await walletFor(user.id, user.planTier, user.isAdmin);
 		const message =
 			error instanceof UsageLimitError
 				? `No hay saldo suficiente. Esta acción cuesta ${priced.credits} crédito${priced.credits === 1 ? '' : 's'} y tienes ${after.creditsBalance}.`

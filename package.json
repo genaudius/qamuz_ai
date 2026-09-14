@@ -8,6 +8,7 @@
 		"studio:build": "node scripts/sync-qamuz-studio.mjs --build",
 		"predev": "node scripts/sync-qamuz-studio.mjs --dev",
 		"dev": "vite dev",
+		"prebuild": "node scripts/sync-qamuz-studio.mjs --build",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
