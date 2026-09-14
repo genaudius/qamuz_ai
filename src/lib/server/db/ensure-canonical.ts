@@ -4,7 +4,12 @@ import { db } from './index.js';
 let ready = false;
 let inFlight: Promise<void> | null = null;
 
-/** One-shot bootstrap for databases that never ran drizzle migrate. Keep in sync with drizzle/0007_social_studio_and_packages.sql */
+/**
+ * One-shot bootstrap for databases that never ran (or fell behind) drizzle migrate.
+ * Idempotent: every statement uses IF NOT EXISTS so it is safe to run on any environment.
+ * Covers drizzle migrations 0007-0011 (social/studio tables, chat branch columns,
+ * user artist columns, music aligned lyrics + comments).
+ */
 export async function ensureCanonicalSchema(): Promise<void> {
 	if (ready) return;
 	if (inFlight) return inFlight;
@@ -214,4 +219,39 @@ async function applyCanonicalSchema(): Promise<void> {
 	`);
 	await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS "daw_session_user_name_unique" ON "daw_session" ("userId", "name")`);
 	await db.execute(sql`CREATE INDEX IF NOT EXISTS "daw_session_user_updated_idx" ON "daw_session" ("userId", "updatedAt")`);
+
+	// --- user: social / artist profile columns (schema.ts) ---
+	// Missing on older DBs -> Better Auth "Failed to get session" -> HTTP 500 on every page.
+	await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "userType" text DEFAULT 'fan'`);
+	await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "artistName" text`);
+	await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "username" text`);
+	await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "isVerifiedArtist" boolean NOT NULL DEFAULT false`);
+	await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "verificationStatus" text NOT NULL DEFAULT 'none'`);
+	await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "verificationRequestedAt" timestamp`);
+	await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "hasUnlimitedFanAccess" boolean NOT NULL DEFAULT false`);
+
+	// --- chat: branch / project columns (schema.ts) ---
+	// Missing on older DBs -> HTTP 500 on GET /api/chats (column "isBranch" does not exist).
+	await db.execute(sql`ALTER TABLE "chat" ADD COLUMN IF NOT EXISTS "isBranch" boolean NOT NULL DEFAULT false`);
+	await db.execute(sql`ALTER TABLE "chat" ADD COLUMN IF NOT EXISTS "branchAtIndex" integer`);
+	await db.execute(sql`ALTER TABLE "chat" ADD COLUMN IF NOT EXISTS "branchSourceChatId" text`);
+	await db.execute(sql`ALTER TABLE "chat" ADD COLUMN IF NOT EXISTS "projectId" text`);
+	await db.execute(sql`CREATE INDEX IF NOT EXISTS "chats_project_idx" ON "chat" ("projectId")`);
+
+	// --- music: aligned lyrics + comments count (0009 / 0010) ---
+	await db.execute(sql`ALTER TABLE "music" ADD COLUMN IF NOT EXISTS "alignedLyrics" json`);
+	await db.execute(sql`ALTER TABLE "music" ADD COLUMN IF NOT EXISTS "commentsCount" integer NOT NULL DEFAULT 0`);
+
+	// --- music_comment table (0010) ---
+	await db.execute(sql`
+		CREATE TABLE IF NOT EXISTS "music_comment" (
+			"id" text PRIMARY KEY NOT NULL,
+			"userId" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+			"musicId" text NOT NULL REFERENCES "music"("id") ON DELETE CASCADE,
+			"text" text NOT NULL,
+			"createdAt" timestamp DEFAULT now() NOT NULL
+		)
+	`);
+	await db.execute(sql`CREATE INDEX IF NOT EXISTS "music_comments_music_created_idx" ON "music_comment" ("musicId", "createdAt")`);
+	await db.execute(sql`CREATE INDEX IF NOT EXISTS "music_comments_user_idx" ON "music_comment" ("userId")`);
 }
