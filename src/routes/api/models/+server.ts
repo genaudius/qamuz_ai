@@ -49,8 +49,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			filteredModels = allModels.filter(model =>
 				!model.supportsImageGeneration &&
 				!model.supportsVideoGeneration &&
-				!model.supportsAudioGeneration &&
-				(!dev || model.provider === 'local')
+				!model.supportsAudioGeneration
 			);
 		}
 
