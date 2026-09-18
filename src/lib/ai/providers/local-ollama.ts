@@ -125,16 +125,7 @@ async function* streamChat(params: ChatCompletionParams): AsyncIterableIterator<
 
 export const localOllamaProvider: AIProvider = {
 	name: 'Local',
-	models: [{
-		name: LOCAL_CHAT_MODEL_ID,
-		displayName: 'Qamuz Local Chat',
-		provider: 'local',
-		maxTokens: 32768,
-		supportsStreaming: true,
-		supportsFunctions: false,
-		supportsTextInput: true,
-		supportsTextGeneration: true
-	}],
+	models: [],
 	async chat(params: ChatCompletionParams): Promise<AIResponse | AsyncIterableIterator<AIStreamChunk>> {
 		if (params.stream) return streamChat(params);
 		const baseUrl = await getBaseUrl();
