@@ -24,10 +24,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		
 		const settings = await import('$lib/server/admin-settings.js').then(m => m.getAIModelSettings());
 		
-		// Filter out QAMUZ models if the Maestro Engine is not enabled
-		if (settings.qamuz_prod_enabled !== 'true') {
-			allModels = allModels.filter(m => m.provider !== 'qamuz');
-		}
+		// Commenting this out so QAMUZ models are ALWAYS visible without needing to enable it in the admin panel
+		// if (settings.qamuz_prod_enabled !== 'true') {
+		// 	allModels = allModels.filter(m => m.provider !== 'qamuz');
+		// }
 
 		// Filter models based on type query parameter
 		// - type=image: only image generation models

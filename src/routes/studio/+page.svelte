@@ -14,10 +14,9 @@
 
   // Keep the hostname identical to the Vite host used by Studio in local dev.
   const studioDevOrigin = "http://127.0.0.1:1420";
-  // In production the Studio 2.0 build is served from the SaaS itself
-  // (static/qamuz-studio/, synced by scripts/sync-qamuz-studio.mjs), so it lives
+  // In production the Studio build is served from the SaaS itself
   // on the same origin as qamuz.ai — one domain, one deploy, shared session.
-  const studioProductionBase = "/qamuz-studio/";
+  const studioProductionBase = "/qamuz-studio-shell/";
   let studioFrame = $state<HTMLIFrameElement | null>(null);
   let studioMissing = $state(false);
   let reloadNonce = $state(0);
