@@ -73,47 +73,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const settings = await import('$lib/server/admin-settings.js').then(m => m.getAIModelSettings());
 		
 		let response;
-		let usingQamuzProd = false;
-
-		// Phase 3 Integration: Route to QAMUZ_PROD Maestro Engine if enabled
-		if (settings.qamuz_prod_enabled === 'true') {
-			console.log('🚀 [API /chat] Intercepting for QAMUZ_PROD Maestro Engine');
-			const qamuzApiUrl = settings.qamuz_prod_api_url || 'http://localhost:8000';
-			const qamuzRes = await fetch(`${qamuzApiUrl}/v1/infer`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					capability: 'qamuz-chat',
-					messages: messages,
-					maxTokens,
-					temperature
-				})
-			});
-
-			if (!qamuzRes.ok) {
-				const errText = await qamuzRes.text().catch(() => 'Unknown error');
-				throw new Error(`QAMUZ_PROD error (${qamuzRes.status}): ${errText}`);
-			}
-			
-			const qamuzData = await qamuzRes.json();
-			const responseText = qamuzData.response || qamuzData.content || "";
-			
-			if (stream) {
-				// Mock an AsyncIterableIterator for the streaming format expected below
-				response = (async function* () {
-					yield { content: responseText, done: false };
-					yield { content: "", done: true };
-				})();
-			} else {
-				response = {
-					content: responseText,
-					model: "qamuz-chat"
-				};
-			}
-			usingQamuzProd = true;
-		}
-
-		if (!usingQamuzProd) {
 			const provider = getChatModelProvider(model);
 			if (!provider) {
 				return json({ error: `No provider found for model: ${model}` }, { status: 400 });
@@ -236,7 +195,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				toolNames: toolNames.length > 0 ? toolNames : undefined,
 				maxSteps
 			});
-		}
 
 		if (stream) {
 			// Handle streaming response
