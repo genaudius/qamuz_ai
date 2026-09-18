@@ -3,13 +3,13 @@ import type { RequestHandler } from './$types.js';
 import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import { music } from '$lib/server/db/schema.js';
-import { genAudiusClient } from '$lib/ai/providers/genaudius-client.js';
+import { qamuzV1Client } from '$lib/ai/providers/qamuz-v1-client.js';
 import { storageService } from '$lib/server/storage.js';
 import { sessionUser } from '$lib/server/master-jobs.js';
 import { getStemBytes, getStemJob, startStemJob } from '$lib/server/studio-stem-jobs.js';
 
 /**
- * Stem separation via GenAudius workers (Demucs).
+ * Stem separation via Qamuz v1. QAMUZ PROD/MAESTRO owns intent; Qamuz v1 returns assets.
  *
  * Two contracts share this route:
  *  - Async (QAMUZ Studio DAW): POST { musicId, type: 'split_stem' } -> 202 { jobId };
@@ -66,10 +66,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (!song?.cloudPath) return json({ error: 'Music not found' }, { status: 404 });
 
 		const buffer = await storageService.download(song.cloudPath);
-		const result = await genAudiusClient.separateStems({
+		const result = await qamuzV1Client.separateStems({
 			audioBase64: buffer.toString('base64'),
 			mimeType: song.mimeType || 'audio/mpeg',
-			mode
+			stems: mode === 'separate_vocal' ? ['vocals', 'other'] : ['vocals', 'drums', 'bass', 'other']
 		});
 
 		const stems = [];
@@ -93,7 +93,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			});
 		}
 
-		return json({ source: 'genaudius', status: 'completed', engine: result.source, stems });
+	return json({ source: 'qamuz_v1', status: 'completed', engine: result.source, stems });
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Stem separation failed';
 		const status = message.includes('not installed') ? 501 : 502;
@@ -108,7 +108,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const jobId = url.searchParams.get('jobId');
 	if (!jobId) {
 		return json({
-			source: 'genaudius',
+			source: 'qamuz_v1',
 			message: 'Stem jobs: POST { musicId, type: "split_stem" } then poll GET ?jobId.'
 		});
 	}

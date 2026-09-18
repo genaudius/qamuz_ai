@@ -15,6 +15,8 @@ export const load: PageServerLoad = async () => {
         elevenlabsApiKey: settings.elevenlabs_api_key || "",
         sunoApiKey: settings.suno_api_key || "",
         musicgptApiKey: settings.musicgpt_api_key || "",
+        qamuzProdEnabled: settings.qamuz_prod_enabled === 'true',
+        qamuzProdApiUrl: settings.qamuz_prod_api_url || 'http://localhost:8000',
         localMusicEnabled: settings.local_music_enabled === 'true',
         localMusicBaseUrl: settings.local_music_base_url || 'http://localhost:42003',
         localImageEnabled: settings.local_image_enabled === 'true',
@@ -39,6 +41,8 @@ export const load: PageServerLoad = async () => {
         elevenlabsApiKey: "",
         sunoApiKey: "",
         musicgptApiKey: "",
+        qamuzProdEnabled: false,
+        qamuzProdApiUrl: 'http://localhost:8000',
         localMusicEnabled: false,
         localMusicBaseUrl: 'http://localhost:42003',
         localImageEnabled: false,
@@ -72,6 +76,8 @@ export const actions: Actions = {
     const elevenlabsApiKey = data.get('elevenlabsApiKey')?.toString()
     const sunoApiKey = data.get('sunoApiKey')?.toString()
     const musicgptApiKey = data.get('musicgptApiKey')?.toString()
+    const qamuzProdEnabled = data.get('qamuzProdEnabled') === 'on'
+    const qamuzProdApiUrl = data.get('qamuzProdApiUrl')?.toString().trim() || 'http://localhost:8000'
     const localMusicEnabled = data.get('localMusicEnabled') === 'on'
     const localMusicBaseUrl = data.get('localMusicBaseUrl')?.toString().trim() || 'http://localhost:42003'
     const localImageEnabled = data.get('localImageEnabled') === 'on'
@@ -93,7 +99,8 @@ export const actions: Actions = {
     }
     for (const [label, value, required] of [
       ['image', localImageBaseUrl, true],
-      ['video', localVideoBaseUrl, localVideoEnabled]
+      ['video', localVideoBaseUrl, localVideoEnabled],
+      ['qamuz_prod', qamuzProdApiUrl, qamuzProdEnabled]
     ] as const) {
       if (!required && !value) continue
       try {
@@ -161,6 +168,12 @@ export const actions: Actions = {
       }
       if (shouldSaveValue(musicgptApiKey, currentSettings.musicgpt_api_key)) {
         settingsToSave.push({ key: 'musicgpt_api_key', value: musicgptApiKey!.trim(), category: 'ai_models', description: 'MusicGPT API key for music generation models (encrypted)' });
+      }
+      if (String(qamuzProdEnabled) !== currentSettings.qamuz_prod_enabled) {
+        settingsToSave.push({ key: 'qamuz_prod_enabled', value: String(qamuzProdEnabled), category: 'ai_models', description: 'Route AI models through QAMUZ_PROD Maestro engine' });
+      }
+      if (qamuzProdApiUrl !== currentSettings.qamuz_prod_api_url) {
+        settingsToSave.push({ key: 'qamuz_prod_api_url', value: qamuzProdApiUrl, category: 'ai_models', description: 'QAMUZ_PROD API URL (Maestro Engine)' });
       }
       if (String(localMusicEnabled) !== currentSettings.local_music_enabled) {
         settingsToSave.push({ key: 'local_music_enabled', value: String(localMusicEnabled), category: 'ai_models', description: 'Use the local music provider exclusively' });

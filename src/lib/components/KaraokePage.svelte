@@ -5,11 +5,7 @@
   import { musicState as sharedMusicState } from "$lib/stores/music-state.js";
   import { notice } from "$lib/ui/notice.js";
   import { shareTrackLink } from "$lib/utils/share-track.js";
-  import {
-    activeLyricIndex,
-    buildStructuredTimedLyrics,
-    type TimedLyricLine
-  } from "$lib/utils/lyrics-sync.js";
+  import { createLyricsEngine } from "$lib/utils/lyrics-engine.svelte.js";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import Heart from "@lucide/svelte/icons/heart";
   import Share2 from "@lucide/svelte/icons/share-2";
@@ -87,10 +83,6 @@
   let audioDuration = $state(0);
   let lastTrackId = $state<string | null>(null);
   let viewedTrackId = $state<string | null>(null);
-  let alignedLines = $state<TimedLyricLine[] | null>(null);
-  let alignedSource = $state<
-    "pending" | "local" | "kie" | "cached" | "stt" | "fallback" | "none"
-  >("pending");
   let pageAudio = $state<HTMLAudioElement | null>(null);
   let mediaVideo = $state<HTMLVideoElement | null>(null);
   let booting = $state(true);
@@ -108,30 +100,18 @@
     return ms > 0 ? ms / 1000 : 0;
   });
 
-  const timedLines = $derived.by((): TimedLyricLine[] => {
-    if (alignedLines && alignedLines.length > 0) return alignedLines;
-    if (track?.timedLyrics?.length) {
-      return track.timedLyrics.map((line) => ({
-        text: line.text,
-        start: line.start,
-        end: line.end,
-        timed: true,
-        section: line.section
-      }));
-    }
-    return buildStructuredTimedLyrics(track?.lyrics || "", duration);
+  const lyrics = createLyricsEngine({
+    getTrack: () => track,
+    getPlayhead: () => playhead,
+    getDuration: () => duration,
+    musicState
   });
 
-  const activeLine = $derived(activeLyricIndex(timedLines, playhead));
-  const activeSection = $derived(
-    activeLine >= 0 ? timedLines[activeLine]?.section : timedLines[0]?.section
-  );
-
-  const lyricsEngineY = $derived.by(() => {
-    const focus = activeLine < 0 ? 0 : activeLine;
-    const viewportCenter = 200;
-    return viewportCenter - (focus * LINE_STEP + LINE_STEP * 0.5);
-  });
+  const timedLines = $derived(lyrics.timedLines);
+  const activeLine = $derived(lyrics.activeLine);
+  const activeSection = $derived(lyrics.activeSection);
+  const alignedSource = $derived(lyrics.alignedSource);
+  const lyricsEngineY = $derived(lyrics.lyricsEngineY(200, LINE_STEP));
 
   const progressPercent = $derived(duration > 0 ? Math.min(100, (playhead / duration) * 100) : 0);
 
@@ -233,50 +213,6 @@
     }
   }
 
-  async function loadAlignedLyrics(id: string) {
-    alignedSource = "pending";
-    alignedLines = null;
-    try {
-      const response = await fetch(`/api/music/${id}/aligned-lyrics`);
-      const payload = await response.json().catch(() => null);
-      const lines = Array.isArray(payload?.lines) ? payload.lines : [];
-      if (lines.length > 0) {
-        alignedLines = lines.map(
-          (line: { text: string; start: number; end?: number; section?: string }) => ({
-            text: line.text,
-            start: Number(line.start) || 0,
-            end: line.end != null ? Number(line.end) : undefined,
-            timed: true,
-            section: line.section
-          })
-        );
-        const src = String(payload?.source || "");
-        if (src === "cached") alignedSource = "cached";
-        else if (src === "local") alignedSource = "local";
-        else if (src === "kie") alignedSource = "kie";
-        else if (src === "stt") alignedSource = "stt";
-        else if (src === "structure") alignedSource = "fallback";
-        else alignedSource = alignedLines[0]?.timed ? "local" : "fallback";
-
-        if (musicState.currentTrack?.id === id) {
-          musicState.currentTrack = {
-            ...musicState.currentTrack,
-            timedLyrics: alignedLines.map((l) => ({
-              text: l.text,
-              start: l.start,
-              end: l.end,
-              section: l.section
-            }))
-          };
-        }
-        return;
-      }
-    } catch {
-      // fallback
-    }
-    alignedSource = track?.lyrics ? "fallback" : "none";
-  }
-
   async function refreshLike(id: string) {
     try {
       const response = await fetch(`/api/music/${id}/like`);
@@ -355,7 +291,7 @@
       void refreshLike(id);
       void refreshStats(id);
       void loadComments(id);
-      void loadAlignedLyrics(id);
+      void lyrics.loadAlignedLyrics(id);
       void recordView(id);
     }
   });

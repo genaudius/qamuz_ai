@@ -130,89 +130,132 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		}
 
-		const provider = getChatModelProvider(model);
-		if (!provider) {
-			return json({ error: `No provider found for model: ${model}` }, { status: 400 });
-		}
-
-		// Find the model configuration to check its capabilities (use base model name)
-		const modelConfig = provider.models.find(m => m.name === baseModel);
-
-		// Tool handling (AI SDK v6): use tool names directly
-		let toolNames: string[] = [];
-		if (selectedTool) {
-			toolNames = [selectedTool];
-			console.log(`Using selected tool: ${selectedTool}`);
-		}
-
-		// Check if model supports functions when tools are requested
-		if (toolNames.length > 0 && !modelConfig?.supportsFunctions) {
-			console.warn(`Model ${model} does not support functions, tools will be ignored`);
-			toolNames = [];
-		}
-
-		// Check if request has images (multimodal)
-		const hasImageContent = messages.some((msg: any) =>
-			msg.imageId || msg.imageData || msg.imageIds || msg.images ||
-			(msg.role === 'user' && msg.type === 'image')
-		);
-
-		// Call appropriate provider method based on content type
+		const settings = await import('$lib/server/admin-settings.js').then(m => m.getAIModelSettings());
+		
 		let response;
-		if (hasImageContent && provider.chatMultimodal) {
-			console.log('🔀 [API /chat-stream] Using multimodal streaming');
-			// Use multimodal chat with streaming enabled
-			response = await provider.chatMultimodal({
-				model,
-				messages: messages as AIMessage[],
-				maxTokens,
-				temperature,
-				stream: true, // Enable streaming for multimodal!
-				userId,
-				chatId,
-				toolNames: toolNames.length > 0 ? toolNames : undefined,
-				maxSteps
+		let usingQamuzProd = false;
+
+		// Phase 3 Integration: Route to QAMUZ_PROD Maestro Engine if enabled
+		if (settings.qamuz_prod_enabled === 'true') {
+			console.log('🚀 [API /chat-stream] Intercepting for QAMUZ_PROD Maestro Engine');
+			const qamuzApiUrl = settings.qamuz_prod_api_url || 'http://localhost:8000';
+			const qamuzRes = await fetch(`${qamuzApiUrl}/v1/infer`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					capability: 'qamuz-chat',
+					messages: messages,
+					maxTokens,
+					temperature
+				})
 			});
-		} else {
-			console.log('💬 [API /chat-stream] Using regular text streaming');
-			// Call the provider's chat method with streaming enabled
-			response = await provider.chat({
-				model,
-				messages: messages as AIMessage[],
-				maxTokens,
-				temperature,
-				stream: true, // Enable streaming
-				userId,
-				chatId,
-				toolNames: toolNames.length > 0 ? toolNames : undefined,
-				maxSteps
-			});
+
+			if (!qamuzRes.ok) {
+				const errText = await qamuzRes.text().catch(() => 'Unknown error');
+				throw new Error(`QAMUZ_PROD error (${qamuzRes.status}): ${errText}`);
+			}
+			
+			const qamuzData = await qamuzRes.json();
+			const responseText = qamuzData.response || qamuzData.content || "";
+			
+			// Create a fake stream with a single chunk containing the full response
+			response = (async function* () {
+				// Add a slight delay to ensure Response is returned before stream closes
+				await new Promise(r => setTimeout(r, 50));
+				yield { content: responseText, done: false };
+				await new Promise(r => setTimeout(r, 10));
+				yield { content: "", done: true };
+			})();
+			usingQamuzProd = true;
+		}
+
+		if (!usingQamuzProd) {
+			const provider = getChatModelProvider(model);
+			if (!provider) {
+				return json({ error: `No provider found for model: ${model}` }, { status: 400 });
+			}
+
+			// Find the model configuration to check its capabilities (use base model name)
+			const modelConfig = provider.models.find(m => m.name === baseModel);
+
+			// Tool handling (AI SDK v6): use tool names directly
+			let toolNames: string[] = [];
+			if (selectedTool) {
+				toolNames = [selectedTool];
+				console.log(`Using selected tool: ${selectedTool}`);
+			}
+
+			// Check if model supports functions when tools are requested
+			if (toolNames.length > 0 && !modelConfig?.supportsFunctions) {
+				console.warn(`Model ${model} does not support functions, tools will be ignored`);
+				toolNames = [];
+			}
+
+			// Check if request has images (multimodal)
+			const hasImageContent = messages.some((msg: any) =>
+				msg.imageId || msg.imageData || msg.imageIds || msg.images ||
+				(msg.role === 'user' && msg.type === 'image')
+			);
+
+			// Call appropriate provider method based on content type
+			if (hasImageContent && provider.chatMultimodal) {
+				console.log('🔀 [API /chat-stream] Using multimodal streaming');
+				// Use multimodal chat with streaming enabled
+				response = await provider.chatMultimodal({
+					model,
+					messages: messages as AIMessage[],
+					maxTokens,
+					temperature,
+					stream: true, // Enable streaming for multimodal!
+					userId,
+					chatId,
+					toolNames: toolNames.length > 0 ? toolNames : undefined,
+					maxSteps
+				});
+			} else {
+				console.log('💬 [API /chat-stream] Using regular text streaming');
+				// Call the provider's chat method with streaming enabled
+				response = await provider.chat({
+					model,
+					messages: messages as AIMessage[],
+					maxTokens,
+					temperature,
+					stream: true, // Enable streaming
+					userId,
+					chatId,
+					toolNames: toolNames.length > 0 ? toolNames : undefined,
+					maxSteps
+				});
+			}
 		}
 
 		// The response is already an AsyncIterableIterator<AIStreamChunk>
-		// Convert it to the AI SDK's streaming format
 		const encoder = new TextEncoder();
+		const iterator = (response as AsyncIterableIterator<any>)[Symbol.asyncIterator]();
 		const readable = new ReadableStream({
-			async start(controller) {
+			async pull(controller) {
 				try {
-					for await (const chunk of response as AsyncIterableIterator<any>) {
-						// Send each chunk as a data event
-						const data = `data: ${JSON.stringify(chunk)}\n\n`;
-						controller.enqueue(encoder.encode(data));
+					const { value: chunk, done: isDone } = await iterator.next();
+					if (isDone) {
+						controller.close();
+						return;
+					}
+					
+					// Send the chunk as a data event
+					const data = `data: ${JSON.stringify(chunk)}\n\n`;
+					controller.enqueue(encoder.encode(data));
 
-						if (chunk.done) {
-							// Track usage for successful streaming completion
-							if (userId) {
-								UsageTrackingService.trackUsage(userId, 'text').catch(console.error);
-							}
-							controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-							break;
+					if (chunk.done) {
+						// Track usage for successful streaming completion
+						if (userId) {
+							UsageTrackingService.trackUsage(userId, 'text').catch(console.error);
 						}
+						controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+						controller.close();
 					}
 				} catch (error) {
 					const errorData = `data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`;
 					controller.enqueue(encoder.encode(errorData));
-				} finally {
 					controller.close();
 				}
 			}

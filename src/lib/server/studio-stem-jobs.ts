@@ -1,5 +1,5 @@
 /**
- * In-process async wrapper around the synchronous GenAudius stem separation,
+ * In-process async wrapper around Qamuz v1 stem separation,
  * exposing the job/polling contract the Studio expects:
  *   POST  -> 202 { jobId }
  *   GET ?jobId          -> { status, stems:[{index,name}], error? }
@@ -14,7 +14,7 @@ import { randomUUID } from 'crypto';
 import { db } from '$lib/server/db/index.js';
 import { music } from '$lib/server/db/schema.js';
 import { and, eq } from 'drizzle-orm';
-import { genAudiusClient } from '$lib/ai/providers/genaudius-client.js';
+import { qamuzV1Client } from '$lib/ai/providers/qamuz-v1-client.js';
 import { storageService } from '$lib/server/storage.js';
 
 export type StemJobStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -79,6 +79,14 @@ export async function startStemJob(userId: string, musicId: string, mode: string
 		activeByOwner.delete(ownerKey);
 	}
 
+	// A Studio retry commonly follows a local placement/decoding failure. Reuse
+	// the still-valid separated assets instead of spending several minutes (and
+	// GPU time) running Qamuz v1 again for the same owner and song.
+	const completed = [...jobs.values()]
+		.filter((job) => job.userId === userId && job.musicId === musicId && job.status === 'completed' && job.stems.length > 0)
+		.sort((a, b) => b.createdAt - a.createdAt)[0];
+	if (completed) return { jobId: completed.id, reused: true };
+
 	const [song] = await db
 		.select({ id: music.id, cloudPath: music.cloudPath, mimeType: music.mimeType })
 		.from(music)
@@ -111,10 +119,12 @@ async function runStemJob(job: StemJob, cloudPath: string, mimeType: string, mod
 	try {
 		job.status = 'running';
 		const buffer = await storageService.download(cloudPath);
-		const result = await genAudiusClient.separateStems({
+		const result = await qamuzV1Client.separateStems({
 			audioBase64: buffer.toString('base64'),
 			mimeType,
-			mode: mode || 'split_stem'
+			stems: mode === 'split_stem_advanced'
+				? ['vocals', 'backing_vocals', 'drums', 'percussion', 'bass', 'guitar', 'keyboard', 'other']
+				: ['vocals', 'drums', 'bass', 'other']
 		});
 
 		const stems: StemEntry[] = [];

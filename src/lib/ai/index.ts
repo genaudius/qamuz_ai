@@ -2,11 +2,13 @@ import type { AIProvider, AIModelConfig } from './types.js';
 import { openRouterProvider } from './providers/openrouter.js';
 import { replicateProvider } from './providers/replicate.js';
 import { elevenlabsProvider } from './providers/elevenlabs.js';
+import { qamuzProdProvider } from './providers/qamuz-prod.js';
 import { removeWebSearchSuffix } from '$lib/constants/web-search.js';
 import { dev } from '$app/environment';
 import { localOllamaProvider } from './providers/local-ollama.js';
 
 export const AI_PROVIDERS: AIProvider[] = [
+	qamuzProdProvider,
 	localOllamaProvider,
 	openRouterProvider,
 	replicateProvider,
@@ -27,6 +29,11 @@ export function getProvider(providerName: string): AIProvider | undefined {
 }
 
 export function getModelProvider(modelName: string): AIProvider | undefined {
+	// Handle dynamic local Ollama models 
+	if (modelName.startsWith('ollama/')) {
+		return localOllamaProvider;
+	}
+
 	// Handle OpenRouter web search suffix (:online) by checking base model name
 	const baseModelName = removeWebSearchSuffix(modelName);
 	return AI_PROVIDERS.find(provider =>
@@ -39,6 +46,7 @@ export { openRouterProvider } from './providers/openrouter.js';
 export { replicateProvider } from './providers/replicate.js';
 export { elevenlabsProvider } from './providers/elevenlabs.js';
 export { localOllamaProvider } from './providers/local-ollama.js';
+export { qamuzProdProvider } from './providers/qamuz-prod.js';
 export { sunoProvider } from './providers/suno.js';
 export { musicgptProvider } from './providers/musicgpt.js';
 // Re-export client-safe constants from the constants file (single source of truth)

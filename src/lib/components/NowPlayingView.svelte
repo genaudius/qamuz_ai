@@ -7,11 +7,7 @@
   import { shareTrackLink } from "$lib/utils/share-track.js";
   import { openSongInStudio, openSongStemsInStudio } from "$lib/studio-stems";
   import { openKaraokePage } from "$lib/open-karaoke.js";
-  import {
-    activeLyricIndex,
-    buildStructuredTimedLyrics,
-    type TimedLyricLine
-  } from "$lib/utils/lyrics-sync.js";
+  import { createLyricsEngine } from "$lib/utils/lyrics-engine.svelte.js";
   import X from "@lucide/svelte/icons/x";
   import Heart from "@lucide/svelte/icons/heart";
   import MessageCircle from "@lucide/svelte/icons/message-circle";
@@ -35,10 +31,6 @@
   let playhead = $state(0);
   let audioDuration = $state(0);
   let lastTrackId = $state<string | null>(null);
-  let alignedLines = $state<TimedLyricLine[] | null>(null);
-  let alignedSource = $state<
-    "pending" | "local" | "kie" | "cached" | "stt" | "fallback" | "none"
-  >("pending");
   let fetchedOwnerId = $state<string | null>(null);
 
   const track = $derived(musicState.currentTrack);
@@ -76,74 +68,18 @@
     return ms > 0 ? ms / 1000 : 0;
   });
 
-  const timedLines = $derived.by((): TimedLyricLine[] => {
-    if (alignedLines && alignedLines.length > 0) return alignedLines;
-    if (track?.timedLyrics?.length) {
-      return track.timedLyrics.map((line) => ({
-        text: line.text,
-        start: line.start,
-        end: line.end,
-        timed: true,
-        section: line.section
-      }));
-    }
-    return buildStructuredTimedLyrics(track?.lyrics || "", duration);
+  const lyrics = createLyricsEngine({
+    getTrack: () => track,
+    getPlayhead: () => playhead,
+    getDuration: () => duration,
+    musicState
   });
 
-  const activeLine = $derived(activeLyricIndex(timedLines, playhead));
-  const activeSection = $derived(
-    activeLine >= 0 ? timedLines[activeLine]?.section : timedLines[0]?.section
-  );
-
-  const lyricsEngineY = $derived.by(() => {
-    const focus = activeLine < 0 ? 0 : activeLine;
-    const viewportCenter = 88;
-    return viewportCenter - (focus * LINE_STEP + LINE_STEP * 0.5);
-  });
-
-  async function loadAlignedLyrics(id: string) {
-    alignedSource = "pending";
-    alignedLines = null;
-    try {
-      const response = await fetch(`/api/music/${id}/aligned-lyrics`);
-      const payload = await response.json().catch(() => null);
-      const lines = Array.isArray(payload?.lines) ? payload.lines : [];
-      if (lines.length > 0) {
-        alignedLines = lines.map(
-          (line: { text: string; start: number; end?: number; section?: string }) => ({
-            text: line.text,
-            start: Number(line.start) || 0,
-            end: line.end != null ? Number(line.end) : undefined,
-            timed: true,
-            section: line.section
-          })
-        );
-        const src = String(payload?.source || "");
-        if (src === "cached") alignedSource = "cached";
-        else if (src === "local") alignedSource = "local";
-        else if (src === "kie") alignedSource = "kie";
-        else if (src === "stt") alignedSource = "stt";
-        else if (src === "structure") alignedSource = "fallback";
-        else alignedSource = alignedLines[0]?.timed ? "local" : "fallback";
-
-        if (musicState.currentTrack?.id === id) {
-          musicState.currentTrack = {
-            ...musicState.currentTrack,
-            timedLyrics: alignedLines.map((l) => ({
-              text: l.text,
-              start: l.start,
-              end: l.end,
-              section: l.section
-            }))
-          };
-        }
-        return;
-      }
-    } catch {
-      // structure fallback
-    }
-    alignedSource = track?.lyrics ? "fallback" : "none";
-  }
+  const timedLines = $derived(lyrics.timedLines);
+  const activeLine = $derived(lyrics.activeLine);
+  const activeSection = $derived(lyrics.activeSection);
+  const alignedSource = $derived(lyrics.alignedSource);
+  const lyricsEngineY = $derived(lyrics.lyricsEngineY(88, LINE_STEP));
 
   function commentsKey(id: string) {
     return `qamuz.music.comments.${id}`;
@@ -197,7 +133,7 @@
       comments = loadComments(id);
       panel = null;
       void refreshLike(id);
-      void loadAlignedLyrics(id);
+      void lyrics.loadAlignedLyrics(id);
     }
   });
 
@@ -533,6 +469,7 @@
     height: 220px;
     overflow: hidden;
     mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 78%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 78%, transparent 100%);
   }
   .lyrics-engine {
     will-change: transform;

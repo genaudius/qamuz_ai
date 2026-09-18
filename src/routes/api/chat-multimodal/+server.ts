@@ -30,6 +30,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ error: 'Messages array is required and cannot be empty' }, { status: 400 });
 		}
 
+		const settings = await import('$lib/server/admin-settings.js').then(m => m.getAIModelSettings());
+		
+		// Phase 3 Integration: Route to QAMUZ_PROD Maestro Engine if enabled
+		if (settings.qamuz_prod_enabled === 'true') {
+			const qamuzApiUrl = settings.qamuz_prod_api_url || 'http://localhost:8000';
+			const qamuzRes = await fetch(`${qamuzApiUrl}/v1/infer`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					capability: 'qamuz-chat',
+					messages: messages,
+					maxTokens,
+					temperature
+				})
+			});
+
+			if (!qamuzRes.ok) {
+				const errText = await qamuzRes.text().catch(() => 'Unknown error');
+				throw new Error(`QAMUZ_PROD error (${qamuzRes.status}): ${errText}`);
+			}
+			
+			const qamuzData = await qamuzRes.json();
+			return json({
+				content: qamuzData.response || qamuzData.content || "",
+				model: "qamuz-chat"
+			});
+		}
+
 		const provider = getChatModelProvider(model);
 		if (!provider) {
 			return json({ error: `No provider found for model: ${model}` }, { status: 400 });

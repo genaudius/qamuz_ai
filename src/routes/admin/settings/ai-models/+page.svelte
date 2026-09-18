@@ -44,6 +44,8 @@
   );
   let sunoApiKey = $state((() => data.settings?.sunoApiKey || "")());
   let musicgptApiKey = $state((() => data.settings?.musicgptApiKey || "")());
+  let qamuzProdEnabled = $state((() => data.settings?.qamuzProdEnabled || false)());
+  let qamuzProdApiUrl = $state((() => data.settings?.qamuzProdApiUrl || "http://localhost:8000")());
   let localMusicEnabled = $state((() => data.settings?.localMusicEnabled || false)());
   let localMusicBaseUrl = $state((() => data.settings?.localMusicBaseUrl || "http://localhost:42003")());
   let localImageEnabled = $state((() => data.settings?.localImageEnabled || false)());
@@ -59,6 +61,8 @@
     elevenlabsApiKey = settings?.elevenlabsApiKey || "";
     sunoApiKey = settings?.sunoApiKey || "";
     musicgptApiKey = settings?.musicgptApiKey || "";
+    qamuzProdEnabled = settings?.qamuzProdEnabled || false;
+    qamuzProdApiUrl = settings?.qamuzProdApiUrl || "http://localhost:8000";
     genaudiusModalUrl = settings?.genaudiusModalUrl || "";
     genaudiusModalToken = settings?.genaudiusModalToken || "";
     genaudiusRunpodUrl = settings?.genaudiusRunpodUrl || "";
@@ -245,6 +249,57 @@
           <p class="text-xs text-muted-foreground">
             Enables access to 40+ text models including GPT, Claude, Gemini,
             Grok, DeepSeek, Qwen, Kimi, GLM, Llama, and more...
+          </p>
+        </div>
+      </Card.Content>
+    </Card.Root>
+
+    <!-- QAMUZ PROD Configuration -->
+    <Card.Root>
+      <Card.Header>
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <Card.Title class="flex items-center gap-2">
+              <div class="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+                <span class="text-white text-xs font-bold">QP</span>
+              </div>
+              QAMUZ PROD (Maestro Engine)
+              {#if qamuzProdEnabled}
+                <CheckCircleIcon class="w-4 h-4 text-green-500" />
+              {/if}
+            </Card.Title>
+            <Card.Description>
+              Route chat and generation requests through the internal QAMUZ_PROD routing engine.
+            </Card.Description>
+          </div>
+          <label class="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              name="qamuzProdEnabled"
+              bind:checked={qamuzProdEnabled}
+              disabled={data.isDemoMode}
+              class="h-4 w-4 rounded border-gray-300"
+            />
+            Enabled
+          </label>
+        </div>
+      </Card.Header>
+      <Card.Content class="space-y-3">
+        <div class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          When enabled, the SaaS will bypass OpenRouter for Chat, Code, and Vision tasks, and route them to your QAMUZ_PROD instance instead.
+        </div>
+        <div class="space-y-2">
+          <Label for="qamuzProdApiUrl">QAMUZ PROD API URL</Label>
+          <Input
+            id="qamuzProdApiUrl"
+            name="qamuzProdApiUrl"
+            type="url"
+            bind:value={qamuzProdApiUrl}
+            placeholder="http://localhost:8000"
+            disabled={data.isDemoMode}
+          />
+          <p class="text-xs text-muted-foreground">
+            The local URL of the FastAPI bridge exposing QAMUZ_PROD. Default: http://localhost:8000
           </p>
         </div>
       </Card.Content>

@@ -6,11 +6,7 @@
   import { toast } from "svelte-sonner";
   import { shareTrackLink } from "$lib/utils/share-track.js";
   import { openSongStemsInStudio } from "$lib/studio-stems.js";
-  import {
-    activeLyricIndex,
-    buildStructuredTimedLyrics,
-    type TimedLyricLine
-  } from "$lib/utils/lyrics-sync.js";
+  import { createLyricsEngine } from "$lib/utils/lyrics-engine.svelte.js";
   import Heart from "@lucide/svelte/icons/heart";
   import MessageCircle from "@lucide/svelte/icons/message-circle";
   import Share2 from "@lucide/svelte/icons/share-2";
@@ -56,10 +52,6 @@
   let playhead = $state(0);
   let audioDuration = $state(0);
   let lastStageTrackId = $state<string | null>(null);
-  let alignedLines = $state<TimedLyricLine[] | null>(null);
-  let alignedSource = $state<
-    "pending" | "local" | "kie" | "cached" | "stt" | "fallback" | "none"
-  >("pending");
 
   const LINE_STEP = 34;
 
@@ -99,79 +91,24 @@
     return ms > 0 ? ms / 1000 : 0;
   });
 
-  const timedLines = $derived.by((): TimedLyricLine[] => {
-    if (alignedLines && alignedLines.length > 0) return alignedLines;
-    if (track?.timedLyrics?.length) {
-      return track.timedLyrics.map((line) => ({
-        text: line.text,
-        start: line.start,
-        end: line.end,
-        timed: true,
-        section: line.section
-      }));
-    }
-    return buildStructuredTimedLyrics(track?.lyrics || "", duration);
+  const lyrics = createLyricsEngine({
+    getTrack: () => track,
+    getPlayhead: () => playhead,
+    getDuration: () => duration,
+    musicState: ctxMusic
   });
 
-  const activeLine = $derived(activeLyricIndex(timedLines, playhead));
-  const activeSection = $derived(
-    activeLine >= 0 ? timedLines[activeLine]?.section : timedLines[0]?.section
-  );
+  const timedLines = $derived(lyrics.timedLines);
+  const activeLine = $derived(lyrics.activeLine);
+  const activeSection = $derived(lyrics.activeSection);
+  const alignedSource = $derived(lyrics.alignedSource);
 
   /** Move only the lyric engine — never the cover / stage. */
-  const lyricsEngineY = $derived.by(() => {
-    const focus = activeLine < 0 ? 0 : activeLine;
-    const viewportCenter = 74;
-    return viewportCenter - (focus * LINE_STEP + LINE_STEP * 0.5);
-  });
+  const lyricsEngineY = $derived(lyrics.lyricsEngineY(74, LINE_STEP));
 
   const progressPercent = $derived(
     duration > 0 ? Math.min(100, Math.max(0, (playhead / duration) * 100)) : 0
   );
-
-  async function loadAlignedLyrics(id: string) {
-    alignedSource = "pending";
-    alignedLines = null;
-    try {
-      const response = await fetch(`/api/music/${id}/aligned-lyrics`);
-      const payload = await response.json().catch(() => null);
-      const lines = Array.isArray(payload?.lines) ? payload.lines : [];
-      if (lines.length > 0) {
-        alignedLines = lines.map(
-          (line: { text: string; start: number; end?: number; section?: string }) => ({
-            text: line.text,
-            start: Number(line.start) || 0,
-            end: line.end != null ? Number(line.end) : undefined,
-            timed: true,
-            section: line.section
-          })
-        );
-        const src = String(payload?.source || "");
-        if (src === "cached") alignedSource = "cached";
-        else if (src === "local") alignedSource = "local";
-        else if (src === "kie") alignedSource = "kie";
-        else if (src === "stt") alignedSource = "stt";
-        else if (src === "structure") alignedSource = "fallback";
-        else alignedSource = alignedLines[0]?.timed ? "local" : "fallback";
-
-        if (ctxMusic.currentTrack?.id === id) {
-          ctxMusic.currentTrack = {
-            ...ctxMusic.currentTrack,
-            timedLyrics: alignedLines.map((l) => ({
-              text: l.text,
-              start: l.start,
-              end: l.end,
-              section: l.section
-            }))
-          };
-        }
-        return;
-      }
-    } catch {
-      // Fall through to structure-aware timing.
-    }
-    alignedSource = track?.lyrics ? "fallback" : "none";
-  }
 
   $effect(() => {
     const id = track?.id;
@@ -194,7 +131,7 @@
       audioDuration = 0;
       comments = loadComments(id);
       void refreshLike(id);
-      void loadAlignedLyrics(id);
+      void lyrics.loadAlignedLyrics(id);
     }
     editTitle = track?.title || "";
     editGenre = track?.genre || "";

@@ -113,9 +113,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			imageUrl: imageUrl
 		});
 
-		const response = (await getLocalVideoConfig()).enabled
-			? await generateLocalVideo(params)
-			: await provider.generateVideo(params);
+		const response: any = await provider.generateVideo(params);
 		console.log('🎉 Video generation completed, response:', {
 			videoId: response.videoId,
 			model: response.model,

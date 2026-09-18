@@ -70,128 +70,173 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		}
 
-		const provider = getChatModelProvider(model);
-		if (!provider) {
-			return json({ error: `No provider found for model: ${model}` }, { status: 400 });
-		}
+		const settings = await import('$lib/server/admin-settings.js').then(m => m.getAIModelSettings());
+		
+		let response;
+		let usingQamuzProd = false;
 
-		// Find the model configuration to check its capabilities
-		const modelConfig = provider.models.find(m => m.name === model);
-
-		// Tool handling (AI SDK v6): use tool names directly
-		let toolNames: string[] = [];
-		if (selectedTool) {
-			toolNames = [selectedTool];
-			console.log(`Using selected tool: ${selectedTool}`);
-		}
-
-		// Check if model supports functions when tools are requested
-		if (toolNames.length > 0 && !modelConfig?.supportsFunctions) {
-			console.warn(`Model ${model} does not support functions, tools will be ignored`);
-			toolNames = [];
-		}
-
-		// Check if this is a multimodal request or if any messages contain images
-		const hasImageContent = multimodal || messages.some((msg: any) =>
-			msg.imageId || msg.imageData || msg.imageIds || msg.images ||
-			(msg.role === 'user' && msg.type === 'image')
-		);
-
-		// Use multimodal chat for image-enabled requests
-		if (hasImageContent && provider.chatMultimodal) {
-			console.log('🔀 [API /chat] Using multimodal chat path');
-			console.log('  - Provider:', provider.name);
-			console.log('  - Model:', model);
-			console.log('  - userId:', userId);
-			console.log('  - chatId:', chatId);
-			console.log('  - Messages with images:', messages.filter((m: any) => m.imageId || m.imageData || m.imageIds || m.images).length);
-
-			try {
-				const response = await provider.chatMultimodal({
-					model,
-					messages: messages as AIMessage[],
+		// Phase 3 Integration: Route to QAMUZ_PROD Maestro Engine if enabled
+		if (settings.qamuz_prod_enabled === 'true') {
+			console.log('🚀 [API /chat] Intercepting for QAMUZ_PROD Maestro Engine');
+			const qamuzApiUrl = settings.qamuz_prod_api_url || 'http://localhost:8000';
+			const qamuzRes = await fetch(`${qamuzApiUrl}/v1/infer`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					capability: 'qamuz-chat',
+					messages: messages,
 					maxTokens,
-					temperature,
-					userId,
-					chatId,
-					toolNames: toolNames.length > 0 ? toolNames : undefined,
-					maxSteps
-				});
+					temperature
+				})
+			});
 
-				// Track usage for successful multimodal request
-				if (userId) {
-					UsageTrackingService.trackUsage(userId, 'text').catch(console.error);
-				}
-
-				return json(response);
-			} catch (error) {
-				console.error('Multimodal chat error:', error);
-				return json(
-					{ error: error instanceof Error ? error.message : 'Multimodal chat failed' },
-					{ status: 500 }
-				);
+			if (!qamuzRes.ok) {
+				const errText = await qamuzRes.text().catch(() => 'Unknown error');
+				throw new Error(`QAMUZ_PROD error (${qamuzRes.status}): ${errText}`);
 			}
+			
+			const qamuzData = await qamuzRes.json();
+			const responseText = qamuzData.response || qamuzData.content || "";
+			
+			if (stream) {
+				// Mock an AsyncIterableIterator for the streaming format expected below
+				response = (async function* () {
+					yield { content: responseText, done: false };
+					yield { content: "", done: true };
+				})();
+			} else {
+				response = {
+					content: responseText,
+					model: "qamuz-chat"
+				};
+			}
+			usingQamuzProd = true;
 		}
 
-		// Check if this is a video generation request
-		if (modelConfig?.supportsVideoGeneration && provider.generateVideo) {
-			// Extract the prompt from the last user message
-			const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
-			if (!lastUserMessage) {
-				return json({ error: 'No user message found for video generation' }, { status: 400 });
+		if (!usingQamuzProd) {
+			const provider = getChatModelProvider(model);
+			if (!provider) {
+				return json({ error: `No provider found for model: ${model}` }, { status: 400 });
 			}
 
-			// Extract imageUrl from last user message (for i2v models)
-			let imageUrl: string | undefined;
-			if (lastUserMessage.imageId) {
-				// Single image (backwards compatibility)
-				imageUrl = `/api/images/${lastUserMessage.imageId}`;
-			} else if (lastUserMessage.imageIds && lastUserMessage.imageIds.length > 0) {
-				// Multiple images: use first image
-				imageUrl = `/api/images/${lastUserMessage.imageIds[0]}`;
-			} else if (lastUserMessage.images && lastUserMessage.images.length > 0) {
-				// Images array: use first image with imageId
-				const firstImage = lastUserMessage.images[0];
-				if (firstImage.imageId) {
-					imageUrl = `/api/images/${firstImage.imageId}`;
+			// Find the model configuration to check its capabilities
+			const modelConfig = provider.models.find(m => m.name === model);
+
+			// Tool handling (AI SDK v6): use tool names directly
+			let toolNames: string[] = [];
+			if (selectedTool) {
+				toolNames = [selectedTool];
+				console.log(`Using selected tool: ${selectedTool}`);
+			}
+
+			// Check if model supports functions when tools are requested
+			if (toolNames.length > 0 && !modelConfig?.supportsFunctions) {
+				console.warn(`Model ${model} does not support functions, tools will be ignored`);
+				toolNames = [];
+			}
+
+			// Check if this is a multimodal request or if any messages contain images
+			const hasImageContent = multimodal || messages.some((msg: any) =>
+				msg.imageId || msg.imageData || msg.imageIds || msg.images ||
+				(msg.role === 'user' && msg.type === 'image')
+			);
+
+			// Use multimodal chat for image-enabled requests
+			if (hasImageContent && provider.chatMultimodal) {
+				console.log('🔀 [API /chat] Using multimodal chat path');
+				console.log('  - Provider:', provider.name);
+				console.log('  - Model:', model);
+				console.log('  - userId:', userId);
+				console.log('  - chatId:', chatId);
+				console.log('  - Messages with images:', messages.filter((m: any) => m.imageId || m.imageData || m.imageIds || m.images).length);
+
+				try {
+					const response = await provider.chatMultimodal({
+						model,
+						messages: messages as AIMessage[],
+						maxTokens,
+						temperature,
+						userId,
+						chatId,
+						toolNames: toolNames.length > 0 ? toolNames : undefined,
+						maxSteps
+					});
+
+					// Track usage for successful multimodal request
+					if (userId) {
+						UsageTrackingService.trackUsage(userId, 'text').catch(console.error);
+					}
+
+					return json(response);
+				} catch (error) {
+					console.error('Multimodal chat error:', error);
+					return json(
+						{ error: error instanceof Error ? error.message : 'Multimodal chat failed' },
+						{ status: 500 }
+					);
 				}
 			}
 
-			try {
-				const videoResponse = await provider.generateVideo({
-					model,
-					prompt: lastUserMessage.content,
-					userId,
-					chatId,
-					imageUrl
-				});
-
-				// Track usage for successful video generation
-				if (userId) {
-					UsageTrackingService.trackUsage(userId, 'video').catch(console.error);
+			// Check if this is a video generation request
+			if (modelConfig?.supportsVideoGeneration && provider.generateVideo) {
+				// Extract the prompt from the last user message
+				const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
+				if (!lastUserMessage) {
+					return json({ error: 'No user message found for video generation' }, { status: 400 });
 				}
 
-				return json(videoResponse);
-			} catch (error) {
-				console.error('Video generation error:', error);
-				return json(
-					{ error: error instanceof Error ? error.message : 'Video generation failed' },
-					{ status: 500 }
-				);
+				// Extract imageUrl from last user message (for i2v models)
+				let imageUrl: string | undefined;
+				if (lastUserMessage.imageId) {
+					// Single image (backwards compatibility)
+					imageUrl = `/api/images/${lastUserMessage.imageId}`;
+				} else if (lastUserMessage.imageIds && lastUserMessage.imageIds.length > 0) {
+					// Multiple images: use first image
+					imageUrl = `/api/images/${lastUserMessage.imageIds[0]}`;
+				} else if (lastUserMessage.images && lastUserMessage.images.length > 0) {
+					// Images array: use first image with imageId
+					const firstImage = lastUserMessage.images[0];
+					if (firstImage.imageId) {
+						imageUrl = `/api/images/${firstImage.imageId}`;
+					}
+				}
+
+				try {
+					const videoResponse = await provider.generateVideo({
+						model,
+						prompt: lastUserMessage.content,
+						userId,
+						chatId,
+						imageUrl
+					});
+
+					// Track usage for successful video generation
+					if (userId) {
+						UsageTrackingService.trackUsage(userId, 'video').catch(console.error);
+					}
+
+					return json(videoResponse);
+				} catch (error) {
+					console.error('Video generation error:', error);
+					return json(
+						{ error: error instanceof Error ? error.message : 'Video generation failed' },
+						{ status: 500 }
+					);
+				}
 			}
+
+			response = await provider.chat({
+				model,
+				messages: messages as AIMessage[],
+				maxTokens,
+				temperature,
+				stream,
+				userId,
+				chatId,
+				toolNames: toolNames.length > 0 ? toolNames : undefined,
+				maxSteps
+			});
 		}
-
-		const response = await provider.chat({
-			model,
-			messages: messages as AIMessage[],
-			maxTokens,
-			temperature,
-			stream,
-			userId,
-			chatId,
-			toolNames: toolNames.length > 0 ? toolNames : undefined,
-			maxSteps
-		});
 
 		if (stream) {
 			// Handle streaming response

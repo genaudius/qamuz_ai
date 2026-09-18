@@ -8,7 +8,11 @@ export const GUEST_ALLOWED_MODELS = [
     "openai/gpt-oss-120b:free",
     "nvidia/nemotron-3-nano-30b-a3b:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "stepfun/step-3.5-flash:free"
+    "stepfun/step-3.5-flash:free",
+    "qamuz-chat",
+    "qamuz-image-flux",
+    "qamuz-image-art",
+    "qamuz-video-svd"
 ];
 
 // Helper function to check if a model is allowed for guests

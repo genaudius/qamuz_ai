@@ -1,6 +1,19 @@
 import type { AIProvider, AIResponse, AIStreamChunk, ChatCompletionParams } from '../types.js';
 
-const BASE_URL = 'http://127.0.0.1:11434';
+import { dev } from '$app/environment';
+
+// Helper to get Ollama API URL
+async function getBaseUrl(): Promise<string> {
+	if (typeof window !== 'undefined') return 'http://127.0.0.1:11434';
+	
+	try {
+		const { env } = await import('$env/dynamic/private');
+		return env.OLLAMA_API_URL || 'http://127.0.0.1:11434';
+	} catch {
+		return 'http://127.0.0.1:11434';
+	}
+}
+
 const LOCAL_MODEL = 'nemotron-3-nano:30b';
 export const LOCAL_CHAT_MODEL_ID = 'nvidia/nemotron-3-nano-30b-a3b:free';
 
@@ -13,8 +26,18 @@ type OllamaChunk = {
 };
 
 function requestBody(params: ChatCompletionParams, stream: boolean) {
+	// Extract the actual Ollama model name. 
+	// E.g. 'ollama/llama3' -> 'llama3'
+	// Fallback to nemotron if it's the old LOCAL_CHAT_MODEL_ID
+	let actualModel = params.model;
+	if (actualModel === LOCAL_CHAT_MODEL_ID) {
+		actualModel = 'nemotron-3-nano:30b';
+	} else if (actualModel.startsWith('ollama/')) {
+		actualModel = actualModel.slice(7);
+	}
+
 	return {
-		model: LOCAL_MODEL,
+		model: actualModel,
 		messages: params.messages
 			.filter((message) => message.role !== 'tool')
 			.map((message) => ({ role: message.role, content: message.content || '' })),
@@ -32,6 +55,29 @@ function requestBody(params: ChatCompletionParams, stream: boolean) {
 	};
 }
 
+export async function fetchOllamaModels(): Promise<import('../types.js').AIModelConfig[]> {
+	try {
+		const baseUrl = await getBaseUrl();
+		const res = await fetch(`${baseUrl}/api/tags`);
+		if (!res.ok) return [];
+		const data = await res.json();
+		
+		return data.models.map((m: any) => ({
+			name: `ollama/${m.name}`,
+			displayName: `Ollama: ${m.name}`,
+			provider: 'local',
+			maxTokens: 32768,
+			supportsStreaming: true,
+			supportsFunctions: false,
+			supportsTextInput: true,
+			supportsTextGeneration: true
+		}));
+	} catch (e) {
+		// Ollama is probably not running
+		return [];
+	}
+}
+
 async function ensureResponse(response: Response): Promise<Response> {
 	if (response.ok) return response;
 	const detail = await response.text().catch(() => '');
@@ -39,7 +85,8 @@ async function ensureResponse(response: Response): Promise<Response> {
 }
 
 async function* streamChat(params: ChatCompletionParams): AsyncIterableIterator<AIStreamChunk> {
-	const response = await ensureResponse(await fetch(`${BASE_URL}/api/chat`, {
+	const baseUrl = await getBaseUrl();
+	const response = await ensureResponse(await fetch(`${baseUrl}/api/chat`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(requestBody(params, true)),
@@ -90,7 +137,8 @@ export const localOllamaProvider: AIProvider = {
 	}],
 	async chat(params: ChatCompletionParams): Promise<AIResponse | AsyncIterableIterator<AIStreamChunk>> {
 		if (params.stream) return streamChat(params);
-		const response = await ensureResponse(await fetch(`${BASE_URL}/api/chat`, {
+		const baseUrl = await getBaseUrl();
+		const response = await ensureResponse(await fetch(`${baseUrl}/api/chat`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(requestBody(params, false)),

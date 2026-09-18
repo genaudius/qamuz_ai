@@ -121,9 +121,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (localImageEnabled && stream) {
 			return json({ error: 'Streaming previews are not available in local image mode' }, { status: 400 });
 		}
-		const response = localImageEnabled
-			? await generateLocalImage(params)
-			: await provider.generateImage(params);
+		
+		const response: any = await provider.generateImage(params);
 
 		// Handle streaming response
 		if (stream && Symbol.asyncIterator in response) {

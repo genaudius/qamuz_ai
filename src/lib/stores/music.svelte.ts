@@ -171,6 +171,12 @@ export class GlobalMusicState {
             await tryPlay();
         }
     }
+
+    /** Explicitly pause playback (e.g. karaoke preview limit) without toggling. */
+    pauseTrack() {
+        this.audioElement?.pause();
+        this.isPlaying = false;
+    }
     
     toggleExpanded() {
         if (!this.currentTrack) return;

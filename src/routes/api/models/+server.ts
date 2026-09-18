@@ -15,7 +15,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			console.warn('Architecture enrichment timed out, returning basic models');
 		}
 
-		const allModels = getAllModels();
+		let allModels = getAllModels();
+		
+		// Add dynamically fetched Ollama models
+		const { fetchOllamaModels } = await import('$lib/ai/providers/local-ollama.js');
+		const ollamaModels = await fetchOllamaModels();
+		allModels = [...allModels, ...ollamaModels];
+		
+		const settings = await import('$lib/server/admin-settings.js').then(m => m.getAIModelSettings());
+		
+		// Filter out QAMUZ models if the Maestro Engine is not enabled
+		if (settings.qamuz_prod_enabled !== 'true') {
+			allModels = allModels.filter(m => m.provider !== 'qamuz');
+		}
 
 		// Filter models based on type query parameter
 		// - type=image: only image generation models
