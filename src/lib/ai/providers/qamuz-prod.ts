@@ -29,16 +29,16 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 	},
 	// --- VISON: FLUX FAMILY ---
 	{
-		name: 'black-forest-labs/FLUX.1-schnell',
-		displayName: 'FLUX.1 Schnell (Fast)',
+		name: 'qamuz-vision-fast',
+		displayName: 'QAMUZ Vision Fast',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'black-forest-labs/FLUX.1-dev',
-		displayName: 'FLUX.1 Dev (High Quality)',
+		name: 'qamuz-vision-pro',
+		displayName: 'QAMUZ Vision Pro',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
@@ -46,32 +46,32 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 	},
 	// --- VISION: STABLE DIFFUSION FAMILY ---
 	{
-		name: 'stabilityai/stable-diffusion-xl-base-1.0',
-		displayName: 'SDXL 1.0 Base',
+		name: 'qamuz-vision-art',
+		displayName: 'QAMUZ Vision Art',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'stabilityai/stable-diffusion-3-medium-diffusers',
-		displayName: 'Stable Diffusion 3 Medium',
+		name: 'qamuz-vision-v3',
+		displayName: 'QAMUZ Vision v3',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'runwayml/stable-diffusion-v1-5',
-		displayName: 'Stable Diffusion 1.5',
+		name: 'qamuz-vision-classic',
+		displayName: 'QAMUZ Vision Classic',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'stabilityai/stable-diffusion-2-1',
-		displayName: 'Stable Diffusion 2.1',
+		name: 'qamuz-vision-v2',
+		displayName: 'QAMUZ Vision v2',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
@@ -79,40 +79,40 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 	},
 	// --- VISION: OTHER OPEN SOURCE ARCHITECTURES ---
 	{
-		name: 'playgroundai/playground-v2.5-1024px-aesthetic',
-		displayName: 'Playground v2.5 Aesthetic',
+		name: 'qamuz-vision-play',
+		displayName: 'QAMUZ Vision Play',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'PixArt-alpha/PixArt-Sigma-XL-2-1024-MS',
-		displayName: 'PixArt-Sigma (Photorealism)',
+		name: 'qamuz-vision-photo',
+		displayName: 'QAMUZ Vision Photo',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers',
-		displayName: 'Hunyuan DiT 1.2',
+		name: 'qamuz-vision-fusion',
+		displayName: 'QAMUZ Vision Fusion',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'kandinsky-community/kandinsky-2-2-decoder',
-		displayName: 'Kandinsky 2.2',
+		name: 'qamuz-vision-k',
+		displayName: 'QAMUZ Vision K',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'segmind/SSD-1B',
-		displayName: 'SSD-1B (Fast SDXL)',
+		name: 'qamuz-vision-speed',
+		displayName: 'QAMUZ Vision Speed',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
@@ -120,16 +120,16 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 	},
 	// --- VISION: ANIME/STYLIZED ---
 	{
-		name: 'Linaqruf/animagine-xl-2.0',
-		displayName: 'Animagine XL 2.0 (Anime)',
+		name: 'qamuz-vision-anime',
+		displayName: 'QAMUZ Vision Anime',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
 	},
 	{
-		name: 'prompthero/openjourney',
-		displayName: 'OpenJourney (Midjourney Style)',
+		name: 'qamuz-vision-journey',
+		displayName: 'QAMUZ Vision Journey',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
@@ -137,8 +137,8 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 	},
 	// --- VIDEO GENERATION ---
 	{
-		name: 'stabilityai/stable-video-diffusion-img2vid-xt',
-		displayName: 'Stable Video Diffusion (XT)',
+		name: 'qamuz-video-xt',
+		displayName: 'QAMUZ Video Motion XT',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
@@ -146,8 +146,8 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 		supportsVideoGeneration: true,
 	},
 	{
-		name: 'stabilityai/stable-video-diffusion-img2vid',
-		displayName: 'Stable Video Diffusion (Base)',
+		name: 'qamuz-video-base',
+		displayName: 'QAMUZ Video Motion Base',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
@@ -156,12 +156,21 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 	},
 	// --- LEGACY ALIASES (Para compatibilidad con UI antigua) ---
 	{
-		name: 'qamuz-image-art',
-		displayName: 'QAMUZ Vision Art (Legacy)',
+		name: 'qamuz-image-flux',
+		displayName: 'QAMUZ Vision Fast (Legacy)',
 		provider: 'qamuz',
 		maxTokens: 0,
 		supportsTextInput: true,
 		supportsImageGeneration: true,
+	},
+	{
+		name: 'qamuz-video-svd',
+		displayName: 'QAMUZ Video Motion (Legacy)',
+		provider: 'qamuz',
+		maxTokens: 0,
+		supportsTextInput: true,
+		supportsImageGeneration: false,
+		supportsVideoGeneration: true,
 	}
 ].map(m => ({
 	...m,
@@ -172,6 +181,27 @@ export const QAMUZ_MODELS: AIModelConfig[] = [
 	supportsVideoGeneration: m.supportsVideoGeneration || false,
 	supportsAudioGeneration: m.supportsAudioGeneration || false
 }));
+
+export const QAMUZ_REAL_MODELS: Record<string, string> = {
+	'qamuz-vision-fast': 'black-forest-labs/FLUX.1-schnell',
+	'qamuz-image-flux': 'black-forest-labs/FLUX.1-schnell', // legacy
+	'qamuz-vision-pro': 'black-forest-labs/FLUX.1-dev',
+	'qamuz-vision-art': 'stabilityai/stable-diffusion-xl-base-1.0',
+	'qamuz-image-art': 'stabilityai/stable-diffusion-xl-base-1.0', // legacy
+	'qamuz-vision-v3': 'stabilityai/stable-diffusion-3-medium-diffusers',
+	'qamuz-vision-classic': 'runwayml/stable-diffusion-v1-5',
+	'qamuz-vision-v2': 'stabilityai/stable-diffusion-2-1',
+	'qamuz-vision-play': 'playgroundai/playground-v2.5-1024px-aesthetic',
+	'qamuz-vision-photo': 'PixArt-alpha/PixArt-Sigma-XL-2-1024-MS',
+	'qamuz-vision-fusion': 'Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers',
+	'qamuz-vision-k': 'kandinsky-community/kandinsky-2-2-decoder',
+	'qamuz-vision-speed': 'segmind/SSD-1B',
+	'qamuz-vision-anime': 'Linaqruf/animagine-xl-2.0',
+	'qamuz-vision-journey': 'prompthero/openjourney',
+	'qamuz-video-xt': 'stabilityai/stable-video-diffusion-img2vid-xt',
+	'qamuz-video-base': 'stabilityai/stable-video-diffusion-img2vid',
+	'qamuz-video-svd': 'stabilityai/stable-video-diffusion-img2vid-xt', // legacy
+};
 
 // Helper to get QAMUZ API URL
 async function getApiUrl(): Promise<string> {
@@ -237,6 +267,8 @@ export const qamuzProdProvider: AIProvider = {
 	async generateImage(params: ImageGenerationParams): Promise<AIImageResponse> {
 		try {
 			const apiUrl = await getApiUrl();
+			const realModelId = QAMUZ_REAL_MODELS[params.model] || params.model;
+			
 			const response = await fetch(`${apiUrl}/v1/infer`, {
 				method: 'POST',
 				headers: {
@@ -244,7 +276,7 @@ export const qamuzProdProvider: AIProvider = {
 				},
 				body: JSON.stringify({
 					capability: 'qamuz-image',
-					model_id: params.model,
+					model_id: realModelId,
 					prompt: params.prompt
 				})
 			});
@@ -287,6 +319,8 @@ export const qamuzProdProvider: AIProvider = {
 	async generateVideo(params: VideoGenerationParams): Promise<AIVideoResponse> {
 		try {
 			const apiUrl = await getApiUrl();
+			const realModelId = QAMUZ_REAL_MODELS[params.model] || params.model;
+			
 			const response = await fetch(`${apiUrl}/v1/infer`, {
 				method: 'POST',
 				headers: {
@@ -294,7 +328,7 @@ export const qamuzProdProvider: AIProvider = {
 				},
 				body: JSON.stringify({
 					capability: 'qamuz-video',
-					model_id: params.model,
+					model_id: realModelId,
 					prompt: params.prompt,
 					image_b64: params.imageUrl || ''
 				})

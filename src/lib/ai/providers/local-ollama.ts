@@ -64,7 +64,7 @@ export async function fetchOllamaModels(): Promise<import('../types.js').AIModel
 		
 		return data.models.map((m: any) => ({
 			name: `ollama/${m.name}`,
-			displayName: `Ollama: ${m.name}`,
+			displayName: `QAMUZ Local Core: ${m.name.split(':')[0]}`,
 			provider: 'local',
 			maxTokens: 32768,
 			supportsStreaming: true,
