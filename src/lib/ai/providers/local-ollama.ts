@@ -58,7 +58,15 @@ function requestBody(params: ChatCompletionParams, stream: boolean) {
 export async function fetchOllamaModels(): Promise<import('../types.js').AIModelConfig[]> {
 	try {
 		const baseUrl = await getBaseUrl();
-		const res = await fetch(`${baseUrl}/api/tags`);
+		let headers: Record<string, string> = {};
+		try {
+			const { env } = await import('$env/dynamic/private');
+			if (env.QAMUZ_SERVICE_TOKEN) {
+				headers['Authorization'] = `Bearer ${env.QAMUZ_SERVICE_TOKEN}`;
+			}
+		} catch {}
+
+		const res = await fetch(`${baseUrl}/api/tags`, { headers });
 		if (!res.ok) return [];
 		const data = await res.json();
 		
@@ -86,9 +94,17 @@ async function ensureResponse(response: Response): Promise<Response> {
 
 async function* streamChat(params: ChatCompletionParams): AsyncIterableIterator<AIStreamChunk> {
 	const baseUrl = await getBaseUrl();
+	let headers: Record<string, string> = { 'Content-Type': 'application/json' };
+	try {
+		const { env } = await import('$env/dynamic/private');
+		if (env.QAMUZ_SERVICE_TOKEN) {
+			headers['Authorization'] = `Bearer ${env.QAMUZ_SERVICE_TOKEN}`;
+		}
+	} catch {}
+
 	const response = await ensureResponse(await fetch(`${baseUrl}/api/chat`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers,
 		body: JSON.stringify(requestBody(params, true)),
 		signal: AbortSignal.timeout(30 * 60_000)
 	}));
@@ -129,9 +145,17 @@ export const localOllamaProvider: AIProvider = {
 	async chat(params: ChatCompletionParams): Promise<AIResponse | AsyncIterableIterator<AIStreamChunk>> {
 		if (params.stream) return streamChat(params);
 		const baseUrl = await getBaseUrl();
+		let headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		try {
+			const { env } = await import('$env/dynamic/private');
+			if (env.QAMUZ_SERVICE_TOKEN) {
+				headers['Authorization'] = `Bearer ${env.QAMUZ_SERVICE_TOKEN}`;
+			}
+		} catch {}
+
 		const response = await ensureResponse(await fetch(`${baseUrl}/api/chat`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers,
 			body: JSON.stringify(requestBody(params, false)),
 			signal: AbortSignal.timeout(30 * 60_000)
 		}));
