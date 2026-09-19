@@ -215,52 +215,113 @@ export const qamuzProdProvider: AIProvider = {
 
 	async chat({ model, messages, maxTokens = 1024, temperature = 0.7, stream = false }) {
 		try {
-			const apiUrl = await getApiUrl();
-			const response = await fetch(`${apiUrl}/v1/infer`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					capability: 'qamuz-chat',
-					model_id: model,
-					messages,
-					maxTokens,
-					temperature
-				})
+			const { env } = await import('$env/dynamic/private');
+			const { createOpenAI } = await import('@ai-sdk/openai');
+			const { streamText, generateText } = await import('ai');
+
+			// Each cloud provider can require a different credential. Prefer the
+			// dedicated RunPod configuration and retain the shared legacy list for
+			// Modal, Crusoe, and local development.
+			const inferenceTargets: Array<{ baseURL: string; apiKey: string }> = [];
+			const runpodEndpoint = env.QAMUZ_RUNPOD_ENDPOINT?.trim();
+			const runpodApiKey = env.QAMUZ_RUNPOD_API_KEY?.trim();
+
+			if (runpodEndpoint && runpodApiKey) {
+				inferenceTargets.push({
+					baseURL: runpodEndpoint.replace(/\/$/, ''),
+					apiKey: runpodApiKey
+				});
+			}
+
+			const sharedApiKey = env.QAMUZ_VLLM_API_KEY?.trim() || 'empty';
+			const legacyEndpoints = (env.QAMUZ_VLLM_ENDPOINTS || 'http://localhost:8000/v1')
+				.split(',')
+				.map((endpoint) => endpoint.trim().replace(/\/$/, ''))
+				.filter((endpoint) => endpoint && !endpoint.includes('your-'));
+
+			for (const baseURL of legacyEndpoints) {
+				if (!inferenceTargets.some((target) => target.baseURL === baseURL)) {
+					inferenceTargets.push({ baseURL, apiKey: sharedApiKey });
+				}
+			}
+
+			if (inferenceTargets.length === 0) {
+				throw new Error('No QAMUZ vLLM inference endpoints are configured');
+			}
+
+			const selectedTarget = inferenceTargets[Math.floor(Math.random() * inferenceTargets.length)];
+
+			const vllm = createOpenAI({
+				baseURL: selectedTarget.baseURL,
+				apiKey: selectedTarget.apiKey,
 			});
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`QAMUZ API Error ${response.status}: ${errorText}`);
-			}
-
-			const data = await response.json();
+			// Note: We pass the literal `model` (e.g. 'qamuz-chat')
+			// vLLM instances MUST be started with `--served-model-name qamuz-chat`
 
 			if (stream) {
-				// QAMUZ currently returns non-streaming JSON, wrap it in an async iterator for compatibility
-				async function* streamResponse() {
-					yield {
-						content: data.result || '',
-						done: true,
-						type: 'text'
-					} as AIStreamChunk;
+				const result = await streamText({
+					model: vllm(model) as any,
+					messages: messages as any,
+					maxOutputTokens: maxTokens,
+					temperature,
+				});
+
+				async function* createAISDKStreamIterator(): AsyncIterableIterator<AIStreamChunk> {
+					try {
+						for await (const part of result.fullStream) {
+							switch (part.type) {
+								case 'text-delta':
+									yield {
+										content: part.text,
+										done: false,
+										type: 'text'
+									};
+									break;
+								case 'finish':
+									yield {
+										content: '',
+										done: true,
+										type: 'finish',
+										finishReason: part.finishReason as any,
+									};
+									break;
+								case 'error':
+									throw new Error(part.error?.toString() || 'Unknown streaming error');
+							}
+						}
+					} catch (error) {
+						throw new Error(`vLLM streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+					}
 				}
-				return streamResponse();
+
+				return createAISDKStreamIterator();
 			}
 
+			const result = await generateText({
+				model: vllm(model) as any,
+				messages: messages as any,
+				maxOutputTokens: maxTokens,
+				temperature,
+			});
+
+			const promptTokens = result.usage.inputTokens ?? 0;
+			const completionTokens = result.usage.outputTokens ?? 0;
+
 			return {
-				content: data.result || '',
+				content: result.text || '',
 				model,
 				usage: {
-					promptTokens: 0,
-					completionTokens: 0,
-					totalTokens: 0
-				}
+					promptTokens,
+					completionTokens,
+					totalTokens: result.usage.totalTokens ?? promptTokens + completionTokens
+				},
+				finishReason: result.finishReason as any
 			};
+
 		} catch (error) {
-			console.error('QAMUZ chat API error:', error);
-			throw createProviderError('QAMUZ Maestro', error);
+			console.error('vLLM API Error:', error);
+			throw new Error(`vLLM API Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
 		}
 	},
 
